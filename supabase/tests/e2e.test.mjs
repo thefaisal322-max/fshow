@@ -147,11 +147,11 @@ test('app can only change bio/photo of own profile', async () => {
   // username
   const bad = await rest(a.access_token, 'POST', '/rest/v1/rpc/claim_username', { p_username: '.bad' });
   assert.ok(bad.status >= 400 && JSON.stringify(bad.body).includes('username-invalid'));
-  const ok = await rest(a.access_token, 'POST', '/rest/v1/rpc/claim_username', { p_username: 'faisal.khan', p_bio: 'bio' });
+  const ok = await rest(a.access_token, 'POST', '/rest/v1/rpc/claim_username', { p_username: 'faisal.e2e', p_bio: 'bio' });
   assert.equal(ok.status, 200, JSON.stringify(ok.body));
-  assert.equal(ok.body.username, 'faisal.khan');
+  assert.equal(ok.body.username, 'faisal.e2e');
   assert.equal(ok.body.profile_complete, true);
-  const taken = await rest(b.access_token, 'POST', '/rest/v1/rpc/claim_username', { p_username: 'faisal.khan' });
+  const taken = await rest(b.access_token, 'POST', '/rest/v1/rpc/claim_username', { p_username: 'faisal.e2e' });
   assert.ok(taken.status >= 400 && JSON.stringify(taken.body).includes('username-taken'));
 });
 
