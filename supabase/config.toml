@@ -11,12 +11,6 @@ max_rows = 1000
 port = 54322
 major_version = 17
 
-[studio]
-enabled = false
-
-[inbucket]
-enabled = false
-
 [realtime]
 enabled = true
 
