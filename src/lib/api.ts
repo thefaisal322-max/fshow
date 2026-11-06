@@ -33,7 +33,7 @@ export class ApiError extends Error {
 }
 
 /** Calls an Edge Function (supabase/functions/<name>) and turns its errors into ApiError. */
-async function callFn<T = { ok: boolean }>(name: string, body: unknown): Promise<T> {
+async function callFn<T = { ok: boolean }>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (!error) return data as T;
   if (error instanceof FunctionsHttpError) {
