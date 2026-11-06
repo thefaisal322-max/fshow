@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Faisal Show",
+    "slug": "fshow",
+    "scheme": "fshow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "org.fainet.fshow"
+    },
+    "ios": {
+      "bundleIdentifier": "org.fainet.fshow"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Faisal Show needs your photos so you can choose a profile picture."
+        }
+      ]
+    ]
+  }
+}

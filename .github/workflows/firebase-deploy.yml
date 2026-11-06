@@ -1,0 +1,49 @@
+name: Deploy Firebase
+
+# Deploys Cloud Functions + Firestore/Storage rules without needing a computer.
+# Run manually: Actions → "Deploy Firebase" → Run workflow.
+#
+# Needs these repository secrets (Settings → Secrets and variables → Actions):
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account with the "Editor" role
+#   FIREBASE_PROJECT_ID       e.g. fshow-12345
+#   RESEND_API_KEY            from resend.com → API Keys
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install function dependencies
+        working-directory: firebase/functions
+        run: npm install
+
+      - name: Write credentials
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
+      - name: Store Resend key as a Firebase secret
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          printf '%s' "$RESEND_API_KEY" | npx -y firebase-tools@latest functions:secrets:set RESEND_API_KEY \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" --data-file - --non-interactive --force
+
+      - name: Deploy
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: |
+          npx -y firebase-tools@latest deploy --only functions,firestore,storage \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" --non-interactive --force
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

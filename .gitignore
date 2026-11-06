@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.apk
+*.aab
+.env
+.env.*
+firebase/functions/lib/
+firebase-debug.log
+.firebase/
+service-account*.json
