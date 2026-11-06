@@ -8,7 +8,6 @@ ios/
 *.aab
 .env
 .env.*
-firebase/functions/lib/
-firebase-debug.log
-.firebase/
-service-account*.json
+!.env.example
+server/dist/
+server/media/

@@ -1,7 +1,5 @@
 import type { Purpose } from './codes';
 
-export const EMAIL_FROM = 'Faisal Show <no-reply@fainet.org>';
-
 function template(code: string, purpose: Purpose): { subject: string; html: string; text: string } {
   const heading = purpose === 'signup' ? 'Faisal Show ته ښه راغلاست' : 'د پاسورډ بدلول';
   const line =
@@ -23,16 +21,31 @@ function template(code: string, purpose: Purpose): { subject: string; html: stri
   return { subject, html, text };
 }
 
-/** Sends the code with Resend (https://resend.com/docs/api-reference/emails/send-email). */
-export async function sendCodeEmail(apiKey: string, to: string, code: string, purpose: Purpose): Promise<void> {
+export type SentEmail = { to: string; code: string; purpose: Purpose };
+
+/** Emails "sent" with the memory transport (used by tests). */
+export const outbox: SentEmail[] = [];
+
+export type EmailConfig = { emailTransport: 'resend' | 'memory' | 'log'; resendApiKey: string; emailFrom: string };
+
+/** Sends a code email with Resend (https://resend.com/docs/api-reference/emails/send-email). */
+export async function sendCodeEmail(cfg: EmailConfig, to: string, code: string, purpose: Purpose): Promise<void> {
+  if (cfg.emailTransport === 'memory') {
+    outbox.push({ to, code, purpose });
+    return;
+  }
+  if (cfg.emailTransport === 'log') {
+    console.log(`[email] ${purpose} code for ${to}: ${code}`);
+    return;
+  }
   const { subject, html, text } = template(code, purpose);
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${cfg.resendApiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html, text }),
+    body: JSON.stringify({ from: cfg.emailFrom, to: [to], subject, html, text }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');

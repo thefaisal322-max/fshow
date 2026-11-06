@@ -1,4 +1,4 @@
-import * as crypto from 'crypto';
+import crypto from 'node:crypto';
 
 import { CODE_LENGTH } from './validation';
 

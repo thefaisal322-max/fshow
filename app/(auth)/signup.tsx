@@ -1,12 +1,11 @@
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { CodeStep, useResendTimer } from '@/components/CodeStep';
 import { Button, Choice, ErrorBox, Field, FormScreen, Label, Steps, Title } from '@/components/ui';
-import { api, errorMessage, Gender } from '@/lib/api';
-import { auth } from '@/lib/firebase';
+import { api, ApiError, errorMessage, Gender } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import {
   ageFrom,
   buildBirthday,
@@ -27,6 +26,7 @@ import {
  */
 export default function Signup() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -68,8 +68,8 @@ export default function Signup() {
       await api.sendCode(cleanEmail, 'signup');
       timer.restart();
       if (!isResend) setStep(3);
-    } catch (e: any) {
-      if (e?.details?.reason === 'resend-wait') {
+    } catch (e) {
+      if (e instanceof ApiError && e.reason === 'resend-wait') {
         timer.restart(e.details.wait);
         if (!isResend) setStep(3); // a code was already sent recently — let them use it
       } else {
@@ -97,7 +97,7 @@ export default function Signup() {
     setError(null);
     setBusy(true);
     try {
-      await api.verifySignup({
+      const result = await api.signup({
         email: cleanEmail,
         code,
         password,
@@ -106,7 +106,7 @@ export default function Signup() {
         gender: gender!,
         birthday: birthday!,
       });
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      await signIn(result);
       // Gate now redirects to /photo
     } catch (e) {
       setError(errorMessage(e));

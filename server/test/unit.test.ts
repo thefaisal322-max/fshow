@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { canSend, checkCode, CodeDoc, generateCode, hashCode, MAX_ATTEMPTS, newSalt } from './codes';
-import { ageFrom, cleanName, isStrongPassword, isValidBirthday, isValidUsername } from './validation';
+import { canSend, checkCode, CodeDoc, generateCode, hashCode, MAX_ATTEMPTS, newSalt } from '../src/codes';
+import { ageFrom, cleanName, isStrongPassword, isValidBirthday, isValidUsername } from '../src/validation';
 
 function makeDoc(code: string, over: Partial<CodeDoc> = {}): CodeDoc {
   const salt = newSalt();
@@ -53,4 +53,14 @@ test('validation', () => {
   assert.equal(isValidUsername('.faisal'), false);
   assert.equal(isValidUsername('admin'), false);
   assert.equal(isValidUsername('Faisal'), false);
+});
+
+test('password hashing', async () => {
+  const { hashPassword, verifyPassword } = await import('../src/passwords');
+  const h = await hashPassword('fai123@afg');
+  assert.match(h, /^scrypt\$32768\$8\$1\$/);
+  assert.equal(await verifyPassword('fai123@afg', h), true);
+  assert.equal(await verifyPassword('fai123@afh', h), false);
+  assert.equal(await verifyPassword('fai123@afg', 'garbage'), false);
+  assert.notEqual(await hashPassword('fai123@afg'), h); // salted
 });
