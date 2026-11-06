@@ -28,7 +28,7 @@ jobs:
         run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Database migrations
-        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --linked --include-all --yes
 
       - name: Resend key
         env:
