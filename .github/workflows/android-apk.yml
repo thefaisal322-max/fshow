@@ -1,13 +1,16 @@
 name: Android APK
 
 # Builds an installable APK on every push to main.
-# Download it from: Actions → latest "Android APK" run → Artifacts → fshow-apk
+# Direct download: https://github.com/thefaisal322-max/fshow/releases/latest/download/fshow.apk
 
 on:
   push:
     branches: [main]
     paths-ignore: ['supabase/**', '**.md', 'docs/**', '.github/workflows/backend.yml', '.github/workflows/deploy-supabase.yml']
   workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -56,3 +59,13 @@ jobs:
           name: fshow-apk
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 14
+
+      # Direct download link (no login): https://github.com/<owner>/fshow/releases/latest/download/fshow.apk
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk fshow.apk
+          gh release create "build-${{ github.run_number }}" fshow.apk \
+            --title "Faisal Show build ${{ github.run_number }}" \
+            --notes "Commit ${{ github.sha }}" --latest
