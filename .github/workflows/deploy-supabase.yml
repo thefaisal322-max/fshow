@@ -33,7 +33,7 @@ jobs:
       - name: Resend key
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-        run: supabase secrets set "RESEND_API_KEY=$RESEND_API_KEY" --linked --yes
+        run: supabase secrets set "RESEND_API_KEY=$RESEND_API_KEY" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
 
       - name: Edge Functions
-        run: supabase functions deploy --linked --yes
+        run: supabase functions deploy --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
