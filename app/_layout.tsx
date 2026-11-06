@@ -14,7 +14,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
  *  - ready                → (tabs)  the app
  */
 function Gate() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const group = segments[0];
@@ -23,12 +23,12 @@ function Gate() {
     if (loading) return;
     if (!user) {
       if (group !== '(auth)') router.replace('/welcome');
-    } else if (!user.profileComplete) {
+    } else if (profile && !profile.profileComplete) {
       if (group !== '(setup)') router.replace('/photo');
-    } else if (group !== '(tabs)') {
+    } else if (profile && group !== '(tabs)') {
       router.replace('/');
     }
-  }, [user?.id, user?.profileComplete, loading, group]);
+  }, [user, profile?.profileComplete, loading, group]);
 
   return (
     <View style={{ flex: 1 }}>

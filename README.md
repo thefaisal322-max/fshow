@@ -1,82 +1,75 @@
 # Faisal Show
 
 ټولنیز اپ: پوسټونه، ریلز، چټ — Android او iPhone لپاره.
+**React Native (Expo) + Firebase + Resend**
 
-| برخه | ټیکنالوژي | ځای |
-|---|---|---|
-| اپ | React Native (Expo) | `app/`, `src/` |
-| سرور (API) | Node.js + Fastify | `server/` |
-| ډیټابېس | PostgreSQL 16 | `server/migrations/` |
-| ایمیل | Resend (`no-reply@fainet.org`) | `server/src/email.ts` |
-| HTTPS | Caddy (وړیا سرټیفیکیټ) | `deploy/` |
-
-هېڅ Google / Firebase نشته — ټول ډیټا ستاسو په خپل سرور کې ده.
 د پړاوونو نقشه: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ---
 
-## سرور پورته کول
+## د چلولو لارښود (یو ځل)
 
-یو Linux VPS (Ubuntu 22/24، لږ تر لږه 1 GB RAM) او یو ډومین (لکه `api.fainet.org`) ته اړتیا ده.
+### ۱. Firebase پروژه
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → نوم: `fshow`
+2. **Upgrade → Blaze plan** (Cloud Functions دې ته اړتیا لري. وړیا اندازه یې ډېره ده، خو کارت غواړي.)
+3. **Build → Authentication → Get started → Email/Password → Enable**
+4. **Build → Firestore Database → Create database** → Production mode
+5. **Build → Storage → Get started**
+6. **Project settings → General → Your apps → Web (</>)** → یو نوم ورکړئ → `firebaseConfig` کاپي کړئ
+   او په [`src/config/firebase.config.ts`](src/config/firebase.config.ts) کې یې ځای پر ځای کړئ.
 
-1. د ډومین **A record** د سرور IP ته واړوئ: `api.fainet.org → 1.2.3.4`
-2. په سرور کې:
-   ```bash
-   curl -fsSL https://get.docker.com | sh
-   git clone https://github.com/thefaisal322-max/fshow.git
-   cd fshow/deploy
-   cp .env.example .env
-   nano .env            # API_DOMAIN, POSTGRES_PASSWORD, RESEND_API_KEY
-   docker compose up -d --build
-   ```
-3. وګورئ: `https://api.fainet.org/health` باید `{"ok":true}` وښيي.
+### ۲. سرور (Functions) او امنیتي قواعد ځای پر ځای کول
+**له کمپیوټر پرته — د GitHub له لارې:**
+1. Firebase → Project settings → **Service accounts** → *Manage service account permissions* →
+   یو service account جوړ کړئ، رول یې **Editor** کړئ → **Keys → Add key → JSON**
+2. په GitHub کې: **Settings → Secrets and variables → Actions → New repository secret**:
+   - `FIREBASE_SERVICE_ACCOUNT` = د JSON فایل ټول متن
+   - `FIREBASE_PROJECT_ID` = ستاسو د پروژې ID (لکه `fshow-12345`)
+   - `RESEND_API_KEY` = له resend.com → API Keys
+3. **Actions → Deploy Firebase → Run workflow**
 
-Caddy پخپله HTTPS سرټیفیکیټ اخلي. ډیټابېس جدولونه پخپله جوړېږي.
-
-**تازه کول:** `git pull && docker compose up -d --build`
-**بیک‌اپ:** `docker compose exec db pg_dump -U fshow fshow > backup.sql`
-
-## APK
-
-1. په [`src/config/app.config.ts`](src/config/app.config.ts) کې د سرور پته (`API_URL`) ولیکئ —
-   یا په GitHub کې: **Settings → Secrets and variables → Actions → Variables → `API_URL`**
-2. هر ځل چې `main` ته کوډ ولېږل شي، GitHub پخپله APK جوړوي:
-   **Actions → Android APK → وروستی run → Artifacts → `fshow-apk`**
-
-## API
-
-| Method | Path | کار |
-|---|---|---|
-| POST | `/v1/auth/send-code` | `{email, purpose: signup\|reset}` → ایمیل ته ۵ عددي کوډ |
-| POST | `/v1/auth/signup` | `{email, code, password, firstName, lastName, gender, birthday}` → `{token, user}` |
-| POST | `/v1/auth/login` | `{email, password}` → `{token, user}` |
-| POST | `/v1/auth/reset` | `{email, code, newPassword}` → `{token, user}` (نور ټول وسایل باسي) |
-| POST | `/v1/auth/logout` | |
-| GET | `/v1/me` | |
-| PATCH | `/v1/me` | `{bio}` |
-| POST | `/v1/me/username` | `{username, bio}` → پروفایل بشپړوي |
-| POST | `/v1/me/avatar` | multipart `file` (تر 5MB) |
-
-تېروتنې: `{"error": "<reason>", ...}` — اپ یې په `src/lib/api.ts → errorMessage` کې په پښتو اړوي.
-
-## امنیت
-
-- پاسورډونه: **scrypt** (حافظه-دروند hash)؛ ننوتلو ته د نشته ایمیل لپاره هم ورته وخت.
-- سیشن ټوکن: ۳۲ بایټه تصادفي، په ډیټابېس کې یوازې SHA-256 یې؛ په تلیفون کې په **SecureStore** (کوډ شوی keystore)؛ ۶۰ ورځې.
-- کوډونه: HMAC hash، ۱۰ دقیقې، ۵ غلطې هڅې، ۶۰ ثانیې انتظار، په ساعت کې ۵ ایمیلونه.
-- Rate limit: د IP او ایمیل له مخې (login: ۱۰ هڅې / ۱۵ دقیقې په هر ایمیل).
-- عکسونه: هر عکس بیا جوړېږي (sharp) → 512×512 JPEG، EXIF/GPS لرې کېږي، جعلي فایل ردېږي.
-- ایمیل او د زېږېدو نېټه یوازې خاوند ته ښکاري.
-- شمېرې (likes, views, followers) یوازې سرور بدلوي.
-
-## پراختیا (Development)
-
+**یا له کمپیوټر څخه:**
 ```bash
-# سرور (PostgreSQL ته اړتیا لري)
-cd server && npm install
-DATABASE_URL=postgres://user:pass@localhost/fshow npm run build && npm start   # کوډونه په console کې چاپېږي
-DATABASE_URL=postgres://user:pass@localhost/fshow_test npm test
-
-# اپ
-npm install && npx expo start
+npm i -g firebase-tools
+firebase login
+firebase use --add            # خپله پروژه وټاکئ
+firebase functions:secrets:set RESEND_API_KEY
+cd firebase/functions && npm install && cd ../..
+firebase deploy --only functions,firestore,storage
 ```
+
+### ۳. APK
+هر ځل چې `main` ته کوډ ولېږل شي، GitHub پخپله APK جوړوي:
+**Actions → Android APK → وروستی run → Artifacts → `fshow-apk`**
+
+### ۴. (اختیاري) د زړو کوډونو پاکول
+Firestore → **TTL policies** → `emailCodes` او `rateLimits` کې پر `expireAt` فیلډ TTL جوړ کړئ.
+
+---
+
+## جوړښت
+
+```
+app/                      سکرینونه (expo-router)
+  (auth)/                 welcome · login · signup · forgot
+  (setup)/                photo · username
+  (tabs)/                 home · reels · chats · search · notifications · profile
+src/
+  config/firebase.config.ts
+  lib/                    firebase · auth-context · api · validation · upload
+  components/             ui · CodeStep · Avatar
+firebase/
+  firestore.rules         څوک څه لوستلای/لیکلای شي
+  storage.rules
+  functions/src/          sendCode · verifySignup · resetPassword · claimUsername
+```
+
+## ډیټا
+
+| Collection | څه پکې دي | څوک یې لیکي |
+|---|---|---|
+| `users/{uid}` | نوم، ID Name، بایو، عکس، شمېرې، `isFainet` | سرور (کاروونکی یوازې عکس او بایو) |
+| `users_private/{uid}` | ایمیل، د زېږېدو نېټه | یوازې سرور، یوازې خاوند یې لوستلای شي |
+| `usernames/{name}` | ID Name → uid | یوازې سرور |
+| `emailCodes/{hash}` | پټ (hash) شوي کوډونه | یوازې سرور |
+| `rateLimits/{hash}` | د هڅو شمېر | یوازې سرور |

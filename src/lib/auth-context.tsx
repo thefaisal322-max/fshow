@@ -1,73 +1,75 @@
-import * as SecureStore from 'expo-secure-store';
-import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-import { api, ApiError, AuthResult, Me, setApiToken, setOnUnauthorized } from './api';
+import { auth, db } from './firebase';
 
-const TOKEN_KEY = 'fshow.session';
-
-type AuthState = {
-  /** The logged-in user, or null. */
-  user: Me | null;
-  loading: boolean;
-  /** Save a session returned by signup / login / reset. */
-  signIn: (r: AuthResult) => Promise<void>;
-  signOut: () => Promise<void>;
-  /** Replace the user after a profile change. */
-  setUser: (u: Me) => void;
+/** Public profile: users/{uid}. Private data (email, birthday) lives in users_private/{uid}. */
+export type Profile = {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  gender: 'male' | 'female';
+  username: string | null;
+  bio: string;
+  photoURL: string | null;
+  isFainet: boolean;
+  profileComplete: boolean;
+  followersCount: number;
+  followingCount: number;
+  likesCount: number;
+  postsCount: number;
 };
 
-const AuthContext = createContext<AuthState>({
-  user: null,
-  loading: true,
-  signIn: async () => {},
-  signOut: async () => {},
-  setUser: () => {},
-});
+type AuthState = {
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
+};
+
+const AuthContext = createContext<AuthState>({ user: null, profile: null, loading: true });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Me | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [profileReady, setProfileReady] = useState(false);
 
-  const clear = useCallback(async () => {
-    setApiToken(null);
-    setUser(null);
-    await SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {});
-  }, []);
-
-  // On app start: restore the saved session (kept in the phone's encrypted keystore).
   useEffect(() => {
-    setOnUnauthorized(() => void clear());
-    (async () => {
-      try {
-        const token = await SecureStore.getItemAsync(TOKEN_KEY);
-        if (token) {
-          setApiToken(token);
-          const { user } = await api.me();
-          setUser(user);
-        }
-      } catch (e) {
-        // Only forget the session if the server rejected it — not when offline.
-        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) await clear();
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => setOnUnauthorized(null);
-  }, [clear]);
-
-  const signIn = useCallback(async ({ token, user }: AuthResult) => {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
-    setApiToken(token);
-    setUser(user);
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setProfileReady(false);
+      setAuthReady(true);
+    });
   }, []);
 
-  const signOut = useCallback(async () => {
-    await api.logout().catch(() => {});
-    await clear();
-  }, [clear]);
+  useEffect(() => {
+    if (!user) {
+      setProfile(null);
+      setProfileReady(true);
+      return;
+    }
+    return onSnapshot(
+      doc(db, 'users', user.uid),
+      (snap) => {
+        if (snap.exists()) {
+          setProfile(snap.data() as Profile);
+        } else {
+          // Every account is created together with its profile by the server.
+          // A user without one is broken, so log them out.
+          setProfile(null);
+          signOut(auth);
+        }
+        setProfileReady(true);
+      },
+      () => setProfileReady(true),
+    );
+  }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, setUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, profile, loading: !authReady || !profileReady }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 

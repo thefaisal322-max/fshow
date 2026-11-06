@@ -1,8 +1,10 @@
+import { signOut } from 'firebase/auth';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui';
 import { useAuth } from '@/lib/auth-context';
+import { auth } from '@/lib/firebase';
 import { colors, radius } from '@/theme';
 
 function formatCount(n: number): string {
@@ -12,7 +14,7 @@ function formatCount(n: number): string {
 }
 
 export default function Profile() {
-  const { user: profile, signOut } = useAuth();
+  const { profile } = useAuth();
   if (!profile) return null;
 
   return (
@@ -34,7 +36,7 @@ export default function Profile() {
       </View>
 
       <View style={{ marginTop: 16 }}>
-        <Button title="وتل (Logout)" variant="secondary" onPress={signOut} />
+        <Button title="وتل (Logout)" variant="secondary" onPress={() => signOut(auth)} />
       </View>
     </ScrollView>
   );

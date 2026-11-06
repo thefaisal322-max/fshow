@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Golden rule: the app may only change harmless fields of its OWN data.
+// Accounts, usernames, counters (likes / views / followers) and boosts are
+// written only by Cloud Functions (Admin SDK bypasses these rules).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function validPhoto(data) {
+      return data.photoURL == null
+        || (data.photoURL is string
+            && data.photoURL.size() < 1024
+            && data.photoURL.matches('^https://firebasestorage[.]googleapis[.]com/.*'));
+    }
+
+    // Public profile
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, delete: if false;            // created by verifySignup
+      allow update: if isOwner(uid)
+        && onlyChanges(['photoURL', 'bio'])
+        && validPhoto(request.resource.data)
+        && request.resource.data.bio is string
+        && request.resource.data.bio.size() <= 150;
+    }
+
+    // Private: email, birthday — only the owner can read, nobody can write.
+    match /users_private/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    // ID Name → uid (claimed via claimUsername function)
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // Server-only collections: emailCodes, rateLimits, ...
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

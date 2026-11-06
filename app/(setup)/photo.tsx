@@ -5,12 +5,12 @@ import { Pressable, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { Button, ErrorBox, FormScreen, Steps, Title } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { uploadAvatar } from '@/lib/upload';
 
 export default function Photo() {
   const router = useRouter();
-  const { user, setUser } = useAuth();
+  const { user, profile } = useAuth();
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,11 +36,10 @@ export default function Photo() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.uploadAvatar(localUri);
-      setUser(res.user);
+      await uploadAvatar(user.uid, localUri);
       router.push('/username');
-    } catch (e) {
-      setError(errorMessage(e));
+    } catch (e: any) {
+      setError(e?.message === 'too-big' ? 'عکس ډېر لوی دی (تر 5MB کم)' : 'عکس پورته نه شو. بیا هڅه وکړئ');
     } finally {
       setBusy(false);
     }
@@ -53,7 +52,7 @@ export default function Photo() {
       <ErrorBox message={error} />
       <View style={{ alignItems: 'center', marginVertical: 16 }}>
         <Pressable onPress={pick}>
-          <Avatar uri={localUri ?? user?.photoURL} name={user?.firstName} size={140} />
+          <Avatar uri={localUri ?? profile?.photoURL} name={profile?.firstName} size={140} />
         </Pressable>
       </View>
       {localUri ? (
