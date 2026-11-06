@@ -10,4 +10,4 @@
  * They can also be set at build time: EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_KEY.
  */
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://jqkyihnvidbehrapfflt.supabase.co';
-export const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY || 'PASTE_PUBLISHABLE_KEY';
+export const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY || 'sb_publishable_rnYOePBiNVRY4Y11lr-yXg_op7Df2is';

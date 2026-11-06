@@ -22,7 +22,6 @@
    | Secret | له کومه |
    |---|---|
    | `SUPABASE_ACCESS_TOKEN` | supabase.com → ښي پورته عکس → **Account → Access Tokens → Generate** |
-   | `SUPABASE_PROJECT_REF` | **Project Settings → General → Project ID** |
    | `SUPABASE_DB_PASSWORD` | هغه پاسورډ چې په ۲ ګام کې مو جوړ کړ |
    | `RESEND_API_KEY` | resend.com → **API Keys** |
 2. **Actions → Deploy Supabase → Run workflow**
