@@ -29,7 +29,9 @@ enable_refresh_token_rotation = true
 minimum_password_length = 8
 
 [auth.email]
-enable_signup = false
+# Must stay true: in Supabase this switch is the whole email/password provider (login too).
+# New public sign-ups are already blocked by [auth] enable_signup = false above.
+enable_signup = true
 enable_confirmations = false
 
 [auth.rate_limit]
