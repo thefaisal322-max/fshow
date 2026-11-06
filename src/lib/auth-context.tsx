@@ -1,17 +1,19 @@
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
-import { auth, db } from './firebase';
+import { api, ProfileRow } from './api';
+import { avatarUrl, supabase } from './supabase';
 
-/** Public profile: users/{uid}. Private data (email, birthday) lives in users_private/{uid}. */
+/** Profile in the shape the screens use. */
 export type Profile = {
+  id: string;
   firstName: string;
   lastName: string;
   displayName: string;
   gender: 'male' | 'female';
   username: string | null;
   bio: string;
+  photoPath: string | null;
   photoURL: string | null;
   isFainet: boolean;
   profileComplete: boolean;
@@ -21,56 +23,104 @@ export type Profile = {
   postsCount: number;
 };
 
+export function toProfile(r: ProfileRow): Profile {
+  return {
+    id: r.id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    displayName: `${r.first_name} ${r.last_name}`,
+    gender: r.gender,
+    username: r.username,
+    bio: r.bio,
+    photoPath: r.photo_path,
+    photoURL: avatarUrl(r.photo_path),
+    isFainet: r.is_fainet,
+    profileComplete: r.profile_complete,
+    followersCount: Number(r.followers_count),
+    followingCount: Number(r.following_count),
+    likesCount: Number(r.likes_count),
+    postsCount: Number(r.posts_count),
+  };
+}
+
 type AuthState = {
-  user: User | null;
+  session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  /** Re-read the profile from the server (after photo / username changes). */
+  refreshProfile: () => Promise<void>;
+  setProfileRow: (r: ProfileRow) => void;
+  signOut: () => Promise<void>;
 };
 
-const AuthContext = createContext<AuthState>({ user: null, profile: null, loading: true });
+const AuthContext = createContext<AuthState>({
+  session: null,
+  profile: null,
+  loading: true,
+  refreshProfile: async () => {},
+  setProfileRow: () => {},
+  signOut: async () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
+  const uid = session?.user.id ?? null;
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setProfileReady(false);
-      setAuthReady(true);
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setSessionReady(true);
     });
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      setSessionReady(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const loadProfile = useCallback(async (id: string) => {
+    try {
+      const row = await api.getProfile(id);
+      if (row) setProfile(toProfile(row));
+      else {
+        // Every real account gets its profile from the signup function.
+        // A login without one is not a valid Faisal Show account.
+        setProfile(null);
+        await supabase.auth.signOut();
+      }
+    } catch {
+      // offline — keep whatever we had
+    } finally {
+      setProfileReady(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (!sessionReady) return;
+    if (!uid) {
       setProfile(null);
       setProfileReady(true);
       return;
     }
-    return onSnapshot(
-      doc(db, 'users', user.uid),
-      (snap) => {
-        if (snap.exists()) {
-          setProfile(snap.data() as Profile);
-        } else {
-          // Every account is created together with its profile by the server.
-          // A user without one is broken, so log them out.
-          setProfile(null);
-          signOut(auth);
-        }
-        setProfileReady(true);
-      },
-      () => setProfileReady(true),
-    );
-  }, [user]);
+    setProfileReady(false);
+    loadProfile(uid);
+  }, [uid, sessionReady, loadProfile]);
 
-  return (
-    <AuthContext.Provider value={{ user, profile, loading: !authReady || !profileReady }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthState = {
+    session,
+    profile,
+    loading: !sessionReady || (!!uid && !profileReady),
+    refreshProfile: async () => {
+      if (uid) await loadProfile(uid);
+    },
+    setProfileRow: (r) => setProfile(toProfile(r)),
+    signOut: api.logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);

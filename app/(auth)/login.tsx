@@ -1,10 +1,8 @@
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
-import { errorMessage } from '@/lib/api';
-import { auth } from '@/lib/firebase';
+import { api, errorMessage } from '@/lib/api';
 import { isValidEmail, normalizeEmail } from '@/lib/validation';
 
 export default function Login() {
@@ -23,7 +21,7 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, e, password);
+      await api.login(e, password);
       // The root Gate redirects automatically once the user is logged in.
     } catch (err) {
       setError(errorMessage(err));

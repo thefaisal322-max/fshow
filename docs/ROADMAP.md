@@ -2,7 +2,7 @@
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | Sign up (info → email + password → 5-digit code via Resend) · Login · Forgot password · Photo · ID Name · Profile · Security rules | ✅ built |
+| 1 | Sign up (info → email + password → 5-digit code via Resend) · Login · Forgot password · Photo · ID Name · Profile · RLS | ✅ built |
 | 2 | Posts: create (text + image), feed, like, comment, save, share | ⏳ next |
 | 3 | Follow · Search · Notifications (mention, invite, push) | |
 | 4 | Views + For You ranking + **fainet.org boost** (below) · Report / Block · Delete account | |
@@ -12,17 +12,20 @@
 
 ## Security principles (apply to every phase)
 
-1. The app never writes counters. Likes, views, followers and boosts are changed only by Cloud Functions.
-2. Every write is checked twice: Firestore/Storage rules + server validation.
-3. Private data (email, birthday) lives in `users_private/{uid}`, readable only by its owner.
-4. Codes are hashed (HMAC-SHA256 + salt), expire in 10 min, die after 5 wrong tries, one email per minute, max 5 per hour, plus a per-IP limit.
-5. App Check (Play Integrity) is switched on before public launch (`ENFORCE_APP_CHECK` in `firebase/functions/src/index.ts`).
+Backend: **Supabase free plan** (no card) — Postgres + Auth + Storage + Edge Functions (decision Nov 2026; Firebase needs a paid plan for Functions/Storage).
+
+1. Row Level Security on every table. The app may only change harmless columns of its own rows (column-level GRANTs).
+2. Counters (likes, views, followers), `is_fainet`, boosts are written only by Edge Functions / triggers / SECURITY DEFINER functions.
+3. Public Supabase sign-up is OFF; accounts are created only by the `signup` Edge Function after the 5-digit code.
+4. Codes: HMAC-SHA256 + salt, 10 min, 5 wrong tries, 60 s resend wait, 5 per hour, per-IP limits — in schema `private` (not exposed by the API).
+5. Every new feature must require `profile_complete = true` in its RLS policies (accounts without a profile can do nothing).
+6. Avatars: resized to 512×512 JPEG on the phone (strips EXIF/GPS); bucket only accepts images ≤ 5 MB in the owner's own folder.
 
 ## fainet.org boost (phase 4) — real reach, not fake numbers
 
 Decision (Nov 2026): boosted posts are **shown to more real people**. Like and view counts are never inflated; they only count real actions.
 
-- `users.isFainet` is set by the server at signup when the verified email ends with `@fainet.org`. The app can not change it.
-- **Account boost:** posts by `isFainet` accounts get a higher ranking score in For You.
-- **Top-of-For-You boost:** when a verified `@fainet.org` account comments the trigger phrase on a post, a function checks the commenter's `isFainet` flag on the server and, if valid, pins that post to the first slot of For You for a limited time. From anyone else the phrase is just a normal comment. The phrase lives in server config, not in the app.
-- **Hourly push (24 h):** a scheduled function runs every hour for each new post during its first 24 h and inserts it into ~19 more users' For You feeds. A view is counted only when a real user actually sees it (≥ 2 s on screen, once per user per post).
+- `profiles.is_fainet` is set by the server at signup when the verified email ends with `@fainet.org`. The app can not change it.
+- **Account boost:** posts by `is_fainet` accounts get a higher ranking score in For You.
+- **Top-of-For-You boost:** when a verified `@fainet.org` account comments the trigger phrase on a post, a trigger checks the commenter's `is_fainet` flag on the server and, if valid, pins that post to the first slot of For You for a limited time. From anyone else the phrase is just a normal comment. The phrase lives in server config, not in the app.
+- **Hourly push (24 h):** a scheduled job (pg_cron) runs every hour for each new post during its first 24 h and inserts it into ~19 more users' For You feeds. A view is counted only when a real user actually sees it (≥ 2 s on screen, once per user per post).

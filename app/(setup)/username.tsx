@@ -3,10 +3,12 @@ import { Text } from 'react-native';
 
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { normalizeUsername, usernameError } from '@/lib/validation';
 import { colors } from '@/theme';
 
 export default function Username() {
+  const { setProfileRow } = useAuth();
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function Username() {
     if (err) return;
     setBusy(true);
     try {
-      await api.claimUsername(clean, bio.trim());
+      setProfileRow(await api.claimUsername(clean, bio.trim()));
       // profileComplete becomes true on the server → Gate opens the app.
     } catch (e) {
       setError(errorMessage(e));

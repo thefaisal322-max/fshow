@@ -1,12 +1,10 @@
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { CodeStep, useResendTimer } from '@/components/CodeStep';
 import { Button, Choice, ErrorBox, Field, FormScreen, Label, Steps, Title } from '@/components/ui';
-import { api, errorMessage, Gender } from '@/lib/api';
-import { auth } from '@/lib/firebase';
+import { api, ApiError, errorMessage, Gender } from '@/lib/api';
 import {
   ageFrom,
   buildBirthday,
@@ -68,8 +66,8 @@ export default function Signup() {
       await api.sendCode(cleanEmail, 'signup');
       timer.restart();
       if (!isResend) setStep(3);
-    } catch (e: any) {
-      if (e?.details?.reason === 'resend-wait') {
+    } catch (e) {
+      if (e instanceof ApiError && e.reason === 'resend-wait') {
         timer.restart(e.details.wait);
         if (!isResend) setStep(3); // a code was already sent recently — let them use it
       } else {
@@ -97,7 +95,7 @@ export default function Signup() {
     setError(null);
     setBusy(true);
     try {
-      await api.verifySignup({
+      await api.signup({
         email: cleanEmail,
         code,
         password,
@@ -106,7 +104,7 @@ export default function Signup() {
         gender: gender!,
         birthday: birthday!,
       });
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      await api.login(cleanEmail, password);
       // Gate now redirects to /photo
     } catch (e) {
       setError(errorMessage(e));

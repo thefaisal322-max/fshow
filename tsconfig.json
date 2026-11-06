@@ -7,5 +7,5 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "firebase/functions"]
+  "exclude": ["node_modules", "supabase"]
 }

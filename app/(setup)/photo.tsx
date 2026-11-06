@@ -5,12 +5,12 @@ import { Pressable, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { Button, ErrorBox, FormScreen, Steps, Title } from '@/components/ui';
+import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { uploadAvatar } from '@/lib/upload';
 
 export default function Photo() {
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { session, profile, refreshProfile } = useAuth();
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,14 +32,15 @@ export default function Photo() {
   }
 
   async function save() {
-    if (!user || !localUri) return;
+    if (!session || !localUri) return;
     setBusy(true);
     setError(null);
     try {
-      await uploadAvatar(user.uid, localUri);
+      await api.uploadAvatar(session.user.id, localUri, profile?.photoPath ?? null);
+      await refreshProfile();
       router.push('/username');
-    } catch (e: any) {
-      setError(e?.message === 'too-big' ? 'عکس ډېر لوی دی (تر 5MB کم)' : 'عکس پورته نه شو. بیا هڅه وکړئ');
+    } catch (e) {
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }

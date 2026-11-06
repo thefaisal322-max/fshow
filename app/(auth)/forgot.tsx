@@ -1,11 +1,9 @@
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useState } from 'react';
 
 import { CodeStep, useResendTimer } from '@/components/CodeStep';
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
-import { auth } from '@/lib/firebase';
+import { api, ApiError, errorMessage } from '@/lib/api';
 import { CODE_LENGTH, isValidEmail, normalizeEmail, passwordError } from '@/lib/validation';
 
 /** Forgot password: email → 5-digit code + new password → logged in. */
@@ -32,8 +30,8 @@ export default function Forgot() {
       await api.sendCode(cleanEmail, 'reset');
       timer.restart();
       if (!isResend) setStep(2);
-    } catch (e: any) {
-      if (e?.details?.reason === 'resend-wait') {
+    } catch (e) {
+      if (e instanceof ApiError && e.reason === 'resend-wait') {
         timer.restart(e.details.wait);
         if (!isResend) setStep(2);
       } else {
@@ -54,7 +52,7 @@ export default function Forgot() {
     setBusy(true);
     try {
       await api.resetPassword(cleanEmail, code, password);
-      await signInWithEmailAndPassword(auth, cleanEmail, password);
+      await api.login(cleanEmail, password);
     } catch (e) {
       setError(errorMessage(e));
     } finally {

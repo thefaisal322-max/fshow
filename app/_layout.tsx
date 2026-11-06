@@ -14,21 +14,21 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
  *  - ready                → (tabs)  the app
  */
 function Gate() {
-  const { user, profile, loading } = useAuth();
+  const { session, profile, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const group = segments[0];
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
+    if (!session) {
       if (group !== '(auth)') router.replace('/welcome');
     } else if (profile && !profile.profileComplete) {
       if (group !== '(setup)') router.replace('/photo');
     } else if (profile && group !== '(tabs)') {
       router.replace('/');
     }
-  }, [user, profile?.profileComplete, loading, group]);
+  }, [session?.user.id, profile?.profileComplete, loading, group]);
 
   return (
     <View style={{ flex: 1 }}>
