@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { canSend, checkCode, CodeDoc, generateCode, hashCode, MAX_ATTEMPTS, newSalt } from './codes';
-import { ageFrom, cleanName, isStrongPassword, isValidBirthday, isValidUsername } from './validation';
+import { canSend, checkCode, CodeDoc, generateCode, hashCode, MAX_ATTEMPTS, newSalt } from '../functions/_shared/codes.ts';
+import { ageFrom, cleanName, isStrongPassword, isValidBirthday, isValidUsername } from '../functions/_shared/validation.ts';
 
 function makeDoc(code: string, over: Partial<CodeDoc> = {}): CodeDoc {
   const salt = newSalt();
@@ -54,3 +54,4 @@ test('validation', () => {
   assert.equal(isValidUsername('admin'), false);
   assert.equal(isValidUsername('Faisal'), false);
 });
+

@@ -1,6 +1,6 @@
-import * as crypto from 'crypto';
+import crypto from 'node:crypto';
 
-import { CODE_LENGTH } from './validation';
+import { CODE_LENGTH } from './validation.ts';
 
 export const CODE_TTL_MS = 10 * 60 * 1000; // a code is valid for 10 minutes
 export const RESEND_WAIT_MS = 60 * 1000; // one email per minute per address

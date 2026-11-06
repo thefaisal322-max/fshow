@@ -1,0 +1,57 @@
+# Supabase CLI config (used by `supabase start` locally/CI and `supabase db push`).
+project_id = "fshow"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = false
+
+[inbucket]
+enabled = false
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[auth]
+enabled = true
+site_url = "fshow://"
+# IMPORTANT: public sign-up is OFF. Accounts are created only by the `signup`
+# Edge Function after the 5-digit email code is verified.
+enable_signup = false
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[auth.rate_limit]
+sign_in_sign_ups = 30
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+# These three are public (called before login) and protected by codes + rate limits.
+# verify_jwt=false also lets them work with the new sb_publishable_ API keys.
+[functions.send-code]
+verify_jwt = false
+
+[functions.signup]
+verify_jwt = false
+
+[functions.reset-password]
+verify_jwt = false

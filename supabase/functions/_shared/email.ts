@@ -1,6 +1,4 @@
-import type { Purpose } from './codes';
-
-export const EMAIL_FROM = 'Faisal Show <no-reply@fainet.org>';
+import type { Purpose } from './codes.ts';
 
 function template(code: string, purpose: Purpose): { subject: string; html: string; text: string } {
   const heading = purpose === 'signup' ? 'Faisal Show ته ښه راغلاست' : 'د پاسورډ بدلول';
@@ -23,16 +21,27 @@ function template(code: string, purpose: Purpose): { subject: string; html: stri
   return { subject, html, text };
 }
 
-/** Sends the code with Resend (https://resend.com/docs/api-reference/emails/send-email). */
-export async function sendCodeEmail(apiKey: string, to: string, code: string, purpose: Purpose): Promise<void> {
+/**
+ * EMAIL_TRANSPORT:
+ *   resend  (default) real email via https://resend.com
+ *   outbox  store in private.test_outbox — automated tests only
+ *   log     print to the function log — local development
+ */
+export async function sendCodeEmail(to: string, code: string, purpose: Purpose, outbox?: (to: string, code: string, purpose: Purpose) => Promise<void>): Promise<void> {
+  const transport = Deno.env.get('EMAIL_TRANSPORT') ?? 'resend';
+  if (transport === 'outbox' && outbox) return outbox(to, code, purpose);
+  if (transport === 'log') {
+    console.log(`[email] ${purpose} code for ${to}: ${code}`);
+    return;
+  }
+  const apiKey = Deno.env.get('RESEND_API_KEY');
+  if (!apiKey) throw new Error('RESEND_API_KEY is not set');
+  const from = Deno.env.get('EMAIL_FROM') ?? 'Faisal Show <no-reply@fainet.org>';
   const { subject, html, text } = template(code, purpose);
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html, text }),
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');

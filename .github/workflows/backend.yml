@@ -1,0 +1,57 @@
+name: Backend tests
+
+# Starts a full local Supabase (Postgres, Auth, Storage, Edge Functions) on the
+# GitHub runner and runs the security + end-to-end tests against it.
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['supabase/**']
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Unit tests (code + validation logic)
+        run: npx -y tsx --test supabase/tests/unit.test.ts
+
+      - name: Start Supabase
+        run: supabase start -x studio,imgproxy,mailpit,logflare,vector,supavisor,postgres-meta
+
+      - name: Read local keys
+        run: supabase status -o env | sed 's/^\([A-Z_]*\)="\(.*\)"$/\1=\2/' >> "$GITHUB_ENV"
+
+      - name: Security tests (RLS)
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls.test.sql | tail -3
+
+      - name: Serve Edge Functions
+        run: |
+          printf 'EMAIL_TRANSPORT=outbox\n' > /tmp/fn.env
+          nohup supabase functions serve --env-file /tmp/fn.env > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_URL/functions/v1/send-code" \
+              -H "apikey: $ANON_KEY" -H 'Content-Type: application/json' -d '{}') || true
+            [ "$code" = "400" ] && echo "functions ready" && exit 0
+            sleep 3
+          done
+          cat /tmp/functions.log; exit 1
+
+      - name: End-to-end tests
+        run: node --test --test-concurrency=1 supabase/tests/e2e.test.mjs
+
+      - name: Function logs
+        if: always()
+        run: cat /tmp/functions.log || true
