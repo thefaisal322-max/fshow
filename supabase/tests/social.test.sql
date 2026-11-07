@@ -107,6 +107,8 @@ INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)250L
 SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 250, 'custom N likes (250)');
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)7000Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
 SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 7000, 'custom N likes (7000)');
+SELECT pg_temp.check((public.get_profile('cccccccc-0000-0000-0000-000000000003')->>'likes_count')::int = 7001, 'profile likes = real + bonus');
+SELECT pg_temp.check((SELECT likes_count FROM public.profiles WHERE id = 'cccccccc-0000-0000-0000-000000000003') = 1, 'profile real likes kept');
 INSERT INTO public.comments (post_id, body) SELECT id, '(fainet.org10.real.likes)' FROM public.posts WHERE body = 'سلام Faisal Show';
 SELECT pg_temp.check((SELECT bonus_likes = 0 AND bonus_views = 0 FROM public.posts WHERE body = 'سلام Faisal Show'), 'reset removes fake likes + views');
 SELECT pg_temp.check((SELECT likes_count = 1 AND views_count = 1 FROM public.posts WHERE body = 'سلام Faisal Show'), 'reset keeps real numbers');
