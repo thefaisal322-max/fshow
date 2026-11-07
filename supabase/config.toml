@@ -50,3 +50,10 @@ verify_jwt = false
 
 [functions.reset-password]
 verify_jwt = false
+
+# Logged-in functions check the user token themselves (requireUser).
+[functions.change-email]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false

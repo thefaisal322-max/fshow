@@ -111,3 +111,12 @@ export async function findUserId(email: string): Promise<string | null> {
   const [row] = await sql`SELECT id FROM auth.users WHERE lower(email) = ${email} LIMIT 1`;
   return row ? (row.id as string) : null;
 }
+
+/** Returns the logged-in user's id from the Authorization header, or fails with 401. */
+export async function requireUser(req: Request): Promise<{ id: string; email: string }> {
+  const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) fail(401, 'unauthenticated');
+  const { data, error } = await admin.auth.getUser(token);
+  if (error || !data.user) fail(401, 'unauthenticated');
+  return { id: data.user.id, email: (data.user.email ?? '').toLowerCase() };
+}

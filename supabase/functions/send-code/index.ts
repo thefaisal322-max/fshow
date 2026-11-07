@@ -1,4 +1,5 @@
-// POST { email, purpose: 'signup' | 'reset' } → emails a 5-digit code.
+// POST { email, purpose: 'signup' | 'reset' | 'change' } → emails a 5-digit code.
+// 'change' = the NEW address when a logged-in user changes their email (must not be in use).
 import { canSend, codeDocId, CODE_TTL_MS, generateCode, hashCode, newSalt, Purpose } from '../_shared/codes.ts';
 import { sendCodeEmail } from '../_shared/email.ts';
 import { clientIp, fail, findUserId, handler, HOUR, rateLimit, rowToCodeDoc, sql } from '../_shared/server.ts';
@@ -9,12 +10,12 @@ Deno.serve(
     const email = normalizeEmail(b.email);
     const purpose = b.purpose as Purpose;
     if (!isValidEmail(email)) fail(400, 'invalid-input', { message: 'ایمیل سم نه دی' });
-    if (purpose !== 'signup' && purpose !== 'reset') fail(400, 'invalid-input');
+    if (purpose !== 'signup' && purpose !== 'reset' && purpose !== 'change') fail(400, 'invalid-input');
 
     await rateLimit(`send:ip:${clientIp(req)}`, 20, HOUR);
 
     const exists = (await findUserId(email)) !== null;
-    if (purpose === 'signup' && exists) fail(409, 'email-in-use');
+    if ((purpose === 'signup' || purpose === 'change') && exists) fail(409, 'email-in-use');
     // For reset we answer "ok" either way, so nobody can test which emails are registered.
     if (purpose === 'reset' && !exists) return { ok: true };
 

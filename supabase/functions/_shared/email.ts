@@ -1,11 +1,12 @@
 import type { Purpose } from './codes.ts';
 
 function template(code: string, purpose: Purpose): { subject: string; html: string; text: string } {
-  const heading = purpose === 'signup' ? 'Faisal Show ته ښه راغلاست' : 'د پاسورډ بدلول';
-  const line =
-    purpose === 'signup'
-      ? 'د خپل حساب د جوړولو لپاره دا کوډ په اپ کې ولیکئ:'
-      : 'د نوي پاسورډ لپاره دا کوډ په اپ کې ولیکئ:';
+  const heading = { signup: 'Faisal Show ته ښه راغلاست', reset: 'د پاسورډ بدلول', change: 'د ایمیل بدلول' }[purpose];
+  const line = {
+    signup: 'د خپل حساب د جوړولو لپاره دا کوډ په اپ کې ولیکئ:',
+    reset: 'د نوي پاسورډ لپاره دا کوډ په اپ کې ولیکئ:',
+    change: 'دا ایمیل ستاسو د Faisal Show حساب ته د نښلولو لپاره دا کوډ په اپ کې ولیکئ:',
+  }[purpose];
   const subject = `${code} — Faisal Show code`;
   const html = `<!doctype html>
 <html dir="rtl" lang="ps"><body style="margin:0;background:#F0F2F5;font-family:Tahoma,Arial,sans-serif">

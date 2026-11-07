@@ -8,7 +8,7 @@ export const RESEND_WAIT_MS = 60 * 1000; // one email per minute per address
 export const MAX_ATTEMPTS = 5; // wrong guesses before the code dies
 export const MAX_SENDS_PER_HOUR = 5; // emails per address per hour
 
-export type Purpose = 'signup' | 'reset';
+export type Purpose = 'signup' | 'reset' | 'change';
 
 export function sha256(s: string): string {
   return crypto.createHash('sha256').update(s).digest('hex');

@@ -201,3 +201,41 @@ test('password reset', async () => {
   assert.equal((await login(email, 'fai123@afg')).status, 400);
   assert.equal((await login(email, 'new456#pw')).status, 200);
 });
+
+async function fnAuth(name, body, token) {
+  const res = await fetch(`${API}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: { apikey: KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-forwarded-for': ip() },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json().catch(() => null) };
+}
+
+test('change email moves the verified mark with the domain', async () => {
+  const s = await signup('mover@example.com');
+  const me = () => rest(s.access_token, 'GET', `/rest/v1/profiles?id=eq.${s.user.id}&select=is_fainet`);
+  assert.equal((await me()).body[0].is_fainet, false);
+
+  assert.equal((await fnAuth('change-email', { newEmail: 'x@fainet.org', code: '12345' }, KEY)).status, 401, 'needs login');
+  const taken = await fn('send-code', { email: 'thefaisal322@fainet.org', purpose: 'change' });
+  assert.equal(taken.body.error, 'email-in-use');
+
+  const newEmail = 'mover@fainet.org';
+  assert.equal((await fn('send-code', { email: newEmail, purpose: 'change' })).status, 200);
+  const r = await fnAuth('change-email', { newEmail, code: lastCode(newEmail) }, s.access_token);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.isFainet, true);
+  assert.equal((await me()).body[0].is_fainet, true);
+  assert.equal((await login(newEmail, 'fai123@afg')).status, 200);
+  assert.equal((await login('mover@example.com', 'fai123@afg')).status, 400);
+});
+
+test('delete account needs the password and removes everything', async () => {
+  const s = await signup('leaver@example.com');
+  const wrong = await fnAuth('delete-account', { password: 'wrong123@x' }, s.access_token);
+  assert.equal(wrong.status, 401);
+  const ok = await fnAuth('delete-account', { password: 'fai123@afg' }, s.access_token);
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal((await login('leaver@example.com', 'fai123@afg')).status, 400);
+  assert.equal(psql(`SELECT count(*) FROM public.profiles WHERE id = '${s.user.id}'`), '0');
+});
