@@ -38,6 +38,7 @@ jobs:
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls.test.sql | tail -3
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/social.test.sql | tail -3
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/chat.test.sql | tail -3
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/stories.test.sql | tail -3
 
       - name: Serve Edge Functions
         run: |
