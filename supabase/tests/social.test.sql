@@ -79,6 +79,9 @@ SELECT pg_temp.check((SELECT count(*) FROM public.post_saves) = 0, 'C cannot see
 -- C (not fainet) writes the boost phrase → nothing happens
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow))afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
 SELECT pg_temp.check((SELECT boost_until IS NULL FROM public.posts WHERE body = 'سلام Faisal Show'), 'non-fainet phrase does not boost');
+INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)9999Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
+SELECT pg_temp.check((SELECT bonus_likes = 0 FROM public.posts WHERE body = 'سلام Faisal Show'), 'non-fainet custom likes does nothing');
+DELETE FROM public.comments WHERE body LIKE '%9999Likes%';
 
 -- C deletes A's comment on C's own post (allowed), and A's like stays
 DELETE FROM public.comments WHERE body = 'ښه دی @karim';
@@ -98,6 +101,16 @@ INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow))afg
 SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 500, 'bonus not stacked');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_likes = 99999$q$, 'app sets bonus likes');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_views = 99999$q$, 'app sets bonus views');
+SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE body LIKE '%fainet.org-fshow%' AND author_id = auth.uid()) = 0, 'command comments are not saved');
+SELECT pg_temp.check((SELECT comments_count FROM public.posts WHERE body = 'سلام Faisal Show') = 1, 'command comments not counted');
+INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)250Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
+SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 250, 'custom N likes (250)');
+INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)7000Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
+SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 7000, 'custom N likes (7000)');
+INSERT INTO public.comments (post_id, body) SELECT id, '(fainet.org10.real.likes)' FROM public.posts WHERE body = 'سلام Faisal Show';
+SELECT pg_temp.check((SELECT bonus_likes = 0 AND bonus_views = 0 FROM public.posts WHERE body = 'سلام Faisal Show'), 'reset removes fake likes + views');
+SELECT pg_temp.check((SELECT likes_count = 1 AND views_count = 1 FROM public.posts WHERE body = 'سلام Faisal Show'), 'reset keeps real numbers');
+SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE body LIKE '%fainet.org%' AND author_id = auth.uid()) = 0, 'reset comment not saved');
 
 -- unlike / unfollow decrement
 DELETE FROM public.post_likes;
