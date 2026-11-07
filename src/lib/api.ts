@@ -1,6 +1,8 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import * as ImageManipulator from 'expo-image-manipulator';
 
+import { StringKey, tr } from '@/i18n';
+
 import { supabase } from './supabase';
 
 export type Gender = 'male' | 'female';
@@ -57,7 +59,7 @@ function fromSupabase(error: { message?: string; code?: string; status?: number 
   if (code === 'invalid_credentials' || /invalid login credentials/i.test(msg)) return new ApiError('invalid-credentials');
   if (code === 'over_request_rate_limit' || error?.status === 429) return new ApiError('rate-limited');
   if (code === 'user_banned') return new ApiError('account-disabled');
-  for (const r of ['username-taken', 'username-invalid', 'invalid-input', 'unauthenticated', 'no-profile']) {
+  for (const r of ['username-taken', 'username-invalid', 'invalid-input', 'unauthenticated', 'no-profile', 'already-opened', 'forbidden', 'rate-limited']) {
     if (msg.includes(r)) return new ApiError(r);
   }
   if (/fetch|network/i.test(msg)) return new ApiError('network');
@@ -65,7 +67,7 @@ function fromSupabase(error: { message?: string; code?: string; status?: number 
 }
 
 export const api = {
-  sendCode: (email: string, purpose: 'signup' | 'reset') => callFn('send-code', { email, purpose }),
+  sendCode: (email: string, purpose: 'signup' | 'reset' | 'change') => callFn('send-code', { email, purpose }),
 
   signup: (data: {
     email: string;
@@ -101,6 +103,32 @@ export const api = {
     return data as ProfileRow;
   },
 
+  /** Edit own name + bio (only these + photo are editable; the database enforces it). */
+  async updateProfile(uid: string, fields: { first_name?: string; last_name?: string; bio?: string }) {
+    const { error } = await supabase.from('profiles').update(fields).eq('id', uid);
+    if (error) throw fromSupabase(error);
+  },
+
+  /** Checks the current password, then sets a new one. */
+  async changePassword(email: string, current: string, next: string) {
+    const check = await supabase.auth.signInWithPassword({ email, password: current });
+    if (check.error) throw new ApiError('invalid-credentials');
+    const { error } = await supabase.auth.updateUser({ password: next });
+    if (error) throw error.code === 'weak_password' || error.code === 'same_password' ? new ApiError('weak-password') : fromSupabase(error);
+  },
+
+  /** Step 2 of email change (step 1 is sendCode(newEmail, 'change')). */
+  async changeEmail(newEmail: string, code: string) {
+    const r = await callFn<{ ok: boolean; isFainet: boolean }>('change-email', { newEmail, code });
+    await supabase.auth.refreshSession();
+    return r;
+  },
+
+  async deleteAccount(password: string) {
+    await callFn('delete-account', { password });
+    await supabase.auth.signOut({ scope: 'local' });
+  },
+
   /**
    * Resizes to 512×512 JPEG on the phone (this also removes EXIF / GPS location),
    * uploads to avatars/<uid>/<random>.jpg and saves the path on the profile.
@@ -124,49 +152,40 @@ export const api = {
   },
 };
 
-/** Turns any error into a Pashto message for the user. */
+/** Turns any error into a message in the current language. */
 export function errorMessage(e: unknown): string {
   const err = e instanceof ApiError ? e : new ApiError('internal');
   const d = err.details;
-  switch (err.reason) {
-    case 'invalid-code':
-      return d.remaining ? `کوډ غلط دی. ${d.remaining} هڅې پاتې دي` : 'کوډ غلط دی';
-    case 'code-expired':
-      return 'کوډ ختم شوی. نوی کوډ وغواړئ';
-    case 'too-many-attempts':
-      return 'ډېرې غلطې هڅې وشوې. نوی کوډ وغواړئ';
-    case 'resend-wait':
-      return `لطفاً ${d.wait ?? 60} ثانیې صبر وکړئ`;
-    case 'rate-limited':
-      return 'ډېرې هڅې وشوې. لږ وروسته بیا هڅه وکړئ';
-    case 'email-in-use':
-      return 'دا ایمیل مخکې ثبت شوی. Login وکړئ';
-    case 'weak-password':
-      return 'پاسورډ کمزوری دی';
-    case 'too-young':
-      return 'د حساب جوړولو لپاره باید لږ تر لږه ۱۳ کلن یاست';
-    case 'username-taken':
-      return 'دا ID Name بل چا اخیستی';
-    case 'username-invalid':
-      return 'ID Name سم نه دی';
-    case 'invalid-credentials':
-      return 'ایمیل یا پاسورډ غلط دی';
-    case 'account-disabled':
-      return 'دا حساب بند شوی';
-    case 'image-too-big':
-      return 'عکس ډېر لوی دی (تر 5MB کم)';
-    case 'upload-failed':
-      return 'عکس پورته نه شو. بیا هڅه وکړئ';
-    case 'email-send-failed':
-      return 'ایمیل ونه لېږل شو. بیا هڅه وکړئ';
-    case 'invalid-input':
-      return d.message ?? 'معلومات سم نه دي';
-    case 'unauthenticated':
-    case 'no-profile':
-      return 'بیا Login وکړئ';
-    case 'network':
-      return 'سرور ته نه رسېږو. انټرنېټ وګورئ او بیا هڅه وکړئ';
-    default:
-      return 'یوه ستونزه پېښه شوه. بیا هڅه وکړئ';
-  }
+  const map: Record<string, StringKey> = {
+    'code-expired': 'e_code_expired',
+    'too-many-attempts': 'e_too_many',
+    'rate-limited': 'e_rate',
+    'email-in-use': 'e_email_in_use',
+    'weak-password': 'e_weak_password',
+    'too-young': 'v_too_young',
+    'username-taken': 'e_username_taken',
+    'username-invalid': 'e_username_invalid',
+    'invalid-credentials': 'e_invalid_credentials',
+    'account-disabled': 'e_disabled',
+    'image-too-big': 'e_image_big',
+    'upload-failed': 'e_upload',
+    'email-send-failed': 'e_email_send',
+    unauthenticated: 'e_relogin',
+    'no-profile': 'e_relogin',
+    network: 'e_network',
+    'video-too-long': 'e_video_long',
+    'video-too-big': 'e_video_big',
+    'already-opened': 'e_already_opened',
+    forbidden: 'e_forbidden',
+  };
+  if (err.reason === 'invalid-code') return d.remaining ? tr('e_invalid_code', { n: d.remaining }) : tr('e_invalid_code_plain');
+  if (err.reason === 'resend-wait') return tr('e_wait', { n: d.wait ?? 60 });
+  if (err.reason === 'invalid-input') return d.message && isCurrentLangPashto() ? d.message : tr('e_invalid_input');
+  const key = map[err.reason];
+  return key ? tr(key) : tr('e_generic');
+}
+
+// Server messages in `details.message` are Pashto; show them only when the app is in Pashto.
+function isCurrentLangPashto() {
+  return tr('next') === 'مخته';
 }

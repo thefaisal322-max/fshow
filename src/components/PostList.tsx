@@ -6,6 +6,7 @@ import { PAGE, Post, social } from '@/lib/social';
 import { colors } from '@/theme';
 
 import { PostCard } from './PostCard';
+import { useI18n } from '@/i18n';
 
 type Props = {
   /** Loads one page starting at `offset`. */
@@ -20,6 +21,7 @@ export type PostListHandle = { reload: () => void; prepend: (p: Post) => void };
 const viewed = new Set<string>();
 
 export const PostList = forwardRef<PostListHandle, Props>(function PostList({ load, header, empty }, ref) {
+  const { t } = useI18n();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -112,7 +114,7 @@ export const PostList = forwardRef<PostListHandle, Props>(function PostList({ lo
           <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
         ) : (
           <Text style={{ textAlign: 'center', color: error ? colors.error : colors.muted, marginTop: 40, paddingHorizontal: 20, lineHeight: 22 }}>
-            {error ?? empty ?? 'تر اوسه هېڅ پوسټ نشته'}
+            {error ?? empty ?? t('no_posts')}
           </Text>
         )
       }

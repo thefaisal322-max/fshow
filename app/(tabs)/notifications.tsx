@@ -9,12 +9,13 @@ import { useUnread } from '@/lib/notifications';
 import { authorName, Notification, social, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
+import { StringKey, useI18n } from '@/i18n';
 
-const TEXT: Record<Notification['type'], string> = {
-  like: 'ستاسو پوسټ یې Like کړ',
-  comment: 'ستاسو پوسټ ته یې کمنټ وکړ',
-  mention: 'تاسو یې په کمنټ کې یاد کړئ',
-  follow: 'تاسو یې Follow کړئ',
+const TEXT: Record<Notification['type'], StringKey> = {
+  like: 'n_like',
+  comment: 'n_comment',
+  mention: 'n_mention',
+  follow: 'n_follow',
 };
 const ICON: Record<Notification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
   like: { name: 'heart', color: colors.error },
@@ -24,6 +25,7 @@ const ICON: Record<Notification['type'], { name: keyof typeof Ionicons.glyphMap;
 };
 
 export default function Notifications() {
+  const { t, d } = useI18n();
   const router = useRouter();
   const { setUnread } = useUnread();
   const [items, setItems] = useState<Notification[]>([]);
@@ -67,16 +69,16 @@ export default function Notifications() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} colors={[colors.primary]} />}
       ListEmptyComponent={
         <Text style={{ textAlign: 'center', color: error ? colors.error : colors.muted, marginTop: 40 }}>
-          {error ?? 'تر اوسه هېڅ خبرتیا نشته'}
+          {error ?? t('no_notifications')}
         </Text>
       }
       renderItem={({ item }) => (
-        <Pressable onPress={() => open(item)} style={[st.row, !item.read && st.unread]}>
-          <View style={{ flex: 1, alignItems: 'flex-end' }}>
-            <Text style={st.text}>
-              <Text style={{ fontWeight: '800' }}>{authorName(item.actor)}</Text> {TEXT[item.type]}
+        <Pressable onPress={() => open(item)} style={[st.row, { flexDirection: d.rowOpp }, !item.read && st.unread]}>
+          <View style={{ flex: 1, alignItems: d.items }}>
+            <Text style={[st.text, { textAlign: d.align }]}>
+              <Text style={{ fontWeight: '800' }}>{authorName(item.actor)}</Text> {t(TEXT[item.type])}
             </Text>
-            {item.comment_body ? <Text style={st.quote} numberOfLines={2}>«{item.comment_body}»</Text> : null}
+            {item.comment_body ? <Text style={[st.quote, { textAlign: d.align }]} numberOfLines={2}>«{item.comment_body}»</Text> : null}
             <Text style={st.time}>{timeAgo(item.created_at)}</Text>
           </View>
           <View>
@@ -92,10 +94,10 @@ export default function Notifications() {
 }
 
 const st = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: radius.md, marginBottom: 6 },
+  row: { alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: radius.md, marginBottom: 6 },
   unread: { backgroundColor: '#E7F0FD' },
-  text: { fontSize: 14, color: colors.text, textAlign: 'right', lineHeight: 22 },
-  quote: { fontSize: 13, color: colors.muted, textAlign: 'right', marginTop: 2 },
+  text: { fontSize: 14, color: colors.text, lineHeight: 22 },
+  quote: { fontSize: 13, color: colors.muted, marginTop: 2 },
   time: { fontSize: 12, color: colors.primary, marginTop: 4 },
   badge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
 });

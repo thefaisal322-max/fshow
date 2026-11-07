@@ -7,8 +7,10 @@ import { Avatar } from '@/components/Avatar';
 import { Button, ErrorBox, FormScreen, Steps, Title } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useI18n } from '@/i18n';
 
 export default function Photo() {
+  const { t } = useI18n();
   const router = useRouter();
   const { session, profile, refreshProfile } = useAuth();
   const [localUri, setLocalUri] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export default function Photo() {
     setError(null);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      setError('د عکسونو اجازه ورکړئ ترڅو عکس غوره کړئ');
+      setError(t('photos_permission'));
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -49,7 +51,7 @@ export default function Photo() {
   return (
     <FormScreen>
       <Steps current={4} total={4} />
-      <Title sub="خلک به تاسو په دې عکس وپېژني">خپل عکس واچوئ</Title>
+      <Title sub={t('photo_sub')}>{t('photo_title')}</Title>
       <ErrorBox message={error} />
       <View style={{ alignItems: 'center', marginVertical: 16 }}>
         <Pressable onPress={pick}>
@@ -58,13 +60,13 @@ export default function Photo() {
       </View>
       {localUri ? (
         <>
-          <Button title="خوندي کول او مخته" onPress={save} loading={busy} />
-          <Button title="بل عکس" variant="secondary" onPress={pick} disabled={busy} />
+          <Button title={t('save_next')} onPress={save} loading={busy} />
+          <Button title={t('other_photo')} variant="secondary" onPress={pick} disabled={busy} />
         </>
       ) : (
-        <Button title="عکس غوره کړئ" onPress={pick} />
+        <Button title={t('choose_photo')} onPress={pick} />
       )}
-      <Button title="اوس نه" variant="link" onPress={() => router.push('/username')} disabled={busy} />
+      <Button title={t('not_now')} variant="link" onPress={() => router.push('/username')} disabled={busy} />
     </FormScreen>
   );
 }

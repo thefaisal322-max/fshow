@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { isValidEmail, normalizeEmail } from '@/lib/validation';
+import { useI18n } from '@/i18n';
 
 export default function Login() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +17,7 @@ export default function Login() {
   async function submit() {
     const e = normalizeEmail(email);
     if (!isValidEmail(e) || !password) {
-      setError('ایمیل او پاسورډ ولیکئ');
+      setError(t('enter_email_password'));
       return;
     }
     setError(null);
@@ -32,10 +34,10 @@ export default function Login() {
 
   return (
     <FormScreen>
-      <Title>ننوتل</Title>
+      <Title>{t('login_title')}</Title>
       <ErrorBox message={error} />
       <Field
-        label="ایمیل"
+        label={t('email')}
         ltr
         value={email}
         onChangeText={setEmail}
@@ -45,7 +47,7 @@ export default function Login() {
         autoComplete="email"
       />
       <Field
-        label="پاسورډ"
+        label={t('password')}
         ltr
         value={password}
         onChangeText={setPassword}
@@ -54,9 +56,9 @@ export default function Login() {
         autoComplete="password"
         onSubmitEditing={submit}
       />
-      <Button title="ننوتل" onPress={submit} loading={busy} />
-      <Button title="پاسورډ مو هېر دی؟" variant="link" onPress={() => router.push('/forgot')} />
-      <Button title="حساب نه لرئ؟ Sign up" variant="link" onPress={() => router.replace('/signup')} />
+      <Button title={t('login_title')} onPress={submit} loading={busy} />
+      <Button title={t('forgot_q')} variant="link" onPress={() => router.push('/forgot')} />
+      <Button title={t('no_account')} variant="link" onPress={() => router.replace('/signup')} />
     </FormScreen>
   );
 }

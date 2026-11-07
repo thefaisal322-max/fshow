@@ -1,6 +1,8 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Share } from 'react-native';
 
+import { StringKey, tr } from '@/i18n';
+
 import { ApiError } from './api';
 import { supabase } from './supabase';
 
@@ -17,6 +19,9 @@ export type Post = {
   id: string;
   body: string;
   image_path: string | null;
+  video_path: string | null;
+  location: string | null;
+  feeling: string | null;
   created_at: string;
   likes_count: number;
   comments_count: number;
@@ -86,6 +91,7 @@ export function postImageUrl(path: string | null | undefined): string | null {
 
 export const social = {
   // ── reading ──
+  reels: async (offset = 0) => check<Post[]>(await supabase.rpc('get_reels', { p_offset: offset, p_limit: 10 })) ?? [],
   feed: async (mode: 'foryou' | 'following', offset = 0) =>
     check<Post[]>(await supabase.rpc('get_feed', { p_mode: mode, p_offset: offset, p_limit: PAGE })) ?? [],
   userPosts: async (userId: string, offset = 0) =>
@@ -128,7 +134,7 @@ export const social = {
   },
   share: async (post: Post) => {
     const name = post.author.username ? `@${post.author.username}` : `${post.author.first_name} ${post.author.last_name}`;
-    const text = [post.body, postImageUrl(post.image_path)].filter(Boolean).join('\n\n');
+    const text = [post.body, postImageUrl(post.image_path ?? post.video_path)].filter(Boolean).join('\n\n');
     const res = await Share.share({ message: `${name} — Faisal Show\n\n${text}` });
     if (res.action === Share.sharedAction) await supabase.rpc('record_share', { p_post: post.id });
   },
@@ -142,39 +148,64 @@ export const social = {
     check(await supabase.from('reports').insert({ post_id: target.postId ?? null, user_id: target.userId ?? null, reason }));
   },
 
-  /** Creates a post. The image is resized to max 1080 px JPEG on the phone (also strips EXIF/GPS). */
-  createPost: async (uid: string, body: string, localImage: string | null) => {
+  /**
+   * Creates a post with optional photo OR video, location and feeling.
+   * Photos are resized to max 1080 px JPEG on the phone (also strips EXIF/GPS).
+   * Videos must be ≤ 60 s and ≤ 25 MB (checked here and by the storage bucket).
+   */
+  createPost: async (
+    uid: string,
+    input: { body: string; image?: string | null; video?: { uri: string; duration?: number | null; size?: number | null; mime?: string | null } | null; location?: string | null; feeling?: string | null },
+  ) => {
     let imagePath: string | null = null;
-    if (localImage) {
-      const img = await ImageManipulator.manipulateAsync(localImage, [{ resize: { width: 1080 } }], {
+    let videoPath: string | null = null;
+    const name = () => `${uid}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    if (input.image) {
+      const img = await ImageManipulator.manipulateAsync(input.image, [{ resize: { width: 1080 } }], {
         compress: 0.75,
         format: ImageManipulator.SaveFormat.JPEG,
       });
       const bytes = await (await fetch(img.uri)).arrayBuffer();
       if (bytes.byteLength > 8 * 1024 * 1024) throw new ApiError('image-too-big');
-      imagePath = `${uid}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.jpg`;
+      imagePath = `${name()}.jpg`;
       const up = await supabase.storage.from('posts').upload(imagePath, bytes, { contentType: 'image/jpeg' });
       if (up.error) throw new ApiError('upload-failed');
+    } else if (input.video) {
+      if (input.video.duration && input.video.duration > 61_000) throw new ApiError('video-too-long');
+      const bytes = await (await fetch(input.video.uri)).arrayBuffer();
+      if (bytes.byteLength > 25 * 1024 * 1024) throw new ApiError('video-too-big');
+      const mime = input.video.mime && input.video.mime.startsWith('video/') ? input.video.mime : 'video/mp4';
+      videoPath = `${name()}.${mime === 'video/quicktime' ? 'mov' : mime === 'video/3gpp' ? '3gp' : mime === 'video/webm' ? 'webm' : 'mp4'}`;
+      const up = await supabase.storage.from('posts').upload(videoPath, bytes, { contentType: mime });
+      if (up.error) throw new ApiError(/size|large/i.test(up.error.message) ? 'video-too-big' : 'upload-failed');
     }
-    const r = await supabase.from('posts').insert({ body: body.trim(), image_path: imagePath });
+    const r = await supabase.from('posts').insert({
+      body: input.body.trim(),
+      image_path: imagePath,
+      video_path: videoPath,
+      location: input.location?.trim() || null,
+      feeling: input.feeling || null,
+    });
     if (r.error) {
-      if (imagePath) await supabase.storage.from('posts').remove([imagePath]);
+      const files = [imagePath, videoPath].filter(Boolean) as string[];
+      if (files.length) await supabase.storage.from('posts').remove(files);
       check(r);
     }
   },
   deletePost: async (post: Post) => {
     check(await supabase.from('posts').delete().eq('id', post.id));
-    if (post.image_path) await supabase.storage.from('posts').remove([post.image_path]);
+    const files = [post.image_path, post.video_path].filter(Boolean) as string[];
+    if (files.length) await supabase.storage.from('posts').remove(files);
   },
 };
 
-/** "5 دقیقې مخکې" style relative time in Pashto. */
+/** Relative time ("5 min ago") in the current language. */
 export function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'همدا اوس';
-  if (s < 3600) return `${Math.floor(s / 60)} دقیقې مخکې`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ساعته مخکې`;
-  if (s < 7 * 86400) return `${Math.floor(s / 86400)} ورځې مخکې`;
+  if (s < 60) return tr('time_now');
+  if (s < 3600) return tr('time_min', { n: Math.floor(s / 60) });
+  if (s < 86400) return tr('time_hour', { n: Math.floor(s / 3600) });
+  if (s < 7 * 86400) return tr('time_day', { n: Math.floor(s / 86400) });
   const d = new Date(iso);
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
 }
@@ -187,4 +218,29 @@ export function formatCount(n: number): string {
 
 export function authorName(a: Pick<Author, 'first_name' | 'last_name'>): string {
   return `${a.first_name} ${a.last_name}`;
+}
+
+export const FEELINGS = [
+  { code: 'happy', emoji: '😊' },
+  { code: 'loved', emoji: '😍' },
+  { code: 'sad', emoji: '😢' },
+  { code: 'cool', emoji: '😎' },
+  { code: 'thinking', emoji: '🤔' },
+  { code: 'tired', emoji: '😴' },
+  { code: 'party', emoji: '🥳' },
+  { code: 'thankful', emoji: '🙏' },
+  { code: 'angry', emoji: '😡' },
+  { code: 'sick', emoji: '🤒' },
+] as const;
+
+/** Feelings are stored as a code ("happy") and shown in the reader's language. */
+export function feelingLabel(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const f = FEELINGS.find((x) => x.code === code);
+  if (!f) return code;
+  return `${f.emoji} ${tr(`f_${f.code}` as StringKey)}`;
+}
+
+export function videoUrl(path: string | null | undefined): string | null {
+  return postImageUrl(path);
 }

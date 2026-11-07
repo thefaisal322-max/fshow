@@ -3,7 +3,7 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -13,7 +13,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
       },
-      "versionCode": 2
+      "versionCode": 3
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
@@ -23,7 +23,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Faisal Show needs your photos so you can choose a profile picture."
+          "photosPermission": "Faisal Show needs your photos and videos so you can share them."
         }
       ],
       [
@@ -34,7 +34,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Faisal Show uses your location only when you add a place to a post."
+        }
+      ],
+      "expo-video"
     ],
     "icon": "./assets/icon.png"
   }

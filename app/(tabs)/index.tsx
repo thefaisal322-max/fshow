@@ -7,8 +7,10 @@ import { PostList, PostListHandle } from '@/components/PostList';
 import { feedSignal } from '@/lib/signals';
 import { social } from '@/lib/social';
 import { colors } from '@/theme';
+import { useI18n } from '@/i18n';
 
 export default function Home() {
+  const { t, d } = useI18n();
   const router = useRouter();
   const [mode, setMode] = useState<'foryou' | 'following'>('foryou');
   const list = useRef<PostListHandle>(null);
@@ -25,16 +27,16 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={st.tabs}>
-        <Tab label="For You" active={mode === 'foryou'} onPress={() => setMode('foryou')} />
-        <Tab label="Following" active={mode === 'following'} onPress={() => setMode('following')} />
+      <View style={[st.tabs, { flexDirection: d.row }]}>
+        <Tab label={t('for_you')} active={mode === 'foryou'} onPress={() => setMode('foryou')} />
+        <Tab label={t('following')} active={mode === 'following'} onPress={() => setMode('following')} />
       </View>
       <PostList
         ref={list}
         load={load}
-        empty={mode === 'following' ? 'تاسو لا هېچا ته Follow نه دی کړی.\nد لټون (Search) له لارې خلک ومومئ.' : 'تر اوسه هېڅ پوسټ نشته. لومړی پوسټ تاسو واچوئ!'}
+        empty={mode === 'following' ? t('empty_following') : t('empty_feed')}
       />
-      <Pressable style={st.fab} onPress={() => router.push('/create')}>
+      <Pressable style={[st.fab, d.rtl ? { left: 18 } : { right: 18 }]} onPress={() => router.push('/create')}>
         <Ionicons name="add" size={30} color="#fff" />
       </Pressable>
     </View>
@@ -50,13 +52,12 @@ function Tab({ label, active, onPress }: { label: string; active: boolean; onPre
 }
 
 const st = StyleSheet.create({
-  tabs: { flexDirection: 'row-reverse', backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  tabs: { backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabOn: { borderBottomColor: colors.primary },
   tabText: { fontSize: 15, fontWeight: '700', color: colors.muted },
   fab: {
     position: 'absolute',
-    left: 18,
     bottom: 18,
     width: 58,
     height: 58,

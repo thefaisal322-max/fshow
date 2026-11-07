@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import { CodeStep, useResendTimer } from '@/components/CodeStep';
 import { Button, Choice, ErrorBox, Field, FormScreen, Label, Steps, Title } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { api, ApiError, errorMessage, Gender } from '@/lib/api';
 import {
   ageFrom,
@@ -25,6 +26,7 @@ import {
  */
 export default function Signup() {
   const router = useRouter();
+  const { t, d } = useI18n();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -51,10 +53,10 @@ export default function Signup() {
     const err =
       nameError(firstName) ??
       nameError(lastName) ??
-      (!gender ? 'جنسیت وټاکئ' : null) ??
-      (!birthday ? 'د زېږېدو نېټه سمه ولیکئ (ورځ / میاشت / کال)' : null) ??
-      (birthday && ageFrom(birthday) < MIN_AGE ? 'د حساب جوړولو لپاره باید لږ تر لږه ۱۳ کلن یاست' : null) ??
-      (birthday && ageFrom(birthday) > 120 ? 'د زېږېدو کال سم نه دی' : null);
+      (!gender ? t('v_gender') : null) ??
+      (!birthday ? t('v_birthday') : null) ??
+      (birthday && ageFrom(birthday) < MIN_AGE ? t('v_too_young') : null) ??
+      (birthday && ageFrom(birthday) > 120 ? t('v_year') : null);
     setError(err);
     if (!err) setStep(2);
   }
@@ -80,16 +82,16 @@ export default function Signup() {
 
   function nextFromEmail() {
     const err =
-      (!isValidEmail(cleanEmail) ? 'ایمیل سم ولیکئ، لکه name@fainet.org' : null) ??
+      (!isValidEmail(cleanEmail) ? t('v_email') : null) ??
       passwordError(password) ??
-      (password !== password2 ? 'دواړه پاسورډونه یو شان نه دي' : null);
+      (password !== password2 ? t('v_passwords_match') : null);
     setError(err);
     if (!err) sendCode();
   }
 
   async function verify() {
     if (code.length !== CODE_LENGTH) {
-      setError('۵ عددي کوډ ولیکئ');
+      setError(t('v_code5'));
       return;
     }
     setError(null);
@@ -120,38 +122,38 @@ export default function Signup() {
 
       {step === 1 && (
         <>
-          <Title sub="خپل ریښتینی نوم ولیکئ">نوی حساب</Title>
+          <Title sub={t('real_name_hint')}>{t('new_account')}</Title>
           <ErrorBox message={error} />
-          <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
-            <Field label="نوم" value={firstName} onChangeText={setFirstName} containerStyle={{ flex: 1 }} maxLength={40} />
-            <Field label="تخلص" value={lastName} onChangeText={setLastName} containerStyle={{ flex: 1 }} maxLength={40} />
+          <View style={{ flexDirection: d.row, gap: 10 }}>
+            <Field label={t('first_name')} value={firstName} onChangeText={setFirstName} containerStyle={{ flex: 1 }} maxLength={40} />
+            <Field label={t('last_name')} value={lastName} onChangeText={setLastName} containerStyle={{ flex: 1 }} maxLength={40} />
           </View>
-          <Label>جنسیت</Label>
+          <Label>{t('gender')}</Label>
           <Choice
             options={[
-              { value: 'male', label: 'نارینه' },
-              { value: 'female', label: 'ښځینه' },
+              { value: 'male', label: t('male') },
+              { value: 'female', label: t('female') },
             ]}
             value={gender}
             onChange={setGender}
           />
-          <Label>د زېږېدو نېټه</Label>
-          <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
-            <Field label="ورځ" ltr value={day} onChangeText={setDay} keyboardType="number-pad" maxLength={2} placeholder="DD" containerStyle={{ flex: 1 }} />
-            <Field label="میاشت" ltr value={month} onChangeText={setMonth} keyboardType="number-pad" maxLength={2} placeholder="MM" containerStyle={{ flex: 1 }} />
-            <Field label="کال" ltr value={year} onChangeText={setYear} keyboardType="number-pad" maxLength={4} placeholder="YYYY" containerStyle={{ flex: 1.4 }} />
+          <Label>{t('birthday')}</Label>
+          <View style={{ flexDirection: d.row, gap: 10 }}>
+            <Field label={t('day')} ltr value={day} onChangeText={setDay} keyboardType="number-pad" maxLength={2} placeholder="DD" containerStyle={{ flex: 1 }} />
+            <Field label={t('month')} ltr value={month} onChangeText={setMonth} keyboardType="number-pad" maxLength={2} placeholder="MM" containerStyle={{ flex: 1 }} />
+            <Field label={t('year')} ltr value={year} onChangeText={setYear} keyboardType="number-pad" maxLength={4} placeholder="YYYY" containerStyle={{ flex: 1.4 }} />
           </View>
-          <Button title="مخته" onPress={nextFromInfo} />
-          <Button title="حساب لرئ؟ Login" variant="link" onPress={() => router.replace('/login')} />
+          <Button title={t('next')} onPress={nextFromInfo} />
+          <Button title={t('have_account')} variant="link" onPress={() => router.replace('/login')} />
         </>
       )}
 
       {step === 2 && (
         <>
-          <Title sub="دا ایمیل او پاسورډ به د Faisal Show لپاره وي">ایمیل او پاسورډ</Title>
+          <Title sub={t('email_password_sub')}>{t('email_password_title')}</Title>
           <ErrorBox message={error} />
           <Field
-            label="ایمیل"
+            label={t('email')}
             ltr
             value={email}
             onChangeText={setEmail}
@@ -161,7 +163,7 @@ export default function Signup() {
             autoComplete="email"
           />
           <Field
-            label="پاسورډ"
+            label={t('password')}
             ltr
             value={password}
             onChangeText={setPassword}
@@ -171,7 +173,7 @@ export default function Signup() {
             autoComplete="new-password"
           />
           <Field
-            label="پاسورډ بیا ولیکئ"
+            label={t('password_again')}
             ltr
             value={password2}
             onChangeText={setPassword2}
@@ -179,14 +181,14 @@ export default function Signup() {
             autoCapitalize="none"
             autoComplete="new-password"
           />
-          <Button title="کوډ ولېږئ" onPress={nextFromEmail} loading={busy} />
-          <Button title="شاته" variant="link" onPress={() => { setError(null); setStep(1); }} />
+          <Button title={t('send_code')} onPress={nextFromEmail} loading={busy} />
+          <Button title={t('back')} variant="link" onPress={() => { setError(null); setStep(1); }} />
         </>
       )}
 
       {step === 3 && (
         <>
-          <Title>ایمیل تایید کړئ</Title>
+          <Title>{t('verify_title')}</Title>
           <ErrorBox message={error} />
           <CodeStep
             email={cleanEmail}
@@ -196,8 +198,8 @@ export default function Signup() {
             resending={busy && code.length === 0}
             secondsLeft={timer.left}
           />
-          <Button title="تایید او حساب جوړول" onPress={verify} loading={busy} disabled={code.length !== CODE_LENGTH} />
-          <Button title="ایمیل بدلول" variant="link" onPress={() => { setError(null); setCode(''); setStep(2); }} />
+          <Button title={t('verify_create')} onPress={verify} loading={busy} disabled={code.length !== CODE_LENGTH} />
+          <Button title={t('change_email_btn')} variant="link" onPress={() => { setError(null); setCode(''); setStep(2); }} />
         </>
       )}
     </FormScreen>

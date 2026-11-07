@@ -5,9 +5,11 @@ import { CodeStep, useResendTimer } from '@/components/CodeStep';
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { CODE_LENGTH, isValidEmail, normalizeEmail, passwordError } from '@/lib/validation';
+import { useI18n } from '@/i18n';
 
 /** Forgot password: email → 5-digit code + new password → logged in. */
 export default function Forgot() {
+  const { t } = useI18n();
   const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
@@ -21,7 +23,7 @@ export default function Forgot() {
 
   async function sendCode(isResend = false) {
     if (!isValidEmail(cleanEmail)) {
-      setError('ایمیل سم ولیکئ');
+      setError(t('v_email'));
       return;
     }
     setError(null);
@@ -44,9 +46,9 @@ export default function Forgot() {
 
   async function reset() {
     const err =
-      (code.length !== CODE_LENGTH ? '۵ عددي کوډ ولیکئ' : null) ??
+      (code.length !== CODE_LENGTH ? t('v_code5') : null) ??
       passwordError(password) ??
-      (password !== password2 ? 'دواړه پاسورډونه یو شان نه دي' : null);
+      (password !== password2 ? t('v_passwords_match') : null);
     setError(err);
     if (err) return;
     setBusy(true);
@@ -64,10 +66,10 @@ export default function Forgot() {
     <FormScreen>
       {step === 1 ? (
         <>
-          <Title sub="خپل ایمیل ولیکئ، موږ به تاسو ته کوډ درولېږو">پاسورډ مو هېر دی؟</Title>
+          <Title sub={t('forgot_sub')}>{t('forgot_title')}</Title>
           <ErrorBox message={error} />
           <Field
-            label="ایمیل"
+            label={t('email')}
             ltr
             value={email}
             onChangeText={setEmail}
@@ -75,12 +77,12 @@ export default function Forgot() {
             autoCapitalize="none"
             autoComplete="email"
           />
-          <Button title="کوډ ولېږئ" onPress={() => sendCode()} loading={busy} />
-          <Button title="شاته" variant="link" onPress={() => router.back()} />
+          <Button title={t('send_code')} onPress={() => sendCode()} loading={busy} />
+          <Button title={t('back')} variant="link" onPress={() => router.back()} />
         </>
       ) : (
         <>
-          <Title>نوی پاسورډ</Title>
+          <Title>{t('new_password')}</Title>
           <ErrorBox message={error} />
           <CodeStep
             email={cleanEmail}
@@ -90,9 +92,9 @@ export default function Forgot() {
             resending={false}
             secondsLeft={timer.left}
           />
-          <Field label="نوی پاسورډ" ltr value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
-          <Field label="نوی پاسورډ بیا ولیکئ" ltr value={password2} onChangeText={setPassword2} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
-          <Button title="پاسورډ بدل کړئ" onPress={reset} loading={busy} />
+          <Field label={t('new_password')} ltr value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
+          <Field label={t('new_password_again')} ltr value={password2} onChangeText={setPassword2} secureTextEntry autoCapitalize="none" autoComplete="new-password" />
+          <Button title={t('change_password_btn')} onPress={reset} loading={busy} />
         </>
       )}
     </FormScreen>

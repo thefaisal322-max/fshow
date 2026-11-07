@@ -1,5 +1,6 @@
 // Client-side checks give fast feedback. The server (Cloud Functions) repeats
 // every check — never trust the app alone.
+import { tr } from '@/i18n';
 
 export const PASSWORD_MIN = 8;
 export const MIN_AGE = 13;
@@ -14,19 +15,19 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) && email.length <= 254;
 }
 
-/** Returns a Pashto error message, or null if the password is fine. */
+/** Returns an error message in the current language, or null if the password is fine. */
 export function passwordError(pw: string): string | null {
   if (pw.length < PASSWORD_MIN || pw.length > 128 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) {
-    return 'پاسورډ باید لږ تر لږه ۸ توري ولري: توري، شمېره او یو سمبول (لکه fai123@afg)';
+    return tr('v_password');
   }
   return null;
 }
 
 export function nameError(name: string): string | null {
   const n = name.trim();
-  if (n.length < 1) return 'نوم او تخلص دواړه ولیکئ';
-  if (n.length > 40) return 'نوم ډېر اوږد دی';
-  if (/[<>{}\[\]\\/@#$%^*=+|~`"]/.test(n) || /\d/.test(n)) return 'په نوم کې شمېرې او سمبولونه نه منل کېږي';
+  if (n.length < 1) return tr('v_name_required');
+  if (n.length > 40) return tr('v_name_long');
+  if (/[<>{}\[\]\\/@#$%^*=+|~`"]/.test(n) || /\d/.test(n)) return tr('v_name_chars');
   return null;
 }
 
@@ -54,9 +55,9 @@ export function normalizeUsername(name: string): string {
 }
 
 export function usernameError(name: string): string | null {
-  if (name.length < 3 || name.length > 20) return 'ID Name باید له ۳ تر ۲۰ تورو پورې وي';
-  if (!/^[a-z0-9._]+$/.test(name)) return 'یوازې انګلیسي توري، شمېرې، ټکی (.) او _ منل کېږي';
-  if (name.startsWith('.') || name.endsWith('.') || name.includes('..')) return 'ټکی (.) په پیل، پای یا دوه ځله پرله‌پسې نه راځي';
-  if (RESERVED.has(name)) return 'دا نوم ساتل شوی دی';
+  if (name.length < 3 || name.length > 20) return tr('v_username_len');
+  if (!/^[a-z0-9._]+$/.test(name)) return tr('v_username_chars');
+  if (name.startsWith('.') || name.endsWith('.') || name.includes('..')) return tr('v_username_dot');
+  if (RESERVED.has(name)) return tr('v_username_reserved');
   return null;
 }

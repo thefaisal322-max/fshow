@@ -6,8 +6,10 @@ import { api, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { normalizeUsername, usernameError } from '@/lib/validation';
 import { colors } from '@/theme';
+import { useI18n } from '@/i18n';
 
 export default function Username() {
+  const { t } = useI18n();
   const { setProfileRow } = useAuth();
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
@@ -32,7 +34,7 @@ export default function Username() {
 
   return (
     <FormScreen>
-      <Title sub="دا ستاسو یوازینی نوم دی. خلک به تاسو پرې لټوي">خپل ID Name وټاکئ</Title>
+      <Title sub={t('username_sub')}>{t('username_title')}</Title>
       <ErrorBox message={error} />
       <Field
         label="ID Name"
@@ -46,14 +48,14 @@ export default function Username() {
       />
       {clean ? <Text style={{ textAlign: 'left', color: colors.muted, marginTop: -6, marginBottom: 12 }}>@{clean}</Text> : null}
       <Field
-        label="بایو (اختیاري)"
+        label={t('bio_optional')}
         value={bio}
         onChangeText={setBio}
-        placeholder="د خپل ځان په اړه یوه کرښه..."
+        placeholder={t('bio_placeholder')}
         maxLength={150}
         multiline
       />
-      <Button title="پیل کړئ" onPress={save} loading={busy} />
+      <Button title={t('start')} onPress={save} loading={busy} />
     </FormScreen>
   );
 }

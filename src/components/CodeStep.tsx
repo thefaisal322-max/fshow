@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 
+import { useI18n } from '@/i18n';
+import { CODE_LENGTH, RESEND_WAIT_SECONDS } from '@/lib/validation';
 import { colors } from '@/theme';
 
 import { Button, Field } from './ui';
-import { CODE_LENGTH, RESEND_WAIT_SECONDS } from '@/lib/validation';
 
 /** Countdown for the "resend code" button. Call restart() after every send. */
 export function useResendTimer() {
@@ -28,18 +29,21 @@ type Props = {
 
 /** The 5-digit code field + resend button. */
 export function CodeStep({ email, code, onChangeCode, onResend, resending, secondsLeft }: Props) {
+  const { t, d } = useI18n();
   return (
     <>
-      <Text style={{ textAlign: 'right', color: colors.muted, marginBottom: 12, lineHeight: 22 }}>
-        موږ ۵ عددي کوډ دې ایمیل ته ولېږه:{'\n'}
+      <Text style={{ textAlign: d.align, color: colors.muted, marginBottom: 12, lineHeight: 22 }}>
+        {t('code_sent')}
+        {'\n'}
         <Text style={{ color: colors.text, fontWeight: '700' }}>{email}</Text>
-        {'\n'}که نه وي راغلی، Spam هم وګورئ.
+        {'\n'}
+        {t('check_spam')}
       </Text>
       <Field
-        label="کوډ"
+        label={t('code')}
         ltr
         value={code}
-        onChangeText={(t) => onChangeCode(t.replace(/\D/g, '').slice(0, CODE_LENGTH))}
+        onChangeText={(v) => onChangeCode(v.replace(/\D/g, '').slice(0, CODE_LENGTH))}
         keyboardType="number-pad"
         maxLength={CODE_LENGTH}
         autoComplete="one-time-code"
@@ -48,7 +52,7 @@ export function CodeStep({ email, code, onChangeCode, onResend, resending, secon
         style={{ fontSize: 28, letterSpacing: 12, textAlign: 'center' }}
       />
       <Button
-        title={secondsLeft > 0 ? `کوډ بیا ولېږئ (${secondsLeft})` : 'کوډ بیا ولېږئ'}
+        title={secondsLeft > 0 ? t('resend_in', { n: secondsLeft }) : t('resend')}
         variant="link"
         disabled={secondsLeft > 0}
         loading={resending}

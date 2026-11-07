@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/ui';
+import { LanguageProvider, useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { UnreadProvider } from '@/lib/notifications';
 
@@ -15,7 +16,9 @@ import { UnreadProvider } from '@/lib/notifications';
  *  - ready                → (tabs) + post / user / create screens
  */
 function Gate() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading: authLoading } = useAuth();
+  const { ready: langReady, t } = useI18n();
+  const loading = authLoading || !langReady;
   const segments = useSegments();
   const router = useRouter();
   const group = segments[0];
@@ -34,7 +37,7 @@ function Gate() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, headerBackTitle: 'شاته' }} />
+      <Stack screenOptions={{ headerShown: false, headerBackTitle: t('back') }} />
       {loading ? <Loading /> : null}
     </View>
   );
@@ -43,12 +46,14 @@ function Gate() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <LanguageProvider>
       <AuthProvider>
         <UnreadProvider>
           <StatusBar style="dark" />
           <Gate />
         </UnreadProvider>
       </AuthProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }
