@@ -19,13 +19,15 @@ import {
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { authorName, Comment, social, timeAgo } from '@/lib/social';
+import { authorName, Comment, formatCount, isEmojiOnly, social, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
 import { VerifiedBadge } from './VerifiedBadge';
+
+const QUICK = ['😂', '😍', '🥰', '😮', '😢', '🔥', '👏', '❤️'];
 
 /** Comments slide up from the bottom (like Facebook), over the feed or a reel. */
 export function CommentsSheet({
@@ -39,7 +41,8 @@ export function CommentsSheet({
 }) {
   const router = useRouter();
   const { t, d } = useI18n();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const me = session?.user.id ?? '';
   const bottom = useBottomSpace();
   const [items, setItems] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +77,17 @@ export function CommentsSheet({
       Alert.alert('', errorMessage(e));
     } finally {
       setSending(false);
+    }
+  }
+
+  async function heart(c: Comment) {
+    const on = !c.liked;
+    setItems((list) => list.map((x) => (x.id === c.id ? { ...x, liked: on, likes_count: Math.max(0, x.likes_count + (on ? 1 : -1)) } : x)));
+    try {
+      await social.heartComment(c.id, on, me);
+    } catch (e) {
+      setItems((list) => list.map((x) => (x.id === c.id ? c : x)));
+      Alert.alert('', errorMessage(e));
     }
   }
 
@@ -120,25 +134,56 @@ export function CommentsSheet({
             contentContainerStyle={{ padding: 10, paddingBottom: 20 }}
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={<Text style={st.empty}>{t('first_comment')}</Text>}
-            renderItem={({ item }) => (
-              <Pressable onLongPress={item.can_delete ? () => remove(item) : undefined} style={[st.row, { flexDirection: d.row }]}>
-                <Pressable onPress={() => openUser(item.author.id)}>
-                  <Avatar uri={avatarUrl(item.author.photo_path)} name={item.author.first_name} size={36} />
-                </Pressable>
-                <View style={{ flex: 1, alignItems: d.items }}>
-                  <View style={st.bubble}>
-                    <Pressable onPress={() => openUser(item.author.id)} style={{ flexDirection: d.row, alignItems: 'center' }}>
-                      <Text style={st.name}>{authorName(item.author)}</Text>
-                      {item.author.is_fainet ? <VerifiedBadge size={12} /> : null}
-                    </Pressable>
-                    <Text style={[st.body, { textAlign: d.align, writingDirection: d.writing }]}>{item.body}</Text>
+            renderItem={({ item }) => {
+              const sticker = isEmojiOnly(item.body);
+              return (
+                <Pressable onLongPress={item.can_delete ? () => remove(item) : undefined} style={[st.row, { flexDirection: d.row }]}>
+                  <Pressable onPress={() => openUser(item.author.id)}>
+                    <Avatar uri={avatarUrl(item.author.photo_path)} name={item.author.first_name} size={36} />
+                  </Pressable>
+                  <View style={{ flex: 1, alignItems: d.items }}>
+                    <View style={sticker ? { paddingHorizontal: 4 } : st.bubble}>
+                      <Pressable onPress={() => openUser(item.author.id)} style={{ flexDirection: d.row, alignItems: 'center' }}>
+                        <Text style={st.name}>{authorName(item.author)}</Text>
+                        {item.author.is_fainet ? <VerifiedBadge size={12} /> : null}
+                      </Pressable>
+                      <Text style={[sticker ? st.sticker : st.body, { textAlign: d.align, writingDirection: d.writing }]}>{item.body}</Text>
+                    </View>
+                    <Text style={st.time}>{timeAgo(item.created_at)}</Text>
                   </View>
-                  <Text style={st.time}>{timeAgo(item.created_at)}</Text>
-                </View>
-              </Pressable>
-            )}
+                  {/* comment heart */}
+                  <Pressable onPress={() => heart(item)} hitSlop={8} style={st.heart}>
+                    <Ionicons name={item.liked ? 'heart' : 'heart-outline'} size={18} color={item.liked ? colors.error : colors.muted} />
+                    {item.likes_count > 0 ? <Text style={st.heartCount}>{formatCount(item.likes_count)}</Text> : null}
+                  </Pressable>
+                </Pressable>
+              );
+            }}
           />
         )}
+        {/* quick emoji (like TikTok): tap to add, long-press to send as a sticker */}
+        <View style={[st.emojiBar, { flexDirection: d.row }]}>
+          {QUICK.map((e) => (
+            <Pressable
+              key={e}
+              onPress={() => setText((tx) => tx + e)}
+              onLongPress={async () => {
+                setSending(true);
+                try {
+                  await social.comment(postId, e);
+                  await load();
+                } catch (err) {
+                  Alert.alert('', errorMessage(err));
+                } finally {
+                  setSending(false);
+                }
+              }}
+              hitSlop={4}
+            >
+              <Text style={{ fontSize: 26 }}>{e}</Text>
+            </Pressable>
+          ))}
+        </View>
         <View style={[st.inputBar, { flexDirection: d.row, paddingBottom: 8 + bottom }]}>
           <Avatar uri={profile?.photoURL} name={profile?.firstName} size={32} />
           <TextInput
@@ -185,6 +230,10 @@ const st = StyleSheet.create({
   name: { fontWeight: '700', fontSize: 13, color: colors.text },
   body: { fontSize: 15, color: colors.text, marginTop: 2, lineHeight: 22 },
   time: { fontSize: 11, color: colors.muted, marginTop: 3, marginHorizontal: 10 },
+  sticker: { fontSize: 44, lineHeight: 54, marginTop: 2 },
+  heart: { alignItems: 'center', paddingTop: 8, minWidth: 28 },
+  heartCount: { fontSize: 11, color: colors.muted, marginTop: 1 },
+  emojiBar: { justifyContent: 'space-around', paddingVertical: 6, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   inputBar: { alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.card },
   input: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 8, fontSize: 15, maxHeight: 100, color: colors.text },
 });

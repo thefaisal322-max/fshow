@@ -126,7 +126,7 @@ export default function Chats() {
               >
                 <View style={{ alignItems: 'center', gap: 6, minWidth: 44 }}>
                   <Text style={st.time}>{timeAgo(item.last_message_at)}</Text>
-                  {unread ? (
+                  {unread && !item.muted ? (
                     <View style={st.dot}>
                       <Text style={st.dotText}>{item.unread > 99 ? '99+' : item.unread}</Text>
                     </View>
@@ -138,6 +138,7 @@ export default function Chats() {
                       {chatTitle(item, t('chats'))}
                     </Text>
                     {!item.is_group && other?.is_fainet ? <VerifiedBadge /> : null}
+                    {item.muted ? <Ionicons name="notifications-off" size={14} color={colors.muted} style={{ marginHorizontal: 4 }} /> : null}
                   </View>
                   <Text style={[st.preview, unread && { color: colors.text, fontWeight: '700' }, { textAlign: d.align }]} numberOfLines={1}>
                     {item.is_group && !item.last_message_preview ? t('members_n', { n: item.member_count }) : preview}

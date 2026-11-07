@@ -1,7 +1,7 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import { ApiError } from './api';
-import type { Author } from './social';
+import type { Author, PostPreview } from './social';
 import { supabase } from './supabase';
 
 export const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍'] as const;
@@ -15,6 +15,7 @@ export type Conversation = {
   last_message_preview: string;
   last_sender_id: string | null;
   archived: boolean;
+  muted: boolean;
   unread: number;
   members: Author[] | null; // everyone except me
   member_count: number;
@@ -36,6 +37,7 @@ export type Message = {
   reactions: Record<string, number>;
   my_reaction: Reaction | null;
   sender: Author;
+  post: PostPreview | null;
 };
 
 export type Attachment = { uri: string; type: 'image' | 'video'; mime?: string | null; size?: number | null };
@@ -43,7 +45,7 @@ export type Attachment = { uri: string; type: 'image' | 'video'; mime?: string |
 function check<T>(res: { data: T | null; error: { message?: string } | null }): T {
   if (res.error) {
     const msg = res.error.message ?? '';
-    for (const r of ['rate-limited', 'already-opened', 'forbidden', 'invalid-input', 'unauthenticated']) {
+    for (const r of ['rate-limited', 'already-opened', 'forbidden', 'invalid-input', 'unauthenticated', 'blocked']) {
       if (msg.includes(r)) throw new ApiError(r);
     }
     if (/fetch|network/i.test(msg)) throw new ApiError('network');
@@ -109,6 +111,13 @@ export const chat = {
   markRead: async (convId: string) => {
     await supabase.rpc('mark_chat_read', { p_conv: convId });
   },
+  mute: async (convId: string, muted: boolean) => {
+    check(await supabase.rpc('set_chat_muted', { p_conv: convId, p_muted: muted }));
+  },
+  /** Deletes the history for me only. */
+  deleteForMe: async (convId: string) => {
+    check(await supabase.rpc('delete_chat_for_me', { p_conv: convId }));
+  },
   archive: async (convId: string, archived: boolean) => {
     check(await supabase.rpc('set_chat_archived', { p_conv: convId, p_archived: archived }));
   },
@@ -166,22 +175,26 @@ export const chat = {
   },
 };
 
-export type ChatInfo = { id: string; is_group: boolean; title: string | null; members: (Author & { role: string })[] };
+export type ChatMember = Author & {
+  role: 'admin' | 'member';
+  last_read_at: string;
+  followed_by_me: boolean;
+  follows_me: boolean;
+  blocked_by_me: boolean;
+  blocked_me: boolean;
+};
 
-/** Conversation header info (works even for an empty chat). */
+export type ChatInfo = {
+  id: string;
+  is_group: boolean;
+  title: string | null;
+  created_at: string;
+  muted: boolean;
+  my_role: 'admin' | 'member';
+  members: ChatMember[] | null; // everyone except me
+};
+
+/** Header info: members, mute, others' read time ("Seen"), friendship and block state. */
 export async function chatInfo(convId: string): Promise<ChatInfo | null> {
-  const c = await supabase.from('conversations').select('id, is_group, title').eq('id', convId).maybeSingle();
-  if (c.error || !c.data) return null;
-  const m = await supabase.from('conversation_members').select('user_id, role').eq('conversation_id', convId);
-  const ids = (m.data ?? []).map((x) => x.user_id as string);
-  const p = ids.length
-    ? await supabase.from('profiles').select('id, first_name, last_name, username, photo_path, is_fainet').in('id', ids)
-    : { data: [] as Author[] };
-  const roles = new Map((m.data ?? []).map((x) => [x.user_id as string, x.role as string]));
-  return {
-    id: c.data.id,
-    is_group: c.data.is_group,
-    title: c.data.title,
-    members: ((p.data ?? []) as Author[]).map((a) => ({ ...a, role: roles.get(a.id) ?? 'member' })),
-  };
+  return check<ChatInfo | null>(await supabase.rpc('get_chat_info', { p_conv: convId }));
 }

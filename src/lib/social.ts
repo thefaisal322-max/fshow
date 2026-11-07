@@ -32,6 +32,17 @@ export type Post = {
   liked: boolean;
   saved: boolean;
   author: Author;
+  /** When this post is a repost: a small preview of the original. */
+  shared: PostPreview | null;
+};
+
+export type PostPreview = {
+  id: string;
+  body: string;
+  image_path: string | null;
+  video_path: string | null;
+  created_at: string;
+  author: Author;
 };
 
 export type Comment = {
@@ -39,6 +50,8 @@ export type Comment = {
   body: string;
   created_at: string;
   can_delete: boolean;
+  likes_count: number;
+  liked: boolean;
   author: Author;
 };
 
@@ -56,6 +69,8 @@ export type UserProfile = {
   posts_count: number;
   followed_by_me: boolean;
   follows_me: boolean;
+  blocked_by_me: boolean;
+  blocked_me: boolean;
 };
 
 export type SearchResult = Author & { followers_count: number; followed_by_me: boolean };
@@ -140,6 +155,23 @@ export const social = {
   },
   comment: async (postId: string, body: string) => {
     check(await supabase.from('comments').insert({ post_id: postId, body: body.trim() }));
+  },
+  heartComment: async (id: string, on: boolean, uid: string) => {
+    if (on) {
+      const r = await supabase.from('comment_likes').insert({ comment_id: id });
+      if (r.error && r.error.code !== '23505') check(r);
+    } else check(await supabase.from('comment_likes').delete().eq('comment_id', id).eq('user_id', uid));
+  },
+  /** Share to my feed (repost), optionally with my own text. */
+  repost: async (postId: string, body = '') => {
+    check(await supabase.from('posts').insert({ shared_post_id: postId, body: body.trim() }));
+  },
+  /** Send a post into a chat. */
+  sendToChat: async (convId: string, postId: string) => {
+    check(await supabase.from('messages').insert({ conversation_id: convId, post_id: postId, body: '' }));
+  },
+  block: async (userId: string, on: boolean) => {
+    check(await supabase.rpc(on ? 'block_user' : 'unblock_user', { p_user: userId }));
   },
   deleteComment: async (id: string) => {
     check(await supabase.from('comments').delete().eq('id', id));
@@ -243,4 +275,21 @@ export function feelingLabel(code: string | null | undefined): string | null {
 
 export function videoUrl(path: string | null | undefined): string | null {
   return postImageUrl(path);
+}
+
+/** Link that opens the post in the app (fshow:// is the app's own link scheme). */
+export function postLink(id: string): string {
+  return `fshow://post/${id}`;
+}
+
+/** True when a text is only emojis (shown big, like a sticker). Works without Unicode regex support. */
+export function isEmojiOnly(text: string): boolean {
+  const chars = Array.from(text.replace(/\s/g, ''));
+  if (chars.length === 0 || chars.length > 12) return false;
+  return chars.every((ch) => {
+    const cp = ch.codePointAt(0) ?? 0;
+    if (cp === 0x200d || cp === 0xfe0f) return true; // joiner / emoji style
+    if (cp >= 0x3000 && cp <= 0xffef) return false; // CJK etc.
+    return cp >= 0x2190; // arrows, symbols, dingbats and all emoji planes
+  });
 }

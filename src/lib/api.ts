@@ -177,6 +177,7 @@ export function errorMessage(e: unknown): string {
     'video-too-big': 'e_video_big',
     'already-opened': 'e_already_opened',
     forbidden: 'e_forbidden',
+    blocked: 'blocked_me_banner',
   };
   if (err.reason === 'invalid-code') return d.remaining ? tr('e_invalid_code', { n: d.remaining }) : tr('e_invalid_code_plain');
   if (err.reason === 'resend-wait') return tr('e_wait', { n: d.wait ?? 60 });

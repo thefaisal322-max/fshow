@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { postMenu, VerifiedBadge } from '@/components/PostCard';
+import { DoubleTap, HeartBurst, HeartBurstHandle } from '@/components/Heart';
+import { ShareSheet } from '@/components/ShareSheet';
 import { ReelVideo } from '@/components/Video';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
@@ -130,6 +132,8 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
   const me = session?.user.id ?? '';
   const [paused, setPaused] = useState(false);
   const [sheet, setSheet] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const heart = useRef<HeartBurstHandle>(null);
   const uri = videoUrl(post.video_path)!;
   const feeling = feelingLabel(post.feeling);
 
@@ -146,14 +150,23 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
 
   return (
     <View style={{ height, backgroundColor: '#000' }}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={() => setPaused((p) => !p)}>
+      {/* one tap = pause / play, two taps = ❤️ like */}
+      <DoubleTap
+        style={StyleSheet.absoluteFill}
+        onSingle={() => setPaused((p) => !p)}
+        onDouble={() => {
+          heart.current?.burst();
+          if (!post.liked) like();
+        }}
+      >
         <ReelVideo uri={uri} active={active} paused={paused} style={StyleSheet.absoluteFill} />
         {paused ? (
           <View style={st.pause}>
             <Ionicons name="play" size={64} color="rgba(255,255,255,0.85)" />
           </View>
         ) : null}
-      </Pressable>
+        <HeartBurst ref={heart} size={120} />
+      </DoubleTap>
 
       <Text style={[st.brand, { top: topInset + 8 }]}>Reels</Text>
 
@@ -164,8 +177,7 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
         </Pressable>
         <SideBtn icon={post.liked ? 'heart' : 'heart-outline'} color={post.liked ? colors.error : '#fff'} label={formatCount(post.likes_count)} onPress={like} />
         <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
-        <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => social.share(post).catch(() => {})} />
-        <SideBtn icon="eye" label={formatCount(post.views_count)} />
+        <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => setShareOpen(true)} />
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => postMenu(post, me, t, onDeleted)} />
       </View>
 
@@ -186,6 +198,9 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
           </Text>
         ) : null}
       </View>
+      {shareOpen ? (
+        <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange({ ...post, shares_count: post.shares_count + 1 })} />
+      ) : null}
       {sheet ? (
         <CommentsSheet
           postId={post.id}

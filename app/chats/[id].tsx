@@ -19,14 +19,15 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { FeedVideo } from '@/components/Video';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, Message, REACTIONS, Reaction } from '@/lib/chat';
+import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, ChatMember, Message, REACTIONS, Reaction } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
 import { useBottomSpace } from '@/lib/useBottomSpace';
-import { authorName } from '@/lib/social';
+import { authorName, PostPreview, postImageUrl, social } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
@@ -36,7 +37,7 @@ export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t, d } = useI18n();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const me = session?.user.id ?? '';
   const { refreshChats } = useUnread();
   const bottom = useBottomSpace();
@@ -53,14 +54,22 @@ export default function ChatScreen() {
   const [action, setAction] = useState<Message | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const loadingOlder = useRef(false);
+  const lastMineId = msgs.find((m) => m.sender_id === me && !m.deleted)?.id;
 
-  const others = info?.members.filter((m) => m.id !== me) ?? [];
+  const others = info?.members ?? [];
+  const other = !info?.is_group ? others[0] : undefined;
+  const blocked = !!other && (other.blocked_by_me || other.blocked_me);
+  const [typing, setTyping] = useState<string | null>(null);
+  const channel = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastTypingSent = useRef(0);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const title = info?.is_group ? info.title ?? t('chats') : others[0] ? authorName(others[0]) : t('chats');
 
   /** Reload the newest page and merge it with what we already have (keeps older pages). */
   const refreshLatest = useCallback(async () => {
     try {
       const page = await chat.messages(id);
+      if (page.length < 40) setOlder(false);
       setMsgs((old) => {
         if (!page.length) return old;
         const oldestNew = page[page.length - 1].created_at;
@@ -76,18 +85,42 @@ export default function ChatScreen() {
   }, [id, refreshChats]);
 
   useEffect(() => {
-    chatInfo(id).then(setInfo).catch(() => {});
+    const loadInfo = () => chatInfo(id).then(setInfo).catch(() => {});
+    loadInfo();
     refreshLatest();
-    // Live updates for this chat (Row Level Security limits them to members).
+    // Live updates for this chat (Row Level Security limits them to members):
+    // new/changed messages, reactions, read receipts ("Seen") and typing.
     const ch = supabase
-      .channel(`chat:${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` }, () => refreshLatest())
+      .channel(`chat:${id}`, { config: { broadcast: { self: false } } })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` }, () => {
+        setTyping(null);
+        refreshLatest();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, () => refreshLatest())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversation_members', filter: `conversation_id=eq.${id}` }, () => loadInfo())
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (!payload || payload.user === me) return;
+        setTyping(String(payload.name ?? ''));
+        if (typingTimer.current) clearTimeout(typingTimer.current);
+        typingTimer.current = setTimeout(() => setTyping(null), 3500);
+      })
       .subscribe();
+    channel.current = ch;
     return () => {
+      channel.current = null;
       supabase.removeChannel(ch);
     };
   }, [id, refreshLatest]);
+
+  /** Tell the others "I am typing" (at most every 2 s). */
+  function onType(v: string) {
+    setText(v);
+    const now = Date.now();
+    if (v && now - lastTypingSent.current > 2000 && channel.current) {
+      lastTypingSent.current = now;
+      channel.current.send({ type: 'broadcast', event: 'typing', payload: { user: me, name: profile?.firstName ?? '' } });
+    }
+  }
 
   async function loadOlder() {
     if (loadingOlder.current || !older || !msgs.length) return;
@@ -188,7 +221,7 @@ export default function ChatScreen() {
           {title}
         </Text>
         <Text style={{ fontSize: 11, color: colors.muted }}>
-          {info?.is_group ? t('members_n', { n: info.members.length }) : others[0]?.username ? `@${others[0].username}` : ''}
+          {typing ? `${info?.is_group ? typing + ' ' : ''}${t('typing')}` : info?.is_group ? t('members_n', { n: others.length + 1 }) : others[0]?.username ? `@${others[0].username}` : ''}
         </Text>
       </View>
     </Pressable>
@@ -196,7 +229,16 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.card }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <Stack.Screen options={{ headerTitle }} />
+      <Stack.Screen
+        options={{
+          headerTitle,
+          headerRight: () => (
+            <Pressable onPress={() => router.push({ pathname: '/chats/info/[id]', params: { id } })} hitSlop={10} style={{ paddingHorizontal: 8 }}>
+              <Ionicons name="information-circle" size={26} color={colors.primary} />
+            </Pressable>
+          ),
+        }}
+      />
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
@@ -207,15 +249,20 @@ export default function ChatScreen() {
           contentContainerStyle={{ padding: 10 }}
           onEndReached={loadOlder}
           onEndReachedThreshold={0.4}
+          ListHeaderComponent={typing ? <Text style={st.typing}>{info?.is_group ? `${typing} ` : ''}{t('typing')}</Text> : null}
+          ListFooterComponent={info && !older ? <ChatIntro info={info} /> : null}
           renderItem={({ item, index }) => (
-            <Bubble
-              m={item}
-              mine={item.sender_id === me}
-              showName={!!info?.is_group && item.sender_id !== me && msgs[index + 1]?.sender_id !== item.sender_id}
-              onLongPress={() => !item.deleted && setAction(item)}
-              onOpenOnce={() => openOnce(item)}
-              onOpenMedia={(v) => setViewer(v)}
-            />
+            <>
+              <Bubble
+                m={item}
+                mine={item.sender_id === me}
+                showName={!!info?.is_group && item.sender_id !== me && msgs[index + 1]?.sender_id !== item.sender_id}
+                onLongPress={() => !item.deleted && setAction(item)}
+                onOpenOnce={() => openOnce(item)}
+                onOpenMedia={(v) => setViewer(v)}
+              />
+              {item.id === lastMineId ? <SeenBy message={item} members={others} isGroup={!!info?.is_group} /> : null}
+            </>
           )}
         />
       )}
@@ -254,6 +301,26 @@ export default function ChatScreen() {
         <Text style={{ color: colors.primary, textAlign: 'center', fontSize: 12, paddingTop: 4 }}>{t('view_once_on')}</Text>
       ) : null}
 
+      {blocked ? (
+        <View style={[st.blocked, { paddingBottom: 14 + bottom }]}>
+          <Text style={{ color: colors.muted, textAlign: 'center' }}>{other?.blocked_by_me ? t('blocked_banner') : t('blocked_me_banner')}</Text>
+          {other?.blocked_by_me ? (
+            <Pressable
+              onPress={async () => {
+                try {
+                  await social.block(other.id, false);
+                  setInfo(await chatInfo(id));
+                } catch (e) {
+                  Alert.alert('', errorMessage(e));
+                }
+              }}
+              style={st.unblockBtn}
+            >
+              <Text style={{ color: colors.primary, fontWeight: '800' }}>{t('unblock')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : (
       <View style={[st.composer, { flexDirection: d.row, paddingBottom: 8 + bottom }]}>
         <Pressable onPress={pick} hitSlop={6} style={st.iconBtn}>
           <Ionicons name="image" size={24} color={colors.primary} />
@@ -263,7 +330,7 @@ export default function ChatScreen() {
         </Pressable>
         <TextInput
           value={text}
-          onChangeText={setText}
+          onChangeText={onType}
           placeholder={t('type_message')}
           placeholderTextColor={colors.muted}
           multiline
@@ -278,6 +345,7 @@ export default function ChatScreen() {
           )}
         </Pressable>
       </View>
+      )}
 
       {/* long-press menu */}
       <Modal visible={!!action} transparent animationType="fade" onRequestClose={() => setAction(null)}>
@@ -367,6 +435,7 @@ function Bubble({
     content = (
       <>
         {m.media_path && m.media_type ? <ChatMedia path={m.media_path} type={m.media_type} onOpen={onOpenMedia} /> : null}
+        {m.post ? <SharedPostCard p={m.post} /> : null}
         {m.body ? <Text style={[st.body, { color: fg, textAlign: d.align, writingDirection: d.writing }]}>{m.body}</Text> : null}
       </>
     );
@@ -451,4 +520,97 @@ const st = StyleSheet.create({
   viewerText: { color: '#fff', fontSize: 18, textAlign: 'center', padding: 20 },
   viewerNote: { color: '#bbb', fontSize: 12, textAlign: 'center', paddingBottom: 30 },
   viewerClose: { position: 'absolute', top: 40, right: 20 },
+  typing: { color: colors.muted, fontStyle: 'italic', fontSize: 13, marginVertical: 6, marginHorizontal: 6 },
+  intro: { alignItems: 'center', paddingVertical: 26 },
+  introName: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 6 },
+  introSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  introBtn: { marginTop: 12, backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 8 },
+  blocked: { alignItems: 'center', gap: 8, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+  unblockBtn: { backgroundColor: '#E7F0FD', borderRadius: radius.full, paddingHorizontal: 18, paddingVertical: 7 },
+  postCard: { width: 230, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', marginVertical: 4 },
 });
+
+/** Top of the conversation (like Messenger): photo, name and whether you are friends. */
+function ChatIntro({ info }: { info: ChatInfo }) {
+  const router = useRouter();
+  const { t } = useI18n();
+  const o = info.members?.[0];
+  if (info.is_group) {
+    return (
+      <View style={st.intro}>
+        <View style={[st.groupAvatar, { width: 80, height: 80, borderRadius: 40 }]}>
+          <Ionicons name="people" size={40} color="#fff" />
+        </View>
+        <Text style={st.introName}>{info.title}</Text>
+        <Text style={st.introSub}>{t('members_n', { n: (info.members?.length ?? 0) + 1 })}</Text>
+      </View>
+    );
+  }
+  if (!o) return null;
+  const status = o.followed_by_me && o.follows_me ? t('friends_on_app') : o.followed_by_me ? t('you_follow') : o.follows_me ? t('follows_you') : t('not_connected');
+  return (
+    <View style={st.intro}>
+      <Avatar uri={avatarUrl(o.photo_path)} name={o.first_name} size={86} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+        <Text style={st.introName}>{authorName(o)}</Text>
+        {o.is_fainet ? <VerifiedBadge size={16} /> : null}
+      </View>
+      {o.username ? <Text style={st.introSub}>@{o.username}</Text> : null}
+      <Text style={[st.introSub, { marginTop: 4 }]}>
+        {o.followed_by_me && o.follows_me ? '🤝 ' : ''}
+        {status}
+      </Text>
+      <Pressable style={st.introBtn} onPress={() => router.push({ pathname: '/user/[id]', params: { id: o.id } })}>
+        <Text style={{ fontWeight: '700', color: colors.text }}>{t('view_profile')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/** "Seen" under my last message (1-to-1), or small faces of who read it (groups). */
+function SeenBy({ message, members, isGroup }: { message: Message; members: ChatMember[]; isGroup: boolean }) {
+  const { t, d } = useI18n();
+  const readers = members.filter((m) => new Date(m.last_read_at).getTime() >= new Date(message.created_at).getTime());
+  if (!readers.length) return null;
+  return (
+    <View style={{ flexDirection: d.rtl ? 'row' : 'row-reverse', alignItems: 'center', gap: 3, marginTop: 2, marginHorizontal: 4 }}>
+      {isGroup ? (
+        readers.slice(0, 6).map((r) => <Avatar key={r.id} uri={avatarUrl(r.photo_path)} name={r.first_name} size={14} />)
+      ) : (
+        <>
+          <Avatar uri={avatarUrl(readers[0].photo_path)} name={readers[0].first_name} size={14} />
+          <Text style={{ fontSize: 11, color: colors.muted }}>{t('seen')}</Text>
+        </>
+      )}
+    </View>
+  );
+}
+
+/** A post that someone sent into the chat. */
+function SharedPostCard({ p }: { p: PostPreview }) {
+  const router = useRouter();
+  const img = postImageUrl(p.image_path);
+  return (
+    <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id } })} style={st.postCard}>
+      {img ? <Image source={{ uri: img }} style={{ width: '100%', height: 140 }} resizeMode="cover" /> : null}
+      {p.video_path ? (
+        <View style={{ width: '100%', height: 140, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="play-circle" size={44} color="#fff" />
+        </View>
+      ) : null}
+      <View style={{ padding: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Avatar uri={avatarUrl(p.author.photo_path)} name={p.author.first_name} size={20} />
+          <Text style={{ fontWeight: '700', fontSize: 13, color: colors.text }} numberOfLines={1}>
+            {authorName(p.author)}
+          </Text>
+        </View>
+        {p.body ? (
+          <Text style={{ fontSize: 13, color: colors.text, marginTop: 4 }} numberOfLines={3}>
+            {p.body}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}

@@ -83,7 +83,28 @@ export function ProfileView({ userId }: { userId: string }) {
   }
 
   function menu() {
+    if (!user) return;
     Alert.alert('', '', [
+      {
+        text: user.blocked_by_me ? t('unblock') : t('block'),
+        style: 'destructive',
+        onPress: () => {
+          const run = async (on: boolean) => {
+            try {
+              await social.block(userId, on);
+              await loadUser();
+            } catch (e) {
+              Alert.alert('', errorMessage(e));
+            }
+          };
+          if (user.blocked_by_me) run(false);
+          else
+            Alert.alert(t('block_q', { name: authorName(user) }), t('block_warn'), [
+              { text: t('cancel'), style: 'cancel' },
+              { text: t('block'), style: 'destructive', onPress: () => run(true) },
+            ]);
+        },
+      },
       {
         text: t('report'),
         onPress: async () => {
@@ -127,7 +148,16 @@ export function ProfileView({ userId }: { userId: string }) {
         <Stat n={user.posts_count} label="Posts" />
       </View>
 
-      {!isMe ? (
+      {!isMe && (user.blocked_by_me || user.blocked_me) ? (
+        <View style={{ alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <Text style={{ color: colors.muted }}>{user.blocked_by_me ? t('blocked_banner') : t('blocked_me_banner')}</Text>
+          {user.blocked_by_me ? (
+            <Pressable onPress={menu} style={[st.btn, st.btnLight, { paddingHorizontal: 24 }]}>
+              <Text style={[st.btnText, { color: colors.primary }]}>{t('unblock')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : !isMe ? (
         <View style={{ flexDirection: d.row, gap: 8, marginBottom: 8 }}>
           <Pressable
             onPress={toggleFollow}

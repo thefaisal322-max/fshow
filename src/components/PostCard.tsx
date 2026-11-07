@@ -1,17 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { authorName, feelingLabel, formatCount, Post, postImageUrl, social, timeAgo, videoUrl } from '@/lib/social';
+import { authorName, feelingLabel, formatCount, Post, PostPreview, postImageUrl, social, timeAgo, videoUrl } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
 import { CommentsSheet } from './CommentsSheet';
+import { DoubleTap, HeartBurst, HeartBurstHandle } from './Heart';
+import { ShareSheet } from './ShareSheet';
 import { VerifiedBadge } from './VerifiedBadge';
 import { FeedVideo } from './Video';
 
@@ -72,6 +74,8 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const me = session?.user.id ?? '';
   const [ratio, setRatio] = useState(1);
   const [sheet, setSheet] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const heart = useRef<HeartBurstHandle>(null);
   const img = postImageUrl(post.image_path);
   const vid = videoUrl(post.video_path);
   const feeling = feelingLabel(post.feeling);
@@ -93,12 +97,12 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
     }
   }
 
-  async function share() {
-    try {
-      await social.share(post);
-    } catch {
-      // share sheet closed
-    }
+  const share = () => setShareOpen(true);
+
+  /** Double tap: like (never unlike) + big heart. */
+  function doubleTapLike() {
+    heart.current?.burst();
+    if (!post.liked) toggle('like');
   }
 
   const openAuthor = () => router.push({ pathname: '/user/[id]', params: { id: post.author.id } });
@@ -143,8 +147,10 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
 
       {post.body ? <Text style={[st.body, { textAlign: d.align, writingDirection: d.writing }]}>{post.body}</Text> : null}
 
+      {post.shared ? <SharedPreview p={post.shared} /> : null}
+
       {img ? (
-        <Pressable onPress={inComments ? undefined : openComments}>
+        <DoubleTap onDouble={doubleTapLike} onSingle={inComments ? undefined : openComments}>
           <Image
             source={{ uri: img }}
             style={[st.image, { aspectRatio: ratio }]}
@@ -154,14 +160,20 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
               if (width && height) setRatio(Math.max(0.6, Math.min(1.8, width / height)));
             }}
           />
-        </Pressable>
+          <HeartBurst ref={heart} />
+        </DoubleTap>
       ) : null}
       {vid ? <FeedVideo uri={vid} style={st.video} /> : null}
 
       <View style={[st.stats, { flexDirection: d.rowOpp }]}>
-        <Text style={st.statText}>
-          <Ionicons name="eye-outline" size={13} /> {formatCount(post.views_count)}
-        </Text>
+        {/* views are not shown on videos */}
+        {vid ? (
+          <View />
+        ) : (
+          <Text style={st.statText}>
+            <Ionicons name="eye-outline" size={13} /> {formatCount(post.views_count)}
+          </Text>
+        )}
         <Text style={st.statText}>
           {t('comments_n', { n: formatCount(post.comments_count) })} · {t('shares_n', { n: formatCount(post.shares_count) })}
         </Text>
@@ -190,7 +202,39 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
           onCount={(n) => n !== post.comments_count && onChange?.({ ...post, comments_count: n })}
         />
       ) : null}
+      {shareOpen ? (
+        <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange?.({ ...post, shares_count: post.shares_count + 1 })} />
+      ) : null}
     </View>
+  );
+}
+
+/** The original post inside a repost. */
+function SharedPreview({ p }: { p: PostPreview }) {
+  const router = useRouter();
+  const { d } = useI18n();
+  const img = postImageUrl(p.image_path);
+  return (
+    <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: p.id } })} style={st.shared}>
+      {img ? <Image source={{ uri: img }} style={st.sharedImg} resizeMode="cover" /> : null}
+      {p.video_path ? (
+        <View style={[st.sharedImg, { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name="play-circle" size={56} color="#fff" />
+        </View>
+      ) : null}
+      <View style={{ padding: 10, alignItems: d.items }}>
+        <View style={{ flexDirection: d.row, alignItems: 'center', gap: 8 }}>
+          <Avatar uri={avatarUrl(p.author.photo_path)} name={p.author.first_name} size={26} />
+          <Text style={st.name}>{authorName(p.author)}</Text>
+          {p.author.is_fainet ? <VerifiedBadge size={12} /> : null}
+        </View>
+        {p.body ? (
+          <Text style={[st.sharedBody, { textAlign: d.align }]} numberOfLines={4}>
+            {p.body}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
@@ -219,6 +263,9 @@ const st = StyleSheet.create({
   body: { fontSize: 16, color: colors.text, lineHeight: 26, paddingHorizontal: 14, marginTop: 10 },
   image: { width: '100%', marginTop: 10, backgroundColor: colors.bg },
   video: { width: '100%', aspectRatio: 9 / 12, marginTop: 10, backgroundColor: '#000' },
+  shared: { marginHorizontal: 12, marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, borderRadius: radius.md, overflow: 'hidden' },
+  sharedImg: { width: '100%', aspectRatio: 1.4, backgroundColor: colors.bg },
+  sharedBody: { fontSize: 14, color: colors.text, marginTop: 6, lineHeight: 21 },
   stats: { justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8 },
   statText: { color: colors.muted, fontSize: 12 },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
