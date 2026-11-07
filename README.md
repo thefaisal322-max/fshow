@@ -27,8 +27,9 @@
 2. **Actions → Deploy Supabase → Run workflow**
 
 ### ۳. APK
-هر ځل چې `main` ته کوډ ولېږل شي، GitHub پخپله APK جوړوي:
-**Actions → Android APK → وروستی run → Artifacts → `fshow-apk`**
+هر ځل چې `main` ته کوډ ولېږل شي، GitHub پخپله APK جوړوي او په Releases کې یې خپروي:
+- 64-bit (ډېری تلیفونونه): https://github.com/thefaisal322-max/fshow/releases/latest/download/fshow.apk
+- زاړه 32-bit تلیفونونه: https://github.com/thefaisal322-max/fshow/releases/latest/download/fshow-32bit.apk
 
 ---
 
@@ -57,7 +58,12 @@ supabase/
 | `profiles_private` | ایمیل، د زېږېدو نېټه | یوازې سرور؛ یوازې خاوند یې لیدلای شي |
 | `private.email_codes` | پټ (hash) شوي کوډونه | یوازې سرور (API ته نه ښکاري) |
 | `private.rate_limits` | د هڅو شمېر | یوازې سرور |
-| Storage `avatars/<uid>/` | پروفایل عکسونه (≤ 5MB، یوازې عکس) | یوازې خاوند په خپل فولډر کې |
+| `posts` | متن، عکس/ویډیو، ځای، احساس، شمېرې | لیکوال یې جوړوي/ړنګوي؛ شمېرې یوازې سرور |
+| `post_likes` / `post_saves` / `comments` / `follows` | لایک، سېو، کمنټ، Follow | هر څوک یوازې د ځان په نوم |
+| `notifications` | خبرتیاوې | یوازې سرور جوړوي؛ یوازې ترلاسه کوونکی یې ویني |
+| `conversations` / `messages` / `message_reactions` | چټونه | یوازې د چټ غړي |
+| `private.message_secrets` | د "یو ځل لیدونکي" پیغامونو منځپانګه | هېڅوک؛ یوازې یو ځل د `open_view_once` له لارې |
+| Storage `avatars/`, `posts/` (عامه) · `chats/` (پټ) | عکسونه او ویډیوګانې | هر څوک یوازې په خپل فولډر / خپل چټ کې |
 
 ## د وړیا پلان حدونه
 - ډیټابېس 500 MB · فایلونه 1 GB · Edge Functions 500,000 په میاشت کې

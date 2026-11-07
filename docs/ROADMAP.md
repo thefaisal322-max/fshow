@@ -2,13 +2,15 @@
 
 | # | Phase | Status |
 |---|-------|--------|
-| 1 | Sign up (info → email + password → 5-digit code via Resend) · Login · Forgot password · Photo · ID Name · Profile · RLS | ✅ built |
-| 2 | Posts: create (text + image), feed, like, comment, save, share | ⏳ next |
-| 3 | Follow · Search · Notifications (mention, invite, push) | |
-| 4 | Views + For You ranking + **fainet.org boost** (below) · Report / Block · Delete account | |
-| 5 | Chats (1-to-1, then groups) | |
-| 6 | Reels (video upload, compression, vertical player) | |
-| 7 | Play Store release (privacy policy, App Check, signing key) | |
+| 1 | Sign up with 5-digit email code (Resend) · Login · Forgot password · Photo · ID Name | ✅ |
+| 2 | Posts (text, photo, **video ≤ 60 s**, **location**, **feeling**) · feed · like · comment · save · share · views | ✅ |
+| 3 | Follow · Search · Notifications (like, comment, mention, follow) with live badge | ✅ |
+| 4 | For You ranking + fainet.org boost · Report · Delete account · ✓ only for @fainet.org | ✅ |
+| 5 | **Reels** (full-screen vertical videos) | ✅ |
+| 6 | **Chats** like Messenger: 1-to-1 + groups, photos/videos, replies, reactions, delete for everyone, view-once, archive, live | ✅ |
+| 7 | **Settings**: languages (English · پښتو · دری), personal info, change email (with code) / password, privacy policy, about | ✅ |
+| 8 | **Voice & video calls** (WebRTC + TURN server) | ⏳ next |
+| 9 | Push notifications when the app is closed (Expo push) · block users · Play Store release | |
 
 ## Security principles (apply to every phase)
 
