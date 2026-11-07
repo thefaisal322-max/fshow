@@ -50,14 +50,33 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build release APK
+      # Smaller APK: R8 removes unused Java/Kotlin code, unused resources are dropped,
+      # and each phone type gets its own APK instead of one APK with both CPU types.
+      - name: Enable code + resource shrinking
+        run: |
+          {
+            echo 'android.enableProguardInReleaseBuilds=true'
+            echo 'android.enableMinifyInReleaseBuilds=true'
+            echo 'android.enableShrinkResourcesInReleaseBuilds=true'
+          } >> android/gradle.properties
+
+      - name: Build APK (64-bit phones — almost all phones)
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+        run: |
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+          cp app/build/outputs/apk/release/app-release.apk ../fshow.apk
+
+      - name: Build APK (old 32-bit phones)
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=armeabi-v7a
+          cp app/build/outputs/apk/release/app-release.apk ../fshow-32bit.apk
+          ls -la ../fshow*.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: fshow-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: fshow*.apk
           retention-days: 14
 
       # Direct download link (no login): https://github.com/<owner>/fshow/releases/latest/download/fshow.apk
@@ -65,7 +84,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk fshow.apk
-          gh release create "build-${{ github.run_number }}" fshow.apk \
+          gh release create "build-${{ github.run_number }}" fshow.apk fshow-32bit.apk \
             --title "Faisal Show build ${{ github.run_number }}" \
             --notes "Commit ${{ github.sha }}" --latest

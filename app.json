@@ -3,12 +3,17 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "android": {
-      "package": "org.fainet.fshow"
+      "package": "org.fainet.fshow",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "versionCode": 2
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
@@ -20,7 +25,17 @@
         {
           "photosPermission": "Faisal Show needs your photos so you can choose a profile picture."
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
       ]
-    ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }

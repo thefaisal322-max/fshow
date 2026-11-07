@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { useUnread } from '@/lib/notifications';
 import { colors } from '@/theme';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -12,6 +13,7 @@ const icon = (name: IconName) => ({ color, size }: { color: string; size: number
 
 // Declared left → right like the prototype, so "Home" sits on the right (RTL).
 export default function TabsLayout() {
+  const { unread } = useUnread();
   return (
     <Tabs
       screenOptions={{
@@ -23,7 +25,10 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('person') }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Noti', tabBarIcon: icon('notifications') }} />
+      <Tabs.Screen
+        name="notifications"
+        options={{ title: 'Noti', tabBarIcon: icon('notifications'), tabBarBadge: unread > 0 ? (unread > 99 ? '99+' : unread) : undefined }}
+      />
       <Tabs.Screen name="search" options={{ title: 'Search', tabBarIcon: icon('search') }} />
       <Tabs.Screen name="chats" options={{ title: 'Chats', tabBarIcon: icon('chatbubbles') }} />
       <Tabs.Screen name="reels" options={{ title: 'Reels', tabBarIcon: icon('flash') }} />
