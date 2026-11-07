@@ -89,7 +89,12 @@ SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 INSERT INTO public.comments (post_id, body) SELECT id, 'wow (((fainet.org-fshow))afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
 SELECT pg_temp.check((SELECT boost_until > now() FROM public.posts WHERE body = 'سلام Faisal Show'), 'fainet phrase boosts');
 SELECT pg_temp.check((SELECT (f->>'boosted')::boolean FROM public.get_feed('foryou') f LIMIT 1), 'boosted post is first');
-SELECT pg_temp.check((SELECT likes_count FROM public.posts WHERE body = 'سلام Faisal Show') = 1, 'boost does not fake likes');
+SELECT pg_temp.check((SELECT likes_count FROM public.posts WHERE body = 'سلام Faisal Show') = 1, 'real likes kept separate');
+SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 500, 'boost adds 500 bonus likes');
+SELECT pg_temp.check((SELECT (f->>'likes_count')::int FROM public.get_feed('foryou') f LIMIT 1) = 501, 'shown likes = real + bonus');
+INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow))afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
+SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 500, 'bonus not stacked');
+SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_likes = 99999$q$, 'app sets bonus likes');
 
 -- unlike / unfollow decrement
 DELETE FROM public.post_likes;
