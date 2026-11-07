@@ -24,6 +24,7 @@ import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { feedSignal, profileSignal } from '@/lib/signals';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { FEELINGS, feelingLabel, social } from '@/lib/social';
 import { colors, radius } from '@/theme';
 
@@ -34,6 +35,7 @@ export default function CreatePost() {
   const router = useRouter();
   const { t, d } = useI18n();
   const { session, profile } = useAuth();
+  const bottom = useBottomSpace();
   const [body, setBody] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
@@ -177,7 +179,7 @@ export default function CreatePost() {
         ) : null}
       </ScrollView>
 
-      <View style={[st.bar, { flexDirection: d.row }]}>
+      <View style={[st.bar, { flexDirection: d.row, paddingBottom: 6 + bottom }]}>
         <Tool icon="image" color={colors.success} label={t('photo')} onPress={() => pick('images')} />
         <Tool icon="videocam" color="#E4405F" label={t('video')} onPress={() => pick('videos')} />
         <Tool icon="location" color={colors.error} label={t('location')} onPress={findLocation} busy={locating} />
@@ -186,7 +188,7 @@ export default function CreatePost() {
 
       <Modal visible={feelingOpen} transparent animationType="slide" onRequestClose={() => setFeelingOpen(false)}>
         <Pressable style={st.backdrop} onPress={() => setFeelingOpen(false)}>
-          <Pressable style={st.sheet}>
+          <Pressable style={[st.sheet, { paddingBottom: 30 + bottom }]}>
             <Text style={st.sheetTitle}>{t('feeling_title')}</Text>
             <View style={[st.grid, { flexDirection: d.row }]}>
               {FEELINGS.map((f) => (

@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { HomeHeader, PeopleYouMayKnow, ReelsRow } from '@/components/HomeSections';
 import { PostList, PostListHandle } from '@/components/PostList';
 import { feedSignal } from '@/lib/signals';
 import { social } from '@/lib/social';
@@ -14,10 +15,13 @@ export default function Home() {
   const router = useRouter();
   const [mode, setMode] = useState<'foryou' | 'following'>('foryou');
   const list = useRef<PostListHandle>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const load = useCallback((offset: number) => social.feed(mode, offset), [mode]);
 
   useFocusEffect(
     useCallback(() => {
+      // refresh stories every time Home is shown (they change often)
+      setRefreshKey((k) => k + 1);
       if (feedSignal.dirty) {
         feedSignal.dirty = false;
         list.current?.reload();
@@ -34,6 +38,14 @@ export default function Home() {
       <PostList
         ref={list}
         load={load}
+        header={<HomeHeader refreshKey={refreshKey} />}
+        extraAfter={(i) => (i === 1 ? <PeopleYouMayKnow /> : i === 4 ? <ReelsRow /> : null)}
+        footerExtra={
+          <>
+            <PeopleYouMayKnow />
+            <ReelsRow />
+          </>
+        }
         empty={mode === 'following' ? t('empty_following') : t('empty_feed')}
       />
       <Pressable style={[st.fab, d.rtl ? { left: 18 } : { right: 18 }]} onPress={() => router.push('/create')}>

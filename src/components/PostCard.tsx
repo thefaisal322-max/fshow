@@ -11,6 +11,8 @@ import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
+import { CommentsSheet } from './CommentsSheet';
+import { VerifiedBadge } from './VerifiedBadge';
 import { FeedVideo } from './Video';
 
 type Props = {
@@ -21,10 +23,7 @@ type Props = {
   inComments?: boolean;
 };
 
-/** Blue ✓ — only accounts with a verified @fainet.org email get it (set by the server). */
-export function VerifiedBadge({ size = 14 }: { size?: number }) {
-  return <Ionicons name="checkmark-circle" size={size} color={colors.primary} style={{ marginHorizontal: 3 }} />;
-}
+export { VerifiedBadge };
 
 /** Shared post menu (delete own / report others). */
 export function postMenu(post: Post, me: string, t: ReturnType<typeof useI18n>['t'], onDeleted?: (id: string) => void) {
@@ -72,6 +71,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const { session } = useAuth();
   const me = session?.user.id ?? '';
   const [ratio, setRatio] = useState(1);
+  const [sheet, setSheet] = useState(false);
   const img = postImageUrl(post.image_path);
   const vid = videoUrl(post.video_path);
   const feeling = feelingLabel(post.feeling);
@@ -102,7 +102,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   }
 
   const openAuthor = () => router.push({ pathname: '/user/[id]', params: { id: post.author.id } });
-  const openComments = () => router.push({ pathname: '/post/[id]', params: { id: post.id } });
+  const openComments = () => setSheet(true);
 
   return (
     <View style={st.card}>
@@ -183,6 +183,13 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
           onPress={() => toggle('save')}
         />
       </View>
+      {sheet ? (
+        <CommentsSheet
+          postId={post.id}
+          onClose={() => setSheet(false)}
+          onCount={(n) => n !== post.comments_count && onChange?.({ ...post, comments_count: n })}
+        />
+      ) : null}
     </View>
   );
 }

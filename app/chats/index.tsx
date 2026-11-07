@@ -10,6 +10,7 @@ import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat, chatTitle, Conversation } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { timeAgo } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
@@ -20,6 +21,7 @@ export default function Chats() {
   const { session } = useAuth();
   const me = session?.user.id ?? '';
   const { refreshChats } = useUnread();
+  const bottom = useBottomSpace();
   const [archived, setArchived] = useState(false);
   const [items, setItems] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +111,7 @@ export default function Chats() {
         <FlatList
           data={items}
           keyExtractor={(c) => c.id}
+          contentContainerStyle={{ paddingBottom: 100 + bottom }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} colors={[colors.primary]} />}
           ListEmptyComponent={<Text style={st.empty}>{archived ? t('archived_empty') : t('no_chats')}</Text>}
           renderItem={({ item }) => {
@@ -152,7 +155,7 @@ export default function Chats() {
           }}
         />
       )}
-      <Pressable style={[st.fab, d.rtl ? { left: 18 } : { right: 18 }]} onPress={() => router.push('/chats/new')}>
+      <Pressable style={[st.fab, { bottom: 22 + bottom }, d.rtl ? { left: 18 } : { right: 18 }]} onPress={() => router.push('/chats/new')}>
         <Ionicons name="create" size={26} color="#fff" />
       </Pressable>
     </View>

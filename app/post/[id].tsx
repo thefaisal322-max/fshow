@@ -7,6 +7,7 @@ import { Avatar } from '@/components/Avatar';
 import { PostCard, VerifiedBadge } from '@/components/PostCard';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { authorName, Comment, Post, social, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
@@ -18,6 +19,7 @@ export default function PostScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { profile } = useAuth();
+  const bottom = useBottomSpace();
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +105,7 @@ export default function PostScreen() {
         />
       )}
       {post ? (
-        <View style={[st.inputBar, { flexDirection: d.rowOpp }]}>
+        <View style={[st.inputBar, { flexDirection: d.rowOpp, paddingBottom: 8 + bottom }]}>
           <Pressable onPress={send} disabled={!text.trim() || sending} style={{ padding: 8, opacity: text.trim() ? 1 : 0.4 }}>
             {sending ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="send" size={22} color={colors.primary} style={d.rtl ? { transform: [{ scaleX: -1 }] } : undefined} />}
           </Pressable>

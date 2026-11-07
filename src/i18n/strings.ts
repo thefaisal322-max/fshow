@@ -99,6 +99,7 @@ export const ps = {
   once_closes: 'دا پیغام به بند شي او بیا به نه خلاصېږي', group_created_by_you: 'ګروپ جوړ شو', online_now: 'Faisal Show',
   f_happy: 'خوشحاله', f_loved: 'مینه ناک', f_sad: 'خفه', f_cool: 'ښه', f_thinking: 'په فکر کې', f_tired: 'ستړی', f_party: 'خوشالي لمانځم', f_thankful: 'شکرګذار', f_angry: 'په غوسه', f_sick: 'ناروغ',
   remove: 'لرې کول', react: 'غبرګون', archived_empty: 'هېڅ Archive شوی چټ نشته', members: 'غړي', video_tap: 'د لیدو لپاره ټچ کړئ', type_location: 'ځای ولیکئ (لکه کابل)', more: 'نور',
+  create_story: 'Story جوړول', your_story: 'ستاسو Story', people_you_may_know: 'هغه کسان چې ښايي وپېژنئ', new_to_app: 'Faisal Show ته نوی', mutual_n: '{n} ګډ ملګري', follows_you: 'تاسو یې Follow کړي یاست', story_views_n: '{n} کسانو ولید', story_viewers: 'چا ولید', delete_story: 'Story ړنګول', reels_title: 'Reels', story_posting: 'Story پورته کېږي...',
 };
 
 export type StringKey = keyof typeof ps;
@@ -189,6 +190,7 @@ export const en: Dict = {
   once_closes: 'This message will close and cannot be opened again', group_created_by_you: 'Group created', online_now: 'Faisal Show',
   f_happy: 'happy', f_loved: 'loved', f_sad: 'sad', f_cool: 'cool', f_thinking: 'thoughtful', f_tired: 'tired', f_party: 'celebrating', f_thankful: 'thankful', f_angry: 'angry', f_sick: 'sick',
   remove: 'Remove', react: 'React', archived_empty: 'No archived chats', members: 'Members', video_tap: 'Tap to watch', type_location: 'Type a place (e.g. Kabul)', more: 'More',
+  create_story: 'Create story', your_story: 'Your story', people_you_may_know: 'People you may know', new_to_app: 'New to Faisal Show', mutual_n: '{n} mutual friends', follows_you: 'Follows you', story_views_n: '{n} views', story_viewers: 'Viewers', delete_story: 'Delete story', reels_title: 'Reels', story_posting: 'Posting story...',
 };
 
 export const fa: Dict = {
@@ -276,4 +278,5 @@ export const fa: Dict = {
   once_closes: 'این پیام بسته می‌شود و دوباره باز نمی‌شود', group_created_by_you: 'گروپ ساخته شد', online_now: 'Faisal Show',
   f_happy: 'خوشحال', f_loved: 'عاشق', f_sad: 'غمگین', f_cool: 'عالی', f_thinking: 'در فکر', f_tired: 'خسته', f_party: 'جشن', f_thankful: 'شکرگزار', f_angry: 'عصبانی', f_sick: 'مریض',
   remove: 'حذف', react: 'واکنش', archived_empty: 'هیچ چت آرشیف شده‌ای نیست', members: 'اعضا', video_tap: 'برای دیدن لمس کنید', type_location: 'جای را بنویسید (مثل کابل)', more: 'بیشتر',
+  create_story: 'ساختن Story', your_story: 'Story شما', people_you_may_know: 'کسانی که شاید بشناسید', new_to_app: 'جدید در Faisal Show', mutual_n: '{n} دوست مشترک', follows_you: 'شما را Follow کرده', story_views_n: '{n} بازدید', story_viewers: 'بینندگان', delete_story: 'حذف Story', reels_title: 'Reels', story_posting: 'Story بالا می‌شود...',
 };

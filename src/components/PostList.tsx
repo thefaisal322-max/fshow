@@ -13,6 +13,10 @@ type Props = {
   load: (offset: number) => Promise<Post[]>;
   header?: ReactElement | null;
   empty?: string;
+  /** Extra block shown after the post at this index (People you may know, Reels...). */
+  extraAfter?: (index: number) => ReactElement | null;
+  /** Shown under a short feed (fewer than 2 posts) so sections still appear. */
+  footerExtra?: ReactElement | null;
 };
 
 export type PostListHandle = { reload: () => void; prepend: (p: Post) => void };
@@ -20,7 +24,7 @@ export type PostListHandle = { reload: () => void; prepend: (p: Post) => void };
 // Views are recorded once per app session per post; the server also ignores repeats.
 const viewed = new Set<string>();
 
-export const PostList = forwardRef<PostListHandle, Props>(function PostList({ load, header, empty }, ref) {
+export const PostList = forwardRef<PostListHandle, Props>(function PostList({ load, header, empty, extraAfter, footerExtra }, ref) {
   const { t } = useI18n();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +93,12 @@ export const PostList = forwardRef<PostListHandle, Props>(function PostList({ lo
     <FlatList
       data={posts}
       keyExtractor={(p) => p.id}
-      renderItem={({ item }) => <PostCard post={item} onChange={update} onDeleted={remove} />}
+      renderItem={({ item, index }) => (
+        <>
+          <PostCard post={item} onChange={update} onDeleted={remove} />
+          {extraAfter ? extraAfter(index) : null}
+        </>
+      )}
       ListHeaderComponent={header}
       contentContainerStyle={{ padding: 8, paddingBottom: 90 }}
       style={{ backgroundColor: colors.bg }}
@@ -118,7 +127,12 @@ export const PostList = forwardRef<PostListHandle, Props>(function PostList({ lo
           </Text>
         )
       }
-      ListFooterComponent={posts.length && more ? <ActivityIndicator color={colors.primary} style={{ margin: 16 }} /> : <View style={{ height: 8 }} />}
+      ListFooterComponent={
+        <>
+          {posts.length && more ? <ActivityIndicator color={colors.primary} style={{ margin: 16 }} /> : <View style={{ height: 8 }} />}
+          {!loading && posts.length < 2 ? footerExtra : null}
+        </>
+      }
     />
   );
 });

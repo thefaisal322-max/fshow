@@ -16,14 +16,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useI18n } from '@/i18n';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 /** Full-screen form layout: safe area + keyboard handling + scroll. */
 export function FormScreen({ children, brand = true }: { children: ReactNode; brand?: boolean }) {
+  const bottom = useBottomSpace();
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={[s.scroll, { paddingBottom: 16 + bottom }]} keyboardShouldPersistTaps="handled">
           {brand ? <Text style={s.brand}>Faisal Show</Text> : null}
           <View style={s.card}>{children}</View>
         </ScrollView>
@@ -34,9 +36,10 @@ export function FormScreen({ children, brand = true }: { children: ReactNode; br
 
 /** Scrollable page used by settings screens (has a header from the Stack). */
 export function Page({ children }: { children: ReactNode }) {
+  const bottom = useBottomSpace();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 12, paddingBottom: 40 + bottom }} keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>
     </KeyboardAvoidingView>

@@ -25,6 +25,7 @@ import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, Message, REACTIONS, Reaction } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { authorName } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
@@ -38,6 +39,7 @@ export default function ChatScreen() {
   const { session } = useAuth();
   const me = session?.user.id ?? '';
   const { refreshChats } = useUnread();
+  const bottom = useBottomSpace();
 
   const [info, setInfo] = useState<ChatInfo | null>(null);
   const [msgs, setMsgs] = useState<Message[]>([]);
@@ -252,7 +254,7 @@ export default function ChatScreen() {
         <Text style={{ color: colors.primary, textAlign: 'center', fontSize: 12, paddingTop: 4 }}>{t('view_once_on')}</Text>
       ) : null}
 
-      <View style={[st.composer, { flexDirection: d.row }]}>
+      <View style={[st.composer, { flexDirection: d.row, paddingBottom: 8 + bottom }]}>
         <Pressable onPress={pick} hitSlop={6} style={st.iconBtn}>
           <Ionicons name="image" size={24} color={colors.primary} />
         </Pressable>

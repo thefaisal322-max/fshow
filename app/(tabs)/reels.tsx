@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, LayoutChangeEvent, Pressable, StyleSheet, Text, View, ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
+import { CommentsSheet } from '@/components/CommentsSheet';
 import { postMenu, VerifiedBadge } from '@/components/PostCard';
 import { ReelVideo } from '@/components/Video';
 import { useI18n } from '@/i18n';
@@ -25,6 +26,8 @@ export default function Reels() {
     }, []),
   );
   const insets = useSafeAreaInsets();
+  const { start } = useLocalSearchParams<{ start?: string }>();
+  const list = useRef<FlatList<Post>>(null);
   const [reels, setReels] = useState<Post[]>([]);
   const [height, setHeight] = useState(0);
   const [active, setActive] = useState(0);
@@ -53,6 +56,24 @@ export default function Reels() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Opened from the Home reels row: jump to that reel.
+  useEffect(() => {
+    if (!start || !reels.length || !height) return;
+    const i = reels.findIndex((r) => r.id === start);
+    if (i >= 0) {
+      list.current?.scrollToIndex({ index: i, animated: false });
+      setActive(i);
+    } else {
+      social.post(start).then((p) => {
+        if (p?.video_path) {
+          setReels((old) => [p, ...old.filter((o) => o.id !== p.id)]);
+          list.current?.scrollToOffset({ offset: 0, animated: false });
+          setActive(0);
+        }
+      }).catch(() => {});
+    }
+  }, [start, reels.length > 0, height]);
+
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const v = viewableItems.find((x) => x.isViewable);
     if (v?.index != null) setActive(v.index);
@@ -80,6 +101,7 @@ export default function Reels() {
         <Text style={st.empty}>{t('no_reels')}</Text>
       ) : (
         <FlatList
+          ref={list}
           data={reels}
           keyExtractor={(p) => p.id}
           pagingEnabled
@@ -107,6 +129,7 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
   const { session } = useAuth();
   const me = session?.user.id ?? '';
   const [paused, setPaused] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const uri = videoUrl(post.video_path)!;
   const feeling = feelingLabel(post.feeling);
 
@@ -140,7 +163,7 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
           <Avatar uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} size={46} />
         </Pressable>
         <SideBtn icon={post.liked ? 'heart' : 'heart-outline'} color={post.liked ? colors.error : '#fff'} label={formatCount(post.likes_count)} onPress={like} />
-        <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => router.push({ pathname: '/post/[id]', params: { id: post.id } })} />
+        <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
         <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => social.share(post).catch(() => {})} />
         <SideBtn icon="eye" label={formatCount(post.views_count)} />
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => postMenu(post, me, t, onDeleted)} />
@@ -163,6 +186,13 @@ function Reel({ post, height, active, topInset, onChange, onDeleted }: { post: P
           </Text>
         ) : null}
       </View>
+      {sheet ? (
+        <CommentsSheet
+          postId={post.id}
+          onClose={() => setSheet(false)}
+          onCount={(n) => n !== post.comments_count && onChange({ ...post, comments_count: n })}
+        />
+      ) : null}
     </View>
   );
 }

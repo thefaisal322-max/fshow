@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { authorName, formatCount, SearchResult, social } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
+import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
@@ -33,6 +34,7 @@ export function PeopleSearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reqId = useRef(0);
+  const bottom = useBottomSpace();
 
   // Search 350 ms after typing stops; ignore late answers to old queries.
   useEffect(() => {
@@ -85,7 +87,7 @@ export function PeopleSearch({
         data={results}
         keyExtractor={(u) => u.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 8 }}
+        contentContainerStyle={{ padding: 8, paddingBottom: 8 + bottom }}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', color: error ? colors.error : colors.muted, marginTop: 30 }}>
             {error ?? (q.trim() && !loading ? t('nobody_found') : t('find_people'))}
