@@ -1,0 +1,56 @@
+name: Optimize videos
+
+# Makes big phone videos small and fast to start (like TikTok does):
+#   ≤ 720 px wide, H.264 ~1.5 Mbps, AAC 96k, "faststart" (plays before it is fully downloaded).
+# Only touches videos bigger than 2.5 Mbps; the file keeps the same name, so the app needs no change.
+# Runs by itself when this file changes, every night, or manually (Actions → Optimize videos → Run workflow).
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '17 21 * * *'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/optimize-videos.yml']
+
+concurrency:
+  group: optimize-videos
+  cancel-in-progress: false
+
+jobs:
+  videos:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      REF: jqkyihnvidbehrapfflt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg jq >/dev/null
+      - run: supabase link --project-ref "$REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Re-encode big videos
+        run: |
+          KEY=$(supabase projects api-keys --project-ref "$REF" -o json | jq -r '[.[] | select(.name=="service_role" or .type=="secret")][0].api_key')
+          echo "::add-mask::$KEY"
+          [ -n "$KEY" ] && [ "$KEY" != "null" ] || { echo "::error::no service key"; exit 1; }
+          supabase storage ls -r ss:///posts --experimental --linked 2>/dev/null | grep -E '\.(mp4|mov|3gp|webm)$' > videos.txt || true
+          echo "::notice title=videos::$(wc -l < videos.txt) video files"
+          while read -r f; do
+            p="${f#*posts/}"
+            url="https://$REF.supabase.co/storage/v1/object/public/posts/$p"
+            curl -sf -o in.bin "$url" || { echo "::warning title=$p::download failed"; continue; }
+            br=$(ffprobe -v error -show_entries format=bit_rate -of default=nw=1:nk=1 in.bin || echo 0)
+            size=$(stat -c %s in.bin)
+            if [ "${br:-0}" -lt 2500000 ] 2>/dev/null; then echo "skip $p ($br bps)"; continue; fi
+            ffmpeg -v error -y -i in.bin -vf "scale='min(720,iw)':-2" -c:v libx264 -preset veryfast -crf 26 \
+              -maxrate 1600k -bufsize 3200k -profile:v high -pix_fmt yuv420p -c:a aac -b:a 96k -ac 2 \
+              -movflags +faststart -f mp4 out.mp4 || { echo "::warning title=$p::ffmpeg failed"; continue; }
+            new=$(stat -c %s out.mp4)
+            if [ "$new" -ge "$size" ]; then echo "skip $p (not smaller)"; continue; fi
+            code=$(curl -s -o resp.txt -w '%{http_code}' -X PUT "https://$REF.supabase.co/storage/v1/object/posts/$p" \
+              -H "Authorization: Bearer $KEY" -H "apikey: $KEY" -H "x-upsert: true" -H "Content-Type: video/mp4" \
+              -H "Cache-Control: max-age=3600" --data-binary @out.mp4)
+            echo "::notice title=$p::$size → $new bytes (HTTP $code)"
+          done < videos.txt
