@@ -3,7 +3,7 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -11,9 +11,10 @@
       "package": "org.fainet.fshow",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundImage": "./assets/adaptive-bg.png",
+        "backgroundColor": "#D63AF9"
       },
-      "versionCode": 5
+      "versionCode": 6
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
@@ -30,9 +31,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash.png",
-          "imageWidth": 260,
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FFFFFF"
+          "backgroundColor": "#FFF0F7"
         }
       ],
       [
@@ -41,7 +42,21 @@
           "locationWhenInUsePermission": "Faisal Show uses your location only when you add a place to a post."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Faisal Show uses the microphone only while you record a voice message."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Faisal Show saves videos and photos you download to your gallery.",
+          "savePhotosPermission": "Faisal Show saves videos and photos you download to your gallery.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "icon": "./assets/icon.png"
   }

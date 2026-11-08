@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { VISIBILITY } from '@/components/PostMenuSheet';
 import { ErrorBox } from '@/components/ui';
 import { FeedVideo } from '@/components/Video';
 import { StringKey, useI18n } from '@/i18n';
@@ -25,7 +26,7 @@ import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { feedSignal, profileSignal } from '@/lib/signals';
 import { useBottomSpace } from '@/lib/useBottomSpace';
-import { FEELINGS, feelingLabel, social } from '@/lib/social';
+import { FEELINGS, feelingLabel, social, Visibility } from '@/lib/social';
 import { colors, radius } from '@/theme';
 
 const MAX = 2000;
@@ -42,6 +43,9 @@ export default function CreatePost() {
   const [location, setLocation] = useState<string | null>(null);
   const [feeling, setFeeling] = useState<string | null>(null);
   const [feelingOpen, setFeelingOpen] = useState(false);
+  const [visibility, setVisibility] = useState<Visibility>('public');
+  const [visOpen, setVisOpen] = useState(false);
+  const vis = VISIBILITY.find((x) => x.v === visibility)!;
   const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +103,7 @@ export default function CreatePost() {
     setBusy(true);
     setError(null);
     try {
-      await social.createPost(session.user.id, { body, image, video, location, feeling });
+      await social.createPost(session.user.id, { body, image, video, location, feeling, visibility });
       feedSignal.dirty = true;
       profileSignal.dirty = true;
       router.back();
@@ -127,6 +131,11 @@ export default function CreatePost() {
         <View style={[st.who, { flexDirection: d.rowOpp, justifyContent: 'flex-end' }]}>
           <View style={{ flex: 1, alignItems: d.items }}>
             <Text style={st.name}>{profile?.displayName}</Text>
+            <Pressable onPress={() => setVisOpen(true)} style={[st.visChip, { flexDirection: d.row }]}>
+              <Ionicons name={vis.icon} size={13} color={colors.primary} />
+              <Text style={st.visText}>{t(vis.label)}</Text>
+              <Ionicons name="chevron-down" size={13} color={colors.primary} />
+            </Pressable>
             {feeling || location ? (
               <Text style={{ color: colors.muted, fontSize: 13, textAlign: d.align }}>
                 {[feeling ? t('is_feeling', { f: feelingLabel(feeling) ?? '' }) : null, location ? `📍 ${location}` : null].filter(Boolean).join(' · ')}
@@ -186,6 +195,36 @@ export default function CreatePost() {
         <Tool icon="happy" color="#F7B928" label={t('feeling')} onPress={() => setFeelingOpen(true)} />
       </View>
 
+      <Modal visible={visOpen} transparent animationType="slide" onRequestClose={() => setVisOpen(false)}>
+        <Pressable style={st.backdrop} onPress={() => setVisOpen(false)}>
+          <Pressable style={[st.sheet, { paddingBottom: 30 + bottom }]}>
+            <Text style={st.sheetTitle}>{t('who_can_see')}</Text>
+            {VISIBILITY.map((o) => {
+              const on = visibility === o.v;
+              return (
+                <Pressable
+                  key={o.v}
+                  onPress={() => {
+                    setVisibility(o.v);
+                    setVisOpen(false);
+                  }}
+                  style={[st.visRow, { flexDirection: d.row }]}
+                >
+                  <View style={[st.visIcon, on && { backgroundColor: colors.primary }]}>
+                    <Ionicons name={o.icon} size={20} color={on ? '#fff' : colors.text} />
+                  </View>
+                  <View style={{ flex: 1, alignItems: d.items }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{t(o.label)}</Text>
+                    <Text style={{ fontSize: 12, color: colors.muted }}>{t(o.sub)}</Text>
+                  </View>
+                  <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={22} color={on ? colors.primary : colors.muted} />
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={feelingOpen} transparent animationType="slide" onRequestClose={() => setFeelingOpen(false)}>
         <Pressable style={st.backdrop} onPress={() => setFeelingOpen(false)}>
           <Pressable style={[st.sheet, { paddingBottom: 30 + bottom }]}>
@@ -194,7 +233,7 @@ export default function CreatePost() {
               {FEELINGS.map((f) => (
                 <Pressable
                   key={f.code}
-                  style={[st.feel, feeling === f.code && { borderColor: colors.primary, backgroundColor: '#E7F0FD' }]}
+                  style={[st.feel, feeling === f.code && { borderColor: colors.primary, backgroundColor: colors.soft }]}
                   onPress={() => {
                     setFeeling(feeling === f.code ? null : f.code);
                     setFeelingOpen(false);
@@ -233,6 +272,10 @@ const st = StyleSheet.create({
   postBtn: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 7, borderRadius: radius.full, marginHorizontal: 8 },
   postBtnText: { color: '#fff', fontWeight: '700' },
   who: { alignItems: 'center', gap: 10 },
+  visChip: { alignItems: 'center', gap: 4, alignSelf: 'auto', backgroundColor: colors.soft, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 },
+  visText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+  visRow: { alignItems: 'center', gap: 12, paddingVertical: 10 },
+  visIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   name: { fontSize: 16, fontWeight: '700', color: colors.text },
   input: { fontSize: 18, minHeight: 120, textAlignVertical: 'top', color: colors.text, marginTop: 12 },
   counter: { color: colors.muted, fontSize: 12 },

@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
-import { VerifiedBadge } from '@/components/PostCard';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat, chatTitle, Conversation } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
+import { isOnline, usePresence } from '@/lib/presence';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { timeAgo } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
@@ -27,6 +28,7 @@ export default function Chats() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presence = usePresence(items.filter((c) => !c.is_group && c.members?.[0]).map((c) => c.members![0].id));
 
   const load = useCallback(async () => {
     try {
@@ -149,7 +151,10 @@ export default function Chats() {
                     <Ionicons name="people" size={26} color="#fff" />
                   </View>
                 ) : (
-                  <Avatar uri={avatarUrl(other?.photo_path)} name={other?.first_name} size={54} />
+                  <View>
+                    <Avatar uri={avatarUrl(other?.photo_path)} name={other?.first_name} size={54} />
+                    {other && isOnline(presence[other.id]) ? <View style={st.online} /> : null}
+                  </View>
                 )}
               </Pressable>
             );
@@ -175,6 +180,7 @@ const st = StyleSheet.create({
   time: { fontSize: 11, color: colors.muted },
   dot: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   dotText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  online: { position: 'absolute', right: 1, bottom: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: '#31A24C', borderWidth: 2.5, borderColor: colors.card },
   groupAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   fab: {
     position: 'absolute',

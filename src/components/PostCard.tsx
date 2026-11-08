@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { memo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,7 +14,9 @@ import { colors, radius } from '@/theme';
 import { Avatar } from './Avatar';
 import { CommentsSheet } from './CommentsSheet';
 import { DoubleTap, HeartBurst, HeartBurstHandle } from './Heart';
+import { PostMenuSheet } from './PostMenuSheet';
 import { ShareSheet } from './ShareSheet';
+import { TagText } from './TagText';
 import { VerifiedBadge } from './VerifiedBadge';
 import { FeedVideo } from './Video';
 
@@ -27,46 +30,6 @@ type Props = {
 
 export { VerifiedBadge };
 
-/** Shared post menu (delete own / report others). */
-export function postMenu(post: Post, me: string, t: ReturnType<typeof useI18n>['t'], onDeleted?: (id: string) => void) {
-  const mine = post.author.id === me;
-  Alert.alert('', '', [
-    mine
-      ? {
-          text: t('delete_post'),
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert(t('delete_post_q'), t('delete_forever'), [
-              { text: t('no'), style: 'cancel' },
-              {
-                text: t('yes_delete'),
-                style: 'destructive',
-                onPress: async () => {
-                  try {
-                    await social.deletePost(post);
-                    onDeleted?.(post.id);
-                  } catch (e) {
-                    Alert.alert('', errorMessage(e));
-                  }
-                },
-              },
-            ]),
-        }
-      : {
-          text: t('report'),
-          onPress: async () => {
-            try {
-              await social.report({ postId: post.id }, 'inappropriate');
-              Alert.alert('', t('report_thanks'));
-            } catch (e) {
-              Alert.alert('', errorMessage(e));
-            }
-          },
-        },
-    { text: t('close'), style: 'cancel' },
-  ]);
-}
-
 function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const router = useRouter();
   const { t, d } = useI18n();
@@ -75,6 +38,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const [ratio, setRatio] = useState(1);
   const [sheet, setSheet] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
   const heart = useRef<HeartBurstHandle>(null);
   const img = postImageUrl(post.image_path);
   const vid = videoUrl(post.video_path);
@@ -88,6 +52,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
         ? { ...post, liked: on, likes_count: Math.max(0, post.likes_count + (on ? 1 : -1)) }
         : { ...post, saved: on, saves_count: Math.max(0, post.saves_count + (on ? 1 : -1)) };
     onChange?.(next);
+    if (on) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     try {
       if (kind === 'like') await social.like(post.id, on);
       else await social.save(post.id, on, me);
@@ -100,8 +65,8 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const share = () => setShareOpen(true);
 
   /** Double tap: like (never unlike) + big heart. */
-  function doubleTapLike() {
-    heart.current?.burst();
+  function doubleTapLike(x?: number, y?: number) {
+    heart.current?.burst(x, y);
     if (!post.liked) toggle('like');
   }
 
@@ -118,7 +83,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
       ) : null}
 
       <View style={[st.head, { flexDirection: d.rowOpp }]}>
-        <Pressable onPress={() => postMenu(post, me, t, onDeleted)} hitSlop={12} style={{ padding: 4 }}>
+        <Pressable onPress={() => setMenu(true)} hitSlop={12} style={{ padding: 4 }}>
           <Ionicons name="ellipsis-horizontal" size={20} color={colors.muted} />
         </Pressable>
         <Pressable onPress={openAuthor} style={[st.author, { flexDirection: d.rowOpp }]}>
@@ -132,6 +97,12 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
             <Text style={[st.meta, { textAlign: d.align }]}>
               {post.author.username ? `@${post.author.username} · ` : ''}
               {timeAgo(post.created_at)}
+              {post.edited ? ` · ${t('edited')}` : ''}{' '}
+              <Ionicons
+                name={post.visibility === 'private' ? 'lock-closed' : post.visibility === 'friends' ? 'people' : 'earth'}
+                size={11}
+                color={colors.muted}
+              />
             </Text>
             {feeling || post.location ? (
               <Text style={[st.meta, { textAlign: d.align, color: colors.text }]} numberOfLines={1}>
@@ -145,7 +116,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
         </Pressable>
       </View>
 
-      {post.body ? <Text style={[st.body, { textAlign: d.align, writingDirection: d.writing }]}>{post.body}</Text> : null}
+      {post.body ? <TagText text={post.body} style={[st.body, { textAlign: d.align, writingDirection: d.writing }]} /> : null}
 
       {post.shared ? <SharedPreview p={post.shared} /> : null}
 
@@ -202,6 +173,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
           onCount={(n) => n !== post.comments_count && onChange?.({ ...post, comments_count: n })}
         />
       ) : null}
+      {menu ? <PostMenuSheet post={post} onClose={() => setMenu(false)} onChange={onChange} onRemoved={onDeleted} /> : null}
       {shareOpen ? (
         <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange?.({ ...post, shares_count: post.shares_count + 1 })} />
       ) : null}

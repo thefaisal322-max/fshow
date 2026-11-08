@@ -116,7 +116,7 @@ export function ShareSheet({ post, onClose, onShared }: { post: Post; onClose: (
                   <Text style={st.chatName} numberOfLines={1}>
                     {chatTitle(item, t('chats'))}
                   </Text>
-                  <Pressable onPress={() => !done && send(item)} style={[st.sendBtn, done && { backgroundColor: '#E7F0FD' }]}>
+                  <Pressable onPress={() => !done && send(item)} style={[st.sendBtn, done && { backgroundColor: colors.soft }]}>
                     <Text style={[st.sendText, done && { color: colors.primary }]}>{done ? '✓' : t('send')}</Text>
                   </Pressable>
                 </View>

@@ -3,9 +3,9 @@ import { Stack, useRouter } from 'expo-router';
 import { Alert, Text } from 'react-native';
 
 import { Card, P, Page, Row } from '@/components/ui';
-import { LANGUAGES, useI18n } from '@/i18n';
+import { LANGUAGES, StringKey, useI18n } from '@/i18n';
 import { useAuth } from '@/lib/auth-context';
-import { colors } from '@/theme';
+import { colors, themeName } from '@/theme';
 
 export default function Settings() {
   const router = useRouter();
@@ -18,7 +18,8 @@ export default function Settings() {
       <Stack.Screen options={{ title: t('settings') }} />
       <Card>
         <Row icon="person-circle-outline" label={t('personalize')} value={profile?.displayName} onPress={() => router.push('/settings/personal')} />
-        <Row icon="language-outline" label={t('language')} value={langName} onPress={() => router.push('/settings/language')} last />
+        <Row icon="language-outline" label={t('language')} value={langName} onPress={() => router.push('/settings/language')} />
+        <Row icon="color-palette-outline" label={t('theme')} value={t(`theme_${themeName}` as StringKey)} onPress={() => router.push('/settings/theme')} last />
       </Card>
       <Card>
         <Row icon="shield-checkmark-outline" label={t('privacy_policy')} onPress={() => router.push('/settings/policy')} />

@@ -102,6 +102,18 @@ export const ps = {
   create_story: 'Story جوړول', your_story: 'ستاسو Story', people_you_may_know: 'هغه کسان چې ښايي وپېژنئ', new_to_app: 'Faisal Show ته نوی', mutual_n: '{n} ګډ ملګري', follows_you: 'تاسو یې Follow کړي یاست', story_views_n: '{n} کسانو ولید', story_viewers: 'چا ولید', delete_story: 'Story ړنګول', reels_title: 'Reels', story_posting: 'Story پورته کېږي...',
   share_now: 'همدا اوس شریک کړئ', share_write: 'له متن سره شریکول', send_in_chat: 'په چټ کې لېږل', copy_link: 'لینک کاپي کول', share_more: 'نور اپونه', shared_ok: 'شریک شو ✓', link_copied: 'لینک کاپي شو ✓', sent_ok: 'ولېږل شو ✓', say_something: 'په دې اړه یو څه ووایئ...', shared_post: 'شریک شوی پوسټ', post_unavailable: 'دا پوسټ نور نشته',
   chat_info: 'د چټ معلومات', mute: 'غږ بندول (Mute)', unmute: 'غږ خلاصول', muted: 'Mute شوی', delete_chat: 'چټ ړنګول', delete_chat_warn: 'ټول پیغامونه به یوازې ستاسو لپاره ړنګ شي. بل کس به یې لا هم ویني.', block: 'Block', unblock: 'Unblock', block_q: '{name} Block کړئ؟', block_warn: 'دوی به تاسو ته پیغام نه شي لېږلای، Follow نه شي کولای، او یو د بل پوسټونه به نه وینئ.', blocked_banner: 'تاسو دا کس Block کړی', blocked_me_banner: 'تاسو اوس دې کس ته پیغام نه شئ لېږلای', friends_on_app: 'تاسو په Faisal Show کې ملګري یاست', you_follow: 'تاسو یې Follow کوئ', not_connected: 'تاسو لا ملګري نه یاست', typing: 'لیکي...', seen: 'ولیدل شو', view_profile: 'پروفایل کتل', sticker: 'سټیکر',
+
+  // reels menu, privacy, themes, hashtags, online, voice (v0.6)
+  theme: 'تیم (رنګونه)', theme_sub: 'د ایپ رنګونه وټاکئ. ایپ به یوه شېبه بیا پیل شي.', theme_classic: 'کلاسیک آبي', theme_pink: 'ګلابي لوکس', theme_dark: 'تیاره (Dark)', theme_night: 'شپه ګلابي',
+  online: 'آنلاین', active_min: '{n} دقیقې مخکې آنلاین و', active_hour: '{n} ساعته مخکې آنلاین و', active_day: '{n} ورځې مخکې آنلاین و',
+  vis_public: 'ټول خلک (Public)', vis_public_sub: 'هر څوک یې لیدلی شي', vis_friends: 'ملګري (Friends)', vis_friends_sub: 'هغه کسان چې تاسو او هغوی یو بل Follow کړي', vis_private: 'یوازې زه (Only me)', vis_private_sub: 'یوازې تاسو یې وینئ',
+  who_can_see: 'څوک یې لیدلی شي؟', privacy: 'محرمیت (Privacy)',
+  fb_interested: 'خوښ مې دی (Interested)', fb_interested_sub: 'د دې کس نور ویډیوګانې به ډېرې درته راشي', fb_not: 'خوښ مې نه دی (Not interested)', fb_not_sub: 'دا او ورته ویډیوګانې به لږې درته راشي',
+  fb_hide: 'له فیډ نه یې لرې کړه', fb_hide_sub: 'دا ویډیو به نور تاسو ته نه ښکاري', fb_interested_done: 'مننه! ورته ویډیوګانې به ډېرې وینئ ❤️', fb_hide_done: 'لرې شو ✓', fb_not_done: 'مننه. دا ډول ویډیوګانې به لږې وینئ',
+  download: 'ډاونلوډ', gallery_permission: 'د ګالرۍ اجازه ورکړئ چې فایل خوندي شي', saved_gallery: 'ګالرۍ ته خوندي شو ✓', downloading: 'ډاونلوډ کېږي...',
+  report_short: 'Report', edit: 'سمول', edit_post: 'پوسټ سمول (Edit)', edited: 'سم شوی',
+  video_error: 'ویډیو ونه چلېده', no_following_reels: 'هغه کسان چې تاسو یې Follow کوئ لا ویډیو نه ده اچولې', upload_reel: 'ویډیو پورته کړئ', saved_toast: 'خوندي شو 🔖', comment_sent: 'کمنټ ولېږل شو',
+  less: 'لږ', original_sound: 'اصلي غږ', tag_sub: 'د دې هشټېګ ټول پوسټونه', trending: 'ټرېنډنګ', mic_permission: 'د غږیز پیغام لپاره د مایکروفون اجازه ورکړئ', recording: 'غږ ثبتېږي...',
 };
 
 export type StringKey = keyof typeof ps;
@@ -195,6 +207,17 @@ export const en: Dict = {
   create_story: 'Create story', your_story: 'Your story', people_you_may_know: 'People you may know', new_to_app: 'New to Faisal Show', mutual_n: '{n} mutual friends', follows_you: 'Follows you', story_views_n: '{n} views', story_viewers: 'Viewers', delete_story: 'Delete story', reels_title: 'Reels', story_posting: 'Posting story...',
   share_now: 'Share now', share_write: 'Share with text', send_in_chat: 'Send in chat', copy_link: 'Copy link', share_more: 'More apps', shared_ok: 'Shared ✓', link_copied: 'Link copied ✓', sent_ok: 'Sent ✓', say_something: 'Say something about this...', shared_post: 'Shared post', post_unavailable: 'This post is no longer available',
   chat_info: 'Chat info', mute: 'Mute', unmute: 'Unmute', muted: 'Muted', delete_chat: 'Delete chat', delete_chat_warn: 'All messages will be deleted for you only. The other person will still see them.', block: 'Block', unblock: 'Unblock', block_q: 'Block {name}?', block_warn: "They won't be able to message you or follow you, and you won't see each other's posts.", blocked_banner: 'You blocked this person', blocked_me_banner: "You can't message this person right now", friends_on_app: "You're friends on Faisal Show", you_follow: 'You follow them', not_connected: "You're not connected yet", typing: 'typing...', seen: 'Seen', view_profile: 'View profile', sticker: 'Sticker',
+
+  theme: 'Theme', theme_sub: 'Choose the app colors. The app restarts for a moment.', theme_classic: 'Classic blue', theme_pink: 'Pink luxury', theme_dark: 'Dark', theme_night: 'Pink night',
+  online: 'Online', active_min: 'Active {n} min ago', active_hour: 'Active {n} h ago', active_day: 'Active {n} d ago',
+  vis_public: 'Public', vis_public_sub: 'Anyone can see it', vis_friends: 'Friends', vis_friends_sub: 'People you follow who follow you back', vis_private: 'Only me', vis_private_sub: 'Only you can see it',
+  who_can_see: 'Who can see this?', privacy: 'Privacy',
+  fb_interested: 'Interested', fb_interested_sub: 'See more videos from this person', fb_not: 'Not interested', fb_not_sub: 'See fewer videos like this',
+  fb_hide: 'Remove from my feed', fb_hide_sub: 'This video will not be shown to you again', fb_interested_done: 'Thanks! You will see more like this ❤️', fb_hide_done: 'Removed ✓', fb_not_done: 'Thanks. You will see fewer videos like this',
+  download: 'Download', gallery_permission: 'Allow gallery access to save the file', saved_gallery: 'Saved to gallery ✓', downloading: 'Downloading...',
+  report_short: 'Report', edit: 'Edit', edit_post: 'Edit post', edited: 'edited',
+  video_error: 'Could not play the video', no_following_reels: 'People you follow have not posted videos yet', upload_reel: 'Upload a video', saved_toast: 'Saved 🔖', comment_sent: 'Comment sent',
+  less: 'Less', original_sound: 'Original sound', tag_sub: 'All posts with this hashtag', trending: 'Trending', mic_permission: 'Allow the microphone to send voice messages', recording: 'Recording...',
 };
 
 export const fa: Dict = {
@@ -285,4 +308,15 @@ export const fa: Dict = {
   create_story: 'ساختن Story', your_story: 'Story شما', people_you_may_know: 'کسانی که شاید بشناسید', new_to_app: 'جدید در Faisal Show', mutual_n: '{n} دوست مشترک', follows_you: 'شما را Follow کرده', story_views_n: '{n} بازدید', story_viewers: 'بینندگان', delete_story: 'حذف Story', reels_title: 'Reels', story_posting: 'Story بالا می‌شود...',
   share_now: 'همین حالا شریک کنید', share_write: 'شریک با متن', send_in_chat: 'ارسال در چت', copy_link: 'کاپی لینک', share_more: 'اپ‌های دیگر', shared_ok: 'شریک شد ✓', link_copied: 'لینک کاپی شد ✓', sent_ok: 'ارسال شد ✓', say_something: 'درباره این چیزی بگویید...', shared_post: 'پست شریک شده', post_unavailable: 'این پست دیگر وجود ندارد',
   chat_info: 'معلومات چت', mute: 'بی‌صدا (Mute)', unmute: 'باصدا کردن', muted: 'بی‌صدا شده', delete_chat: 'حذف چت', delete_chat_warn: 'همه پیام‌ها فقط برای شما حذف می‌شوند. شخص دیگر هنوز آن‌ها را می‌بیند.', block: 'Block', unblock: 'Unblock', block_q: '{name} را Block می‌کنید؟', block_warn: 'او نمی‌تواند به شما پیام بدهد یا Follow کند، و پست‌های همدیگر را نمی‌بینید.', blocked_banner: 'شما این شخص را Block کرده‌اید', blocked_me_banner: 'حالا نمی‌توانید به این شخص پیام بدهید', friends_on_app: 'شما در Faisal Show دوست هستید', you_follow: 'شما او را Follow می‌کنید', not_connected: 'هنوز با هم وصل نیستید', typing: 'می‌نویسد...', seen: 'دیده شد', view_profile: 'دیدن پروفایل', sticker: 'استیکر',
+
+  theme: 'تم (رنگ‌ها)', theme_sub: 'رنگ‌های اپ را انتخاب کنید. اپ برای لحظه‌ای دوباره شروع می‌شود.', theme_classic: 'آبی کلاسیک', theme_pink: 'صورتی لوکس', theme_dark: 'تاریک', theme_night: 'شب صورتی',
+  online: 'آنلاین', active_min: '{n} دقیقه پیش آنلاین بود', active_hour: '{n} ساعت پیش آنلاین بود', active_day: '{n} روز پیش آنلاین بود',
+  vis_public: 'همه (Public)', vis_public_sub: 'هر کسی می‌تواند ببیند', vis_friends: 'دوستان (Friends)', vis_friends_sub: 'کسانی که شما و آن‌ها همدیگر را Follow کرده‌اید', vis_private: 'فقط من (Only me)', vis_private_sub: 'فقط شما می‌بینید',
+  who_can_see: 'چه کسی می‌تواند ببیند؟', privacy: 'حریم خصوصی',
+  fb_interested: 'علاقه دارم', fb_interested_sub: 'ویدیوهای بیشتری از این شخص ببینید', fb_not: 'علاقه ندارم', fb_not_sub: 'ویدیوهای کمتری مثل این ببینید',
+  fb_hide: 'از فید من حذف کن', fb_hide_sub: 'این ویدیو دیگر به شما نشان داده نمی‌شود', fb_interested_done: 'تشکر! موارد بیشتری مثل این می‌بینید ❤️', fb_hide_done: 'حذف شد ✓', fb_not_done: 'تشکر. ویدیوهای کمتری مثل این می‌بینید',
+  download: 'دانلود', gallery_permission: 'برای ذخیره، اجازه گالری را بدهید', saved_gallery: 'در گالری ذخیره شد ✓', downloading: 'در حال دانلود...',
+  report_short: 'گزارش', edit: 'ویرایش', edit_post: 'ویرایش پست', edited: 'ویرایش شده',
+  video_error: 'ویدیو پخش نشد', no_following_reels: 'کسانی که Follow می‌کنید هنوز ویدیو نگذاشته‌اند', upload_reel: 'ویدیو بارگذاری کنید', saved_toast: 'ذخیره شد 🔖', comment_sent: 'نظر فرستاده شد',
+  less: 'کمتر', original_sound: 'صدای اصلی', tag_sub: 'همه پست‌های این هشتگ', trending: 'ترند', mic_permission: 'برای پیام صوتی اجازه میکروفون را بدهید', recording: 'در حال ضبط...',
 };

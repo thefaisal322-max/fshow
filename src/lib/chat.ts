@@ -27,7 +27,7 @@ export type Message = {
   sender_id: string;
   body: string;
   media_path: string | null;
-  media_type: 'image' | 'video' | null;
+  media_type: 'image' | 'video' | 'audio' | null;
   view_once: boolean;
   opened: boolean;
   deleted: boolean;
@@ -40,7 +40,7 @@ export type Message = {
   post: PostPreview | null;
 };
 
-export type Attachment = { uri: string; type: 'image' | 'video'; mime?: string | null; size?: number | null };
+export type Attachment = { uri: string; type: 'image' | 'video' | 'audio'; mime?: string | null; size?: number | null };
 
 function check<T>(res: { data: T | null; error: { message?: string } | null }): T {
   if (res.error) {
@@ -85,6 +85,15 @@ async function uploadAttachment(convId: string, a: Attachment, once: boolean): P
     if (up.error) throw new ApiError('upload-failed');
     return path;
   }
+  if (a.type === 'audio') {
+    // voice message recorded by the app (AAC in an .m4a file)
+    const bytes = await (await fetch(a.uri)).arrayBuffer();
+    if (bytes.byteLength > 10 * 1024 * 1024) throw new ApiError('image-too-big');
+    const path = `${folder}/${id}.m4a`;
+    const up = await supabase.storage.from('chats').upload(path, bytes, { contentType: 'audio/mp4' });
+    if (up.error) throw new ApiError('upload-failed');
+    return path;
+  }
   const bytes = await (await fetch(a.uri)).arrayBuffer();
   if (bytes.byteLength > 25 * 1024 * 1024) throw new ApiError('video-too-big');
   const mime = a.mime && a.mime.startsWith('video/') ? a.mime : 'video/mp4';
@@ -123,8 +132,9 @@ export const chat = {
   },
 
   send: async (convId: string, input: { body: string; attachment?: Attachment | null; replyTo?: string | null; viewOnce?: boolean }) => {
-    const media = input.attachment ? await uploadAttachment(convId, input.attachment, !!input.viewOnce) : null;
-    if (input.viewOnce) {
+    const once = !!input.viewOnce && input.attachment?.type !== 'audio';
+    const media = input.attachment ? await uploadAttachment(convId, input.attachment, once) : null;
+    if (once) {
       check(
         await supabase.rpc('send_view_once', {
           p_conv: convId,

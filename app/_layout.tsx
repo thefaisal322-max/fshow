@@ -1,3 +1,4 @@
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -8,6 +9,22 @@ import { Loading } from '@/components/ui';
 import { LanguageProvider, useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { UnreadProvider } from '@/lib/notifications';
+import { usePresenceHeartbeat } from '@/lib/presence';
+import { colors } from '@/theme';
+
+// Header, tab bar and screen backgrounds follow the chosen theme.
+const navTheme = {
+  ...(colors.dark ? DarkTheme : DefaultTheme),
+  colors: {
+    ...(colors.dark ? DarkTheme : DefaultTheme).colors,
+    primary: colors.primary,
+    background: colors.bg,
+    card: colors.card,
+    text: colors.text,
+    border: colors.border,
+    notification: colors.error,
+  },
+};
 
 /**
  * Sends each user to the right place:
@@ -22,6 +39,7 @@ function Gate() {
   const segments = useSegments();
   const router = useRouter();
   const group = segments[0];
+  usePresenceHeartbeat(profile?.profileComplete ? session?.user.id : undefined);
 
   useEffect(() => {
     if (loading) return;
@@ -36,7 +54,7 @@ function Gate() {
   }, [session?.user.id, profile?.profileComplete, loading, group]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack screenOptions={{ headerShown: false, headerBackTitle: t('back') }} />
       {loading ? <Loading /> : null}
     </View>
@@ -46,14 +64,16 @@ function Gate() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      <ThemeProvider value={navTheme}>
       <LanguageProvider>
       <AuthProvider>
         <UnreadProvider>
-          <StatusBar style="dark" />
+          <StatusBar style={colors.dark ? 'light' : 'dark'} />
           <Gate />
         </UnreadProvider>
       </AuthProvider>
       </LanguageProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

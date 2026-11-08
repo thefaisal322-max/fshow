@@ -50,7 +50,15 @@ export default function TabsLayout() {
   // In RTL the first tab sits on the right, so we list them in reverse.
   const screens = [
     <Tabs.Screen key="index" name="index" options={{ title: t('tab_home'), tabBarIcon: icon('home'), ...side(homeButtons) }} />,
-    <Tabs.Screen key="reels" name="reels" options={{ title: t('tab_reels'), tabBarIcon: icon('play-circle'), headerShown: false }} />,
+    <Tabs.Screen key="reels" name="reels" options={{
+        title: t('tab_reels'),
+        tabBarIcon: icon('play-circle'),
+        headerShown: false,
+        // black bar on Reels, like TikTok
+        tabBarStyle: { backgroundColor: '#000', borderTopColor: '#1a1a1a' },
+        tabBarActiveTintColor: '#fff',
+        tabBarInactiveTintColor: '#8a8a8a',
+      }} />,
     <Tabs.Screen
       key="notifications"
       name="notifications"
@@ -79,7 +87,7 @@ export default function TabsLayout() {
 }
 
 const st = StyleSheet.create({
-  hBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EEF1F5', alignItems: 'center', justifyContent: 'center' },
+  hBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 });

@@ -21,11 +21,13 @@ import {
 import { Avatar } from '@/components/Avatar';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { FeedVideo } from '@/components/Video';
+import { VoiceMessage, VoiceRecorder } from '@/components/Voice';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, ChatMember, Message, REACTIONS, Reaction } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
+import { isOnline, presenceText, usePresence } from '@/lib/presence';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { authorName, PostPreview, postImageUrl, social } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
@@ -53,6 +55,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [action, setAction] = useState<Message | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [recording, setRecording] = useState(false);
   const loadingOlder = useRef(false);
   const lastMineId = msgs.find((m) => m.sender_id === me && !m.deleted)?.id;
 
@@ -63,6 +66,8 @@ export default function ChatScreen() {
   const channel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastTypingSent = useRef(0);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const presence = usePresence(other ? [other.id] : []);
+  const otherSeen = other ? presence[other.id] : null;
   const title = info?.is_group ? info.title ?? t('chats') : others[0] ? authorName(others[0]) : t('chats');
 
   /** Reload the newest page and merge it with what we already have (keeps older pages). */
@@ -163,6 +168,20 @@ export default function ChatScreen() {
     }
   }
 
+  async function sendVoice(uri: string) {
+    setRecording(false);
+    setSending(true);
+    try {
+      await chat.send(id, { body: '', attachment: { uri, type: 'audio', mime: 'audio/mp4' }, replyTo: replyTo?.id });
+      setReplyTo(null);
+      await refreshLatest();
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function react(m: Message, emoji: Reaction) {
     setAction(null);
     try {
@@ -214,14 +233,21 @@ export default function ChatScreen() {
           <Ionicons name="people" size={18} color="#fff" />
         </View>
       ) : (
-        <Avatar uri={avatarUrl(others[0]?.photo_path)} name={others[0]?.first_name} size={34} />
+        <View>
+          <Avatar uri={avatarUrl(others[0]?.photo_path)} name={others[0]?.first_name} size={34} />
+          {isOnline(otherSeen) ? <View style={st.onlineDot} /> : null}
+        </View>
       )}
       <View style={{ alignItems: d.items }}>
         <Text style={{ fontWeight: '800', fontSize: 16, color: colors.text }} numberOfLines={1}>
           {title}
         </Text>
         <Text style={{ fontSize: 11, color: colors.muted }}>
-          {typing ? `${info?.is_group ? typing + ' ' : ''}${t('typing')}` : info?.is_group ? t('members_n', { n: others.length + 1 }) : others[0]?.username ? `@${others[0].username}` : ''}
+          {typing
+            ? `${info?.is_group ? typing + ' ' : ''}${t('typing')}`
+            : info?.is_group
+              ? t('members_n', { n: others.length + 1 })
+              : presenceText(otherSeen) || (others[0]?.username ? `@${others[0].username}` : '')}
         </Text>
       </View>
     </Pressable>
@@ -274,7 +300,7 @@ export default function ChatScreen() {
               {t('replying_to', { name: replyTo.sender_id === me ? t('you') : replyTo.sender.first_name })}
             </Text>
             <Text style={{ color: colors.muted }} numberOfLines={1}>
-              {replyTo.view_once ? '🔒' : replyTo.body || (replyTo.media_type === 'video' ? '🎬' : '📷')}
+              {replyTo.view_once ? '🔒' : replyTo.body || (replyTo.media_type === 'video' ? '🎬' : replyTo.media_type === 'audio' ? '🎤' : '📷')}
             </Text>
           </View>
           <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
@@ -320,6 +346,10 @@ export default function ChatScreen() {
             </Pressable>
           ) : null}
         </View>
+      ) : recording ? (
+        <View style={[st.composer, { paddingBottom: 8 + bottom, padding: 0 }]}>
+          <VoiceRecorder onSend={sendVoice} onCancel={() => setRecording(false)} />
+        </View>
       ) : (
       <View style={[st.composer, { flexDirection: d.row, paddingBottom: 8 + bottom }]}>
         <Pressable onPress={pick} hitSlop={6} style={st.iconBtn}>
@@ -337,6 +367,11 @@ export default function ChatScreen() {
           maxLength={4000}
           style={[st.input, { textAlign: d.align, writingDirection: d.writing }]}
         />
+        {!text.trim() && !attachment && !sending ? (
+          <Pressable onPress={() => setRecording(true)} hitSlop={6} style={st.iconBtn}>
+            <Ionicons name="mic" size={24} color={colors.primary} />
+          </Pressable>
+        ) : (
         <Pressable onPress={send} disabled={sending || (!text.trim() && !attachment)} style={[st.iconBtn, { opacity: text.trim() || attachment ? 1 : 0.4 }]}>
           {sending ? (
             <ActivityIndicator color={colors.primary} />
@@ -344,6 +379,7 @@ export default function ChatScreen() {
             <Ionicons name="send" size={22} color={colors.primary} style={d.rtl ? { transform: [{ scaleX: -1 }] } : undefined} />
           )}
         </Pressable>
+        )}
       </View>
       )}
 
@@ -354,7 +390,7 @@ export default function ChatScreen() {
             <View style={st.menu}>
               <View style={st.emojis}>
                 {REACTIONS.map((e) => (
-                  <Pressable key={e} onPress={() => react(action, e)} style={[st.emoji, action.my_reaction === e && { backgroundColor: '#E7F0FD' }]}>
+                  <Pressable key={e} onPress={() => react(action, e)} style={[st.emoji, action.my_reaction === e && { backgroundColor: colors.soft }]}>
                     <Text style={{ fontSize: 28 }}>{e}</Text>
                   </Pressable>
                 ))}
@@ -415,7 +451,7 @@ function Bubble({
   const { t, d } = useI18n();
   // My messages sit on the reading-end side (right in English, left in Pashto/Dari).
   const end = mine !== d.rtl;
-  const bg = mine ? colors.primary : '#EEF1F5';
+  const bg = mine ? colors.primary : colors.surface;
   const fg = mine ? '#fff' : colors.text;
   const reactions = Object.entries(m.reactions ?? {});
 
@@ -434,7 +470,10 @@ function Bubble({
   } else {
     content = (
       <>
-        {m.media_path && m.media_type ? <ChatMedia path={m.media_path} type={m.media_type} onOpen={onOpenMedia} /> : null}
+        {m.media_path && m.media_type === 'audio' ? <VoiceMessage path={m.media_path} mine={mine} /> : null}
+        {m.media_path && (m.media_type === 'image' || m.media_type === 'video') ? (
+          <ChatMedia path={m.media_path} type={m.media_type} onOpen={onOpenMedia} />
+        ) : null}
         {m.post ? <SharedPostCard p={m.post} /> : null}
         {m.body ? <Text style={[st.body, { color: fg, textAlign: d.align, writingDirection: d.writing }]}>{m.body}</Text> : null}
       </>
@@ -450,7 +489,7 @@ function Bubble({
           {m.reply ? (
             <View style={[st.quote, { borderColor: mine ? '#fff' : colors.primary }]}>
               <Text style={{ color: mine ? '#dfe9fb' : colors.muted, fontSize: 12 }} numberOfLines={2}>
-                {m.reply.deleted ? t('deleted_msg') : m.reply.body || (m.reply.media_type === 'video' ? '🎬' : '📷')}
+                {m.reply.deleted ? t('deleted_msg') : m.reply.body || (m.reply.media_type === 'video' ? '🎬' : m.reply.media_type === 'audio' ? '🎤' : '📷')}
               </Text>
             </View>
           ) : null}
@@ -498,13 +537,14 @@ function ChatMedia({ path, type, onOpen }: { path: string; type: 'image' | 'vide
 }
 
 const st = StyleSheet.create({
+  onlineDot: { position: 'absolute', right: 0, bottom: 0, width: 11, height: 11, borderRadius: 6, backgroundColor: '#31A24C', borderWidth: 2, borderColor: colors.card },
   groupAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   bubble: { borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, flexShrink: 1 },
   body: { fontSize: 16, lineHeight: 22 },
   sender: { fontSize: 11, color: colors.muted, marginHorizontal: 40, marginBottom: 2 },
   quote: { borderLeftWidth: 3, paddingLeft: 8, marginBottom: 6, opacity: 0.9 },
-  media: { width: 220, height: 220, borderRadius: 12, marginBottom: 4, backgroundColor: '#ddd' },
-  reactions: { flexDirection: 'row', gap: 2, backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 6, paddingVertical: 1, marginTop: -6, elevation: 2, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+  media: { width: 220, height: 220, borderRadius: 12, marginBottom: 4, backgroundColor: colors.border },
+  reactions: { flexDirection: 'row', gap: 2, backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 6, paddingVertical: 1, marginTop: -6, elevation: 2, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
   replyBar: { alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: colors.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   attach: { alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.bg },
   attachThumb: { width: 46, height: 46, borderRadius: 8 },
@@ -526,8 +566,8 @@ const st = StyleSheet.create({
   introSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
   introBtn: { marginTop: 12, backgroundColor: colors.bg, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 8 },
   blocked: { alignItems: 'center', gap: 8, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  unblockBtn: { backgroundColor: '#E7F0FD', borderRadius: radius.full, paddingHorizontal: 18, paddingVertical: 7 },
-  postCard: { width: 230, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', marginVertical: 4 },
+  unblockBtn: { backgroundColor: colors.soft, borderRadius: radius.full, paddingHorizontal: 18, paddingVertical: 7 },
+  postCard: { width: 230, backgroundColor: colors.card, borderRadius: 12, overflow: 'hidden', marginVertical: 4 },
 });
 
 /** Top of the conversation (like Messenger): photo, name and whether you are friends. */

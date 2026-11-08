@@ -31,10 +31,19 @@ export type Post = {
   boosted: boolean;
   liked: boolean;
   saved: boolean;
+  visibility?: Visibility;
+  edited?: boolean;
+  /** I follow the author */
+  following?: boolean;
+  feedback?: Feedback | null;
   author: Author;
   /** When this post is a repost: a small preview of the original. */
   shared: PostPreview | null;
 };
+
+export type Visibility = 'public' | 'friends' | 'private';
+export type Feedback = 'interested' | 'not_interested' | 'hide';
+export type TrendingTag = { tag: string; count: number };
 
 export type PostPreview = {
   id: string;
@@ -92,7 +101,7 @@ export const PAGE = 20;
 function check<T>(res: { data: T | null; error: { message?: string } | null }): T {
   if (res.error) {
     const msg = res.error.message ?? '';
-    if (msg.includes('rate-limited')) throw new ApiError('rate-limited');
+    for (const r of ['rate-limited', 'forbidden', 'invalid-input', 'blocked']) if (msg.includes(r)) throw new ApiError(r);
     if (/fetch|network/i.test(msg)) throw new ApiError('network');
     throw new ApiError('internal', { message: msg });
   }
@@ -106,7 +115,11 @@ export function postImageUrl(path: string | null | undefined): string | null {
 
 export const social = {
   // ── reading ──
-  reels: async (offset = 0) => check<Post[]>(await supabase.rpc('get_reels', { p_offset: offset, p_limit: 10 })) ?? [],
+  reels: async (offset = 0, mode: 'foryou' | 'following' = 'foryou') =>
+    check<Post[]>(await supabase.rpc('get_reels', { p_offset: offset, p_limit: 10, p_mode: mode })) ?? [],
+  tagPosts: async (tag: string, offset = 0) =>
+    check<Post[]>(await supabase.rpc('get_tag_posts', { p_tag: tag, p_offset: offset, p_limit: PAGE })) ?? [],
+  trendingTags: async () => check<TrendingTag[]>(await supabase.rpc('get_trending_tags', { p_limit: 15 })) ?? [],
   feed: async (mode: 'foryou' | 'following', offset = 0) =>
     check<Post[]>(await supabase.rpc('get_feed', { p_mode: mode, p_offset: offset, p_limit: PAGE })) ?? [],
   userPosts: async (userId: string, offset = 0) =>
@@ -170,6 +183,14 @@ export const social = {
   sendToChat: async (convId: string, postId: string) => {
     check(await supabase.from('messages').insert({ conversation_id: convId, post_id: postId, body: '' }));
   },
+  /** Interested / Not interested / Hide from my feed (null = undo). */
+  feedback: async (postId: string, kind: Feedback | null) => {
+    check(await supabase.rpc('set_post_feedback', { p_post: postId, p_kind: kind }));
+  },
+  /** Change my post's text and/or who can see it. */
+  updatePost: async (postId: string, fields: { body?: string; visibility?: Visibility }) => {
+    check(await supabase.rpc('update_post', { p_post: postId, p_body: fields.body ?? null, p_visibility: fields.visibility ?? null }));
+  },
   block: async (userId: string, on: boolean) => {
     check(await supabase.rpc(on ? 'block_user' : 'unblock_user', { p_user: userId }));
   },
@@ -187,7 +208,7 @@ export const social = {
    */
   createPost: async (
     uid: string,
-    input: { body: string; image?: string | null; video?: { uri: string; duration?: number | null; size?: number | null; mime?: string | null } | null; location?: string | null; feeling?: string | null },
+    input: { body: string; image?: string | null; video?: { uri: string; duration?: number | null; size?: number | null; mime?: string | null } | null; location?: string | null; feeling?: string | null; visibility?: Visibility },
   ) => {
     let imagePath: string | null = null;
     let videoPath: string | null = null;
@@ -217,6 +238,7 @@ export const social = {
       video_path: videoPath,
       location: input.location?.trim() || null,
       feeling: input.feeling || null,
+      visibility: input.visibility ?? 'public',
     });
     if (r.error) {
       const files = [imagePath, videoPath].filter(Boolean) as string[];
@@ -292,4 +314,19 @@ export function isEmojiOnly(text: string): boolean {
     if (cp >= 0x3000 && cp <= 0xffef) return false; // CJK etc.
     return cp >= 0x2190; // arrows, symbols, dingbats and all emoji planes
   });
+}
+
+/** Splits a caption into plain text and #hashtags (English, digits, _ and Pashto/Dari letters). */
+export function splitTags(text: string): { text: string; tag?: string }[] {
+  const out: { text: string; tag?: string }[] = [];
+  const re = /#([0-9A-Za-z_\u0600-\u06FF]{1,50})/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push({ text: text.slice(last, m.index) });
+    out.push({ text: m[0], tag: m[1].toLowerCase() });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ text: text.slice(last) });
+  return out;
 }

@@ -129,7 +129,7 @@ export function OkBox({ message }: { message: string | null }) {
   const { d } = useI18n();
   if (!message) return null;
   return (
-    <View style={[s.errorBox, { backgroundColor: '#E6F4EA' }]}>
+    <View style={[s.errorBox, { backgroundColor: colors.successBg }]}>
       <Text style={[s.errorText, { color: colors.success, textAlign: d.align }]}>{message}</Text>
     </View>
   );
@@ -189,7 +189,7 @@ export function Row({
       onPress={onPress}
       style={({ pressed }) => [s.row, { flexDirection: d.row }, !last && s.rowBorder, pressed && { backgroundColor: colors.bg }]}
     >
-      <View style={[s.rowIcon, { backgroundColor: color === colors.text ? '#E7F0FD' : '#FDECEE' }]}>
+      <View style={[s.rowIcon, { backgroundColor: color === colors.text ? colors.soft : colors.errorBg }]}>
         <Ionicons name={icon} size={18} color={color === colors.text ? colors.primary : color} />
       </View>
       <Text style={[s.rowLabel, { color, textAlign: d.align }]}>{label}</Text>
@@ -234,12 +234,12 @@ export const s = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
     color: colors.text,
-    backgroundColor: '#FAFBFC',
+    backgroundColor: colors.input,
   },
   ltr: { textAlign: 'left', writingDirection: 'ltr' },
   btn: { borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   btnPrimary: { backgroundColor: colors.primary },
-  btnSecondary: { backgroundColor: '#E7F0FD' },
+  btnSecondary: { backgroundColor: colors.soft },
   btnDanger: { backgroundColor: colors.error },
   btnLink: { backgroundColor: 'transparent', paddingVertical: 10 },
   btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },

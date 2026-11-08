@@ -95,9 +95,9 @@ export default function Notifications() {
 
 const st = StyleSheet.create({
   row: { alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: radius.md, marginBottom: 6 },
-  unread: { backgroundColor: '#E7F0FD' },
+  unread: { backgroundColor: colors.soft },
   text: { fontSize: 14, color: colors.text, lineHeight: 22 },
   quote: { fontSize: 13, color: colors.muted, marginTop: 2 },
   time: { fontSize: 12, color: colors.primary, marginTop: 4 },
-  badge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  badge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.card },
 });

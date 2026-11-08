@@ -322,7 +322,7 @@ const st = StyleSheet.create({
   personMeta: { fontSize: 12, color: colors.muted, marginTop: 2 },
   pBtn: { borderRadius: 8, paddingVertical: 8, alignItems: 'center' },
   pBtnBlue: { backgroundColor: colors.primary },
-  pBtnLight: { backgroundColor: '#E7F0FD' },
+  pBtnLight: { backgroundColor: colors.soft },
   pBtnGrey: { backgroundColor: colors.bg },
   pBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   reel: { width: 130, height: 220, borderRadius: 14, overflow: 'hidden', backgroundColor: '#111' },

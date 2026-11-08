@@ -10,7 +10,7 @@ import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
-import { VerifiedBadge } from './PostCard';
+import { VerifiedBadge } from './VerifiedBadge';
 
 /** Search box + results. `right` renders the action for each person (Follow, ✓ select, ...). */
 export function PeopleSearch({
@@ -20,7 +20,13 @@ export function PeopleSearch({
   autoFocus,
   placeholder,
   excludeMe,
+  emptyExtra,
+  onTag,
 }: {
+  /** Shown while the search box is empty (e.g. trending hashtags). */
+  emptyExtra?: ReactNode;
+  /** Typing "#something" offers to open that hashtag. */
+  onTag?: (tag: string) => void;
   onPress: (u: SearchResult) => void;
   right?: (u: SearchResult, update: (u: SearchResult) => void) => ReactNode;
   header?: ReactNode;
@@ -39,7 +45,7 @@ export function PeopleSearch({
   // Search 350 ms after typing stops; ignore late answers to old queries.
   useEffect(() => {
     const query = q.trim();
-    if (!query) {
+    if (!query || query.startsWith('#')) {
       setResults([]);
       setError(null);
       setLoading(false);
@@ -88,10 +94,25 @@ export function PeopleSearch({
         keyExtractor={(u) => u.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: 8, paddingBottom: 8 + bottom }}
+        ListHeaderComponent={
+          onTag && /^#[0-9A-Za-z_\u0600-\u06FF]{1,50}$/.test(q.trim()) ? (
+            <Pressable style={[st.row, { flexDirection: d.row }]} onPress={() => onTag(q.trim().slice(1).toLowerCase())}>
+              <View style={st.tagIcon}>
+                <Ionicons name="pricetag" size={22} color="#fff" />
+              </View>
+              <Text style={[st.name, { flex: 1, textAlign: d.align }]}>{q.trim()}</Text>
+              <Ionicons name={d.rtl ? 'chevron-back' : 'chevron-forward'} size={20} color={colors.muted} />
+            </Pressable>
+          ) : null
+        }
         ListEmptyComponent={
+          !q.trim() && emptyExtra ? (
+            <>{emptyExtra}</>
+          ) : q.trim().startsWith('#') ? null : (
           <Text style={{ textAlign: 'center', color: error ? colors.error : colors.muted, marginTop: 30 }}>
             {error ?? (q.trim() && !loading ? t('nobody_found') : t('find_people'))}
           </Text>
+          )
         }
         renderItem={({ item }) => (
           <Pressable style={[st.row, { flexDirection: d.rowOpp }]} onPress={() => onPress(item)}>
@@ -120,4 +141,5 @@ const st = StyleSheet.create({
   row: { alignItems: 'center', gap: 12, backgroundColor: colors.card, padding: 12, borderRadius: radius.md, marginBottom: 6 },
   name: { fontSize: 15, fontWeight: '700', color: colors.text },
   meta: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  tagIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 });

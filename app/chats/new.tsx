@@ -123,7 +123,7 @@ const st = StyleSheet.create({
   swText: { fontWeight: '700', color: colors.text },
   title: { backgroundColor: colors.card, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16, marginTop: 10, color: colors.text },
   chips: { flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#E7F0FD', borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 5 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.soft, borderRadius: radius.full, paddingHorizontal: 10, paddingVertical: 5 },
   chipText: { color: colors.primary, fontWeight: '600' },
   create: { backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', paddingVertical: 11, marginTop: 8 },
 });
