@@ -6,7 +6,8 @@ name: Android APK
 on:
   push:
     branches: [main]
-    paths-ignore: ['supabase/**', '**.md', 'docs/**', '.github/workflows/backend.yml', '.github/workflows/deploy-supabase.yml']
+    paths-ignore: ['supabase/**', '**.md', 'docs/**', '.github/workflows/backend.yml', '.github/workflows/deploy-supabase.yml',
+                   '.github/workflows/ios-ipa.yml', '.github/workflows/optimize-videos.yml']
   workflow_dispatch: {}
 
 permissions:

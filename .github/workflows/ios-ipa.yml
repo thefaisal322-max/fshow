@@ -1,0 +1,81 @@
+name: iOS IPA
+
+# Builds an iPhone app file (.ipa) on every push to main, on a free macOS runner.
+# The IPA is NOT signed: install it with Sideloadly or AltStore using your own (free) Apple ID —
+# they sign it on your computer. With a free Apple ID it must be re-installed every 7 days.
+# Direct download: https://github.com/thefaisal322-max/fshow/releases/download/ios-latest/fshow.ipa
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['supabase/**', '**.md', 'docs/**', '.github/workflows/backend.yml', '.github/workflows/deploy-supabase.yml',
+                   '.github/workflows/android-apk.yml', '.github/workflows/optimize-videos.yml']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    name: Build IPA
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      CI: 'true'
+      EXPO_NO_GIT_STATUS: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: |
+          npm install
+          npx expo install --fix
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Generate iOS project (+ CocoaPods)
+        run: npx expo prebuild --platform ios
+
+      - name: Build app (unsigned)
+        working-directory: ios
+        run: |
+          WS=$(ls -d *.xcworkspace | head -1)
+          SCHEME="${WS%.xcworkspace}"
+          echo "workspace=$WS scheme=$SCHEME"
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            COMPILER_INDEX_STORE_ENABLE=NO -quiet build
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -qry ../fshow.ipa Payload
+          ls -la ../fshow.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fshow-ipa
+          path: fshow.ipa
+          retention-days: 14
+
+      # Always the same link: …/releases/download/ios-latest/fshow.ipa
+      # (marked "pre-release" so the APK link …/releases/latest/… keeps pointing to Android builds)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete ios-latest --yes --cleanup-tag || true
+          gh release create ios-latest fshow.ipa --prerelease --target "${{ github.sha }}" \
+            --title "Faisal Show for iPhone (build ${{ github.run_number }})" \
+            --notes "Unsigned IPA from commit ${{ github.sha }}. Install with Sideloadly or AltStore using your Apple ID."
