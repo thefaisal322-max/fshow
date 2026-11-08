@@ -25,6 +25,8 @@ import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
+import { MentionSuggest } from './MentionSuggest';
+import { TagText } from './TagText';
 import { VerifiedBadge } from './VerifiedBadge';
 
 const QUICK = ['😂', '😍', '🥰', '😮', '😢', '🔥', '👏', '❤️'];
@@ -147,7 +149,11 @@ export function CommentsSheet({
                         <Text style={st.name}>{authorName(item.author)}</Text>
                         {item.author.is_fainet ? <VerifiedBadge size={12} /> : null}
                       </Pressable>
-                      <Text style={[sticker ? st.sticker : st.body, { textAlign: d.align, writingDirection: d.writing }]}>{item.body}</Text>
+                      {sticker ? (
+                        <Text style={[st.sticker, { textAlign: d.align }]}>{item.body}</Text>
+                      ) : (
+                        <TagText text={item.body} style={[st.body, { textAlign: d.align, writingDirection: d.writing }]} />
+                      )}
                     </View>
                     <Text style={st.time}>{timeAgo(item.created_at)}</Text>
                   </View>
@@ -184,6 +190,7 @@ export function CommentsSheet({
             </Pressable>
           ))}
         </View>
+        <MentionSuggest text={text} onPick={setText} />
         <View style={[st.inputBar, { flexDirection: d.row, paddingBottom: 8 + bottom }]}>
           <Avatar uri={profile?.photoURL} name={profile?.firstName} size={32} />
           <TextInput

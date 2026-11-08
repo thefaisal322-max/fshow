@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { StyleProp, Text, TextStyle } from 'react-native';
+import { Alert, StyleProp, Text, TextStyle } from 'react-native';
 
-import { splitTags } from '@/lib/social';
+import { tr } from '@/i18n';
+import { splitTags, userIdByUsername } from '@/lib/social';
 import { colors } from '@/theme';
 
-/** Text where #hashtags are tappable and open the tag page. */
+/** Text where #hashtags open the tag page and @mentions open that person's profile. */
 export function TagText({
   text,
   style,
@@ -19,6 +20,17 @@ export function TagText({
   onPress?: () => void;
 }) {
   const router = useRouter();
+
+  async function openMention(username: string) {
+    try {
+      const id = await userIdByUsername(username);
+      if (id) router.push({ pathname: '/user/[id]', params: { id } });
+      else Alert.alert('', tr('nobody_found'));
+    } catch {
+      Alert.alert('', tr('e_network'));
+    }
+  }
+
   return (
     <Text style={style} numberOfLines={numberOfLines} onPress={onPress}>
       {splitTags(text).map((part, i) =>
@@ -28,6 +40,10 @@ export function TagText({
             style={{ color: tagColor, fontWeight: '700' }}
             onPress={() => router.push({ pathname: '/tag/[tag]', params: { tag: part.tag! } })}
           >
+            {part.text}
+          </Text>
+        ) : part.mention ? (
+          <Text key={i} style={{ color: tagColor, fontWeight: '700' }} onPress={() => openMention(part.mention!)}>
             {part.text}
           </Text>
         ) : (

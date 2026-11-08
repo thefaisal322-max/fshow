@@ -115,6 +115,7 @@ export const ps = {
   video_error: 'ویډیو ونه چلېده', no_following_reels: 'هغه کسان چې تاسو یې Follow کوئ لا ویډیو نه ده اچولې', upload_reel: 'ویډیو پورته کړئ', saved_toast: 'خوندي شو 🔖', comment_sent: 'کمنټ ولېږل شو',
   less: 'لږ', original_sound: 'اصلي غږ', tag_sub: 'د دې هشټېګ ټول پوسټونه', trending: 'ټرېنډنګ', mic_permission: 'د غږیز پیغام لپاره د مایکروفون اجازه ورکړئ', recording: 'غږ ثبتېږي...',
   tab_all: 'ټول', no_reels_profile: 'لا هیڅ ریل نشته',
+  search_hint: 'خلک، ویډیو، پوسټ یا #هشټېګ ولټوئ', nothing_found: 'هیڅ ونه موندل شو', see_all: 'ټول وګورئ', followers_word: 'فالوور', search_top: 'غوره', search_people: 'خلک',
 };
 
 export type StringKey = keyof typeof ps;
@@ -220,6 +221,7 @@ export const en: Dict = {
   video_error: 'Could not play the video', no_following_reels: 'People you follow have not posted videos yet', upload_reel: 'Upload a video', saved_toast: 'Saved 🔖', comment_sent: 'Comment sent',
   less: 'Less', original_sound: 'Original sound', tag_sub: 'All posts with this hashtag', trending: 'Trending', mic_permission: 'Allow the microphone to send voice messages', recording: 'Recording...',
   tab_all: 'All', no_reels_profile: 'No reels yet',
+  search_hint: 'Search people, videos, posts or #hashtags', nothing_found: 'Nothing found', see_all: 'See all', followers_word: 'followers', search_top: 'Top', search_people: 'People',
 };
 
 export const fa: Dict = {
@@ -322,4 +324,5 @@ export const fa: Dict = {
   video_error: 'ویدیو پخش نشد', no_following_reels: 'کسانی که Follow می‌کنید هنوز ویدیو نگذاشته‌اند', upload_reel: 'ویدیو بارگذاری کنید', saved_toast: 'ذخیره شد 🔖', comment_sent: 'نظر فرستاده شد',
   less: 'کمتر', original_sound: 'صدای اصلی', tag_sub: 'همه پست‌های این هشتگ', trending: 'ترند', mic_permission: 'برای پیام صوتی اجازه میکروفون را بدهید', recording: 'در حال ضبط...',
   tab_all: 'همه', no_reels_profile: 'هنوز ریلی نیست',
+  search_hint: 'افراد، ویدیو، پست یا #هشتگ را جستجو کنید', nothing_found: 'چیزی پیدا نشد', see_all: 'دیدن همه', followers_word: 'دنبال‌کننده', search_top: 'برتر', search_people: 'افراد',
 };

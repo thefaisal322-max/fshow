@@ -134,6 +134,9 @@ export const social = {
   comments: async (postId: string) =>
     check<Comment[]>(await supabase.rpc('get_comments', { p_post: postId, p_offset: 0, p_limit: 100 })) ?? [],
   profile: async (userId: string) => check<UserProfile | null>(await supabase.rpc('get_profile', { p_user: userId })),
+  /** Posts and reels whose text, #hashtags or author name match. kind: all / posts / reels */
+  searchPosts: async (q: string, kind: 'all' | 'posts' | 'reels' = 'all', offset = 0, limit = PAGE) =>
+    check<Post[]>(await supabase.rpc('search_posts', { p_query: q, p_kind: kind, p_offset: offset, p_limit: limit })) ?? [],
   search: async (q: string) => check<SearchResult[]>(await supabase.rpc('search_profiles', { p_query: q, p_limit: 30 })) ?? [],
   notifications: async (offset = 0) =>
     check<Notification[]>(await supabase.rpc('get_notifications', { p_offset: offset, p_limit: 30 })) ?? [],
@@ -339,17 +342,26 @@ export function isEmojiOnly(text: string): boolean {
   });
 }
 
-/** Splits a caption into plain text and #hashtags (English, digits, _ and Pashto/Dari letters). */
-export function splitTags(text: string): { text: string; tag?: string }[] {
-  const out: { text: string; tag?: string }[] = [];
-  const re = /#([0-9A-Za-z_\u0600-\u06FF]{1,50})/g;
+/** Splits text into plain parts, #hashtags (English, digits, _ and Pashto/Dari letters) and @mentions. */
+export function splitTags(text: string): { text: string; tag?: string; mention?: string }[] {
+  const out: { text: string; tag?: string; mention?: string }[] = [];
+  const re = /#([0-9A-Za-z_\u0600-\u06FF]{1,50})|@([A-Za-z0-9._]{3,20})/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
+    // "name@mail.com" is an email, not a mention
+    if (m[2] && m.index > 0 && /[A-Za-z0-9._]/.test(text[m.index - 1])) continue;
     if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ text: m[0], tag: m[1].toLowerCase() });
+    if (m[1]) out.push({ text: m[0], tag: m[1].toLowerCase() });
+    else out.push({ text: m[0], mention: m[2].toLowerCase().replace(/\.+$/, '') });
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });
   return out;
+}
+
+/** Finds the profile id for @username (null if there is no such person). */
+export async function userIdByUsername(username: string): Promise<string | null> {
+  const { data } = await supabase.rpc('user_id_by_username', { p_username: username });
+  return (data as string | null) ?? null;
 }

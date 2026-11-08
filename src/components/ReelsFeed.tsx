@@ -40,7 +40,7 @@ const QUICK = ['🥰', '😁', '😂', '😳'];
  *  • Reels tab: Following / For You
  *  • One person's reels (from their profile): pass userId (+ startId of the tapped reel)
  */
-export function ReelsFeed({ userId, startId, title }: { userId?: string; startId?: string; title?: string }) {
+export function ReelsFeed({ userId, query, startId, title }: { userId?: string; query?: string; startId?: string; title?: string }) {
   const router = useRouter();
   const { t, d } = useI18n();
   const [focused, setFocused] = useState(true);
@@ -70,7 +70,11 @@ export function ReelsFeed({ userId, startId, title }: { userId?: string; startId
       busy.current = true;
       try {
         const offset = reset ? 0 : reels.length;
-        const page = userId ? await social.userPosts(userId, offset, 'reels', 10) : await social.reels(offset, m);
+        const page = userId
+          ? await social.userPosts(userId, offset, 'reels', 10)
+          : query
+            ? await social.searchPosts(query, 'reels', offset, 10)
+            : await social.reels(offset, m);
         setReels((old) => (reset ? page : [...old, ...page.filter((p) => !old.some((o) => o.id === p.id))]));
         setMore(page.length >= 10);
         if (reset) {
@@ -85,7 +89,7 @@ export function ReelsFeed({ userId, startId, title }: { userId?: string; startId
         setRefreshing(false);
       }
     },
-    [reels.length, userId],
+    [reels.length, userId, query],
   );
 
   useEffect(() => {
@@ -205,7 +209,7 @@ export function ReelsFeed({ userId, startId, title }: { userId?: string; startId
       )}
 
       {/* top bar: Following | For You, search, upload — or ← name for one person's reels */}
-      {userId ? (
+      {userId || query ? (
         <View style={[st.top, { top: insets.top + 4, flexDirection: d.row }]} pointerEvents="box-none">
           <Pressable onPress={() => router.back()} hitSlop={10} style={st.topIcon}>
             <Ionicons name={d.rtl ? 'arrow-forward' : 'arrow-back'} size={28} color="#fff" style={st.shadow} />

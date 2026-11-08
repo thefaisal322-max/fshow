@@ -23,8 +23,9 @@ function mmss(sec: number): string {
 /** Recording bar: starts at once, shows a red dot + time; ✕ cancels, ➤ sends. Max 3 minutes. */
 export function VoiceRecorder({ onSend, onCancel }: { onSend: (uri: string) => void; onCancel: () => void }) {
   const { t, d } = useI18n();
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const state = useAudioRecorderState(recorder, 250);
+  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true } as typeof RecordingPresets.HIGH_QUALITY);
+  const state = useAudioRecorderState(recorder, 120);
+  const [levels, setLevels] = useState<number[]>([]);
   const [ready, setReady] = useState(false);
   const blink = useRef(new Animated.Value(1)).current;
   const stopped = useRef(false);
@@ -81,6 +82,14 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (uri: string) => v
     else onCancel();
   }
 
+  // live waveform from the microphone level (dB −60…0 → 0…1)
+  useEffect(() => {
+    const db = Number((state as any).metering);
+    if (!state.isRecording || !Number.isFinite(db)) return;
+    const v = Math.max(0.08, Math.min(1, (db + 60) / 60));
+    setLevels((old) => [...old.slice(-27), v]);
+  }, [state]);
+
   // stop automatically after 3 minutes
   useEffect(() => {
     if (state.durationMillis >= 180_000) finish(true);
@@ -95,9 +104,17 @@ export function VoiceRecorder({ onSend, onCancel }: { onSend: (uri: string) => v
       <View style={[st.recMid, { flexDirection: d.row }]}>
         <Animated.View style={[st.redDot, { opacity: blink }]} />
         <Text style={st.recTime}>{mmss(state.durationMillis / 1000)}</Text>
-        <Text style={st.recHint} numberOfLines={1}>
-          {ready ? t('recording') : '…'}
-        </Text>
+        {levels.length ? (
+          <View style={[st.liveBars, { flexDirection: d.row }]}>
+            {levels.map((v, i) => (
+              <View key={i} style={[st.liveBar, { height: 4 + v * 22 }]} />
+            ))}
+          </View>
+        ) : (
+          <Text style={st.recHint} numberOfLines={1}>
+            {ready ? t('recording') : '…'}
+          </Text>
+        )}
       </View>
       <Pressable onPress={() => finish(true)} disabled={!ready} style={[st.sendBtn, !ready && { opacity: 0.4 }]}>
         <Ionicons name="send" size={20} color="#fff" style={d.rtl ? { transform: [{ scaleX: -1 }] } : undefined} />
@@ -116,23 +133,39 @@ export function VoiceMessage({ path, mine }: { path: string; mine: boolean }) {
       alive = false;
     };
   }, [path]);
-  const fg = mine ? '#fff' : colors.primary;
   if (!url) {
     return (
-      <View style={st.voice}>
-        <ActivityIndicator color={fg} />
+      <View style={[st.pill, { backgroundColor: mine ? colors.primary : colors.surface }]}>
+        <ActivityIndicator color={mine ? '#fff' : colors.primary} />
       </View>
     );
   }
-  return <VoicePlayer url={url} fg={fg} mine={mine} />;
+  return <VoicePlayer url={url} mine={mine} />;
 }
 
-function VoicePlayer({ url, fg, mine }: { url: string; fg: string; mine: boolean }) {
+/** Same path → same bar heights, so a message always shows the same "waveform". */
+function bars(seed: string, n = 24): number[] {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    const r = ((h >>> 0) % 1000) / 1000;
+    // louder in the middle, quieter at the ends — looks like speech
+    const shape = 0.45 + 0.55 * Math.sin((Math.PI * (i + 0.5)) / n);
+    out.push(Math.max(0.18, Math.min(1, r * shape + 0.15)));
+  }
+  return out;
+}
+
+/** Voice message like a modern messenger: round ▶ button, waveform that fills while playing, time. */
+function VoicePlayer({ url, mine }: { url: string; mine: boolean }) {
   const player = useAudioPlayer({ uri: url });
   const status = useAudioPlayerStatus(player);
   const duration = status.duration || 0;
   const pos = status.currentTime || 0;
   const pct = duration > 0 ? Math.min(1, pos / duration) : 0;
+  const heights = useRef(bars(url.split('?')[0])).current;
 
   function toggle() {
     if (status.playing) {
@@ -144,19 +177,23 @@ function VoicePlayer({ url, fg, mine }: { url: string; fg: string; mine: boolean
     player.play();
   }
 
+  const fg = mine ? '#fff' : colors.primary;
   return (
-    <View style={st.voice}>
-      <Pressable onPress={toggle} hitSlop={8} style={[st.play, { backgroundColor: mine ? 'rgba(255,255,255,0.25)' : colors.soft }]}>
-        <Ionicons name={status.playing ? 'pause' : 'play'} size={18} color={fg} />
+    <View style={[st.pill, { backgroundColor: mine ? colors.primary : colors.surface }]}>
+      <Pressable onPress={toggle} hitSlop={8} style={[st.playBig, { backgroundColor: mine ? 'rgba(0,0,0,0.45)' : colors.primary }]}>
+        {status.isBuffering && status.playing ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <Ionicons name={status.playing ? 'pause' : 'play'} size={22} color="#fff" style={status.playing ? undefined : { marginLeft: 3 }} />
+        )}
       </Pressable>
-      <View style={{ flex: 1, gap: 4 }}>
-        <View style={[st.wave, { backgroundColor: mine ? 'rgba(255,255,255,0.35)' : colors.border }]}>
-          <View style={[st.waveFill, { backgroundColor: fg, width: `${Math.round(pct * 100)}%` as `${number}%` }]} />
-        </View>
-        <Text style={{ color: mine ? '#eef' : colors.muted, fontSize: 11 }}>
-          🎤 {mmss(status.playing || pos > 0 ? pos : duration)}
-        </Text>
+      <View style={st.bars}>
+        {heights.map((v, i) => {
+          const played = (i + 0.5) / heights.length <= pct;
+          return <View key={i} style={[st.bar, { height: 6 + v * 26, backgroundColor: fg, opacity: played || (!status.playing && pos === 0) ? 1 : 0.45 }]} />;
+        })}
       </View>
+      <Text style={[st.time, { color: mine ? '#fff' : colors.text }]}>{mmss(status.playing || pos > 0 ? pos : duration)}</Text>
     </View>
   );
 }
@@ -169,8 +206,11 @@ const st = StyleSheet.create({
   recTime: { fontSize: 16, fontWeight: '800', color: colors.text, fontVariant: ['tabular-nums'] },
   recHint: { flex: 1, color: colors.muted, fontSize: 13 },
   sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  voice: { width: 200, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
-  play: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  wave: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  waveFill: { height: 4, borderRadius: 2 },
+  pill: { width: 250, minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 26, paddingHorizontal: 10, paddingVertical: 8 },
+  playBig: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  bars: { flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  bar: { width: 3, borderRadius: 2 },
+  time: { fontSize: 15, fontWeight: '700', minWidth: 38, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  liveBars: { flex: 1, height: 28, alignItems: 'center', gap: 2, overflow: 'hidden' },
+  liveBar: { width: 3, borderRadius: 2, backgroundColor: colors.primary },
 });

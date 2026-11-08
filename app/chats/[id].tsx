@@ -485,7 +485,17 @@ function Bubble({
       {showName ? <Text style={st.sender}>{m.sender.first_name}</Text> : null}
       <View style={{ flexDirection: end ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 6, maxWidth: '82%' }}>
         {!mine ? <Avatar uri={avatarUrl(m.sender.photo_path)} name={m.sender.first_name} size={26} /> : null}
-        <Pressable onLongPress={onLongPress} delayLongPress={250} style={[st.bubble, { backgroundColor: bg }]}>
+        <Pressable
+          onLongPress={onLongPress}
+          delayLongPress={250}
+          style={[
+            st.bubble,
+            // a voice message alone is its own pill (no bubble around it)
+            m.media_type === 'audio' && !m.body && !m.reply && !m.post && !m.deleted
+              ? { backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0 }
+              : { backgroundColor: bg },
+          ]}
+        >
           {m.reply ? (
             <View style={[st.quote, { borderColor: mine ? '#fff' : colors.primary }]}>
               <Text style={{ color: mine ? '#dfe9fb' : colors.muted, fontSize: 12 }} numberOfLines={2}>

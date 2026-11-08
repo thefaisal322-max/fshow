@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { MentionSuggest } from '@/components/MentionSuggest';
 import { VISIBILITY } from '@/components/PostMenuSheet';
 import { ErrorBox } from '@/components/ui';
 import { FeedVideo } from '@/components/Video';
@@ -154,6 +155,7 @@ export default function CreatePost() {
           maxLength={MAX + 100}
           style={[st.input, { textAlign: d.align, writingDirection: d.writing }]}
         />
+        <MentionSuggest text={body} onPick={setBody} />
         <Text style={[st.counter, { textAlign: d.rtl ? 'left' : 'right' }, body.length > MAX && { color: colors.error }]}>
           {body.length}/{MAX}
         </Text>

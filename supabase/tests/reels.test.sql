@@ -55,6 +55,12 @@ SELECT pg_temp.check((SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-
                    = (SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'posts'))
                    + (SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'reels')), 'all = posts + reels');
 
+-- search posts / reels
+SELECT pg_temp.check((SELECT count(*) FROM public.search_posts('ریل', 'reels') j WHERE j->>'body' = 'ریل') = 1, 'search finds reel');
+SELECT pg_temp.check((SELECT count(*) FROM public.search_posts('ریل', 'posts') j WHERE j->>'video_path' IS NOT NULL) = 0, 'search posts tab has no videos');
+SELECT pg_temp.check((SELECT count(*) FROM public.search_posts('#kabul') j WHERE j->>'body' LIKE 'ښکلی%') = 1, 'search by hashtag');
+SELECT pg_temp.check((SELECT count(*) FROM public.search_posts('یوازې زه')) = 0, 'search hides private posts of others');
+
 -- edit: only the author
 SELECT pg_temp.must_fail($q$SELECT public.update_post((SELECT id FROM public.posts WHERE body = 'یوازې دوستانو ته'), 'hacked', NULL)$q$, 'edit someone else''s post');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET body = 'hacked' WHERE body = 'یوازې دوستانو ته'$q$, 'direct update');
@@ -91,6 +97,17 @@ CREATE TEMP TABLE dm AS SELECT public.start_direct_chat('aaaaaaaa-0000-0000-0000
 INSERT INTO public.messages (conversation_id, media_path, media_type) SELECT id, id::text || '/voice.m4a', 'audio' FROM dm;
 SELECT pg_temp.check((SELECT last_message_preview = '🎤' FROM public.conversations WHERE id = (SELECT id FROM dm)), 'voice message preview');
 SELECT pg_temp.must_fail($q$INSERT INTO public.messages (conversation_id, media_path, media_type) SELECT id, id::text || '/x.exe', 'file' FROM dm$q$, 'unknown media type');
+-- @mentions
+SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
+SELECT pg_temp.check(public.user_id_by_username('@Karim') = 'cccccccc-0000-0000-0000-000000000003', 'mention lookup');
+SELECT pg_temp.check(public.user_id_by_username('nobody_here') IS NULL, 'unknown mention');
+INSERT INTO public.posts (body) VALUES ('سلام @karim او @karim او @nobody_here');
+INSERT INTO public.posts (body, visibility) VALUES ('پټ @karim', 'private');
+SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
+SELECT pg_temp.check((SELECT count(*) FROM public.notifications n JOIN public.posts p ON p.id = n.post_id
+                      WHERE n.type = 'mention' AND n.comment_id IS NULL AND p.body LIKE 'سلام @karim%') = 1, 'post mention notifies once');
+SELECT pg_temp.check((SELECT count(*) FROM public.notifications n WHERE n.type = 'mention' AND n.comment_id IS NULL
+                      AND n.post_id IN (SELECT id FROM public.posts WHERE body = 'پټ @karim')) = 0, 'no mention notice for a post you cannot see');
 RESET ROLE;
 
 SELECT 'ALL REELS TESTS PASSED' AS result;

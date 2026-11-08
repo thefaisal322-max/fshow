@@ -74,7 +74,7 @@ export const ReelGrid = forwardRef<
           tintColor={colors.primary}
         />
       }
-      renderItem={({ item }) => <Cell post={item} size={cell} onPress={() => onOpen(item)} />}
+      renderItem={({ item }) => <ReelCell post={item} size={cell} onPress={() => onOpen(item)} />}
       ListEmptyComponent={
         loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
@@ -89,7 +89,7 @@ export const ReelGrid = forwardRef<
   );
 });
 
-function Cell({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
+export function ReelCell({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
   const thumb = postImageUrl(post.thumb_path ?? null);
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [st.cell, { width: size, height: Math.round(size * 1.6) }, pressed && { opacity: 0.8 }]}>
