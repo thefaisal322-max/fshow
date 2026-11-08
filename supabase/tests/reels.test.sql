@@ -46,6 +46,15 @@ SELECT pg_temp.check((SELECT count(*) FROM public.posts WHERE body = 'یوازې
 SELECT pg_temp.check((SELECT count(*) FROM public.posts WHERE body = 'یوازې زه') = 0, 'friends do not see private post');
 SELECT pg_temp.check((SELECT (j->>'following')::boolean FROM public.get_feed('foryou', 0, 50) j WHERE j->>'body' = 'یوازې دوستانو ته'), 'post says I follow author');
 
+-- profile tabs
+INSERT INTO public.posts (body, video_path) VALUES ('ریل', 'aaaaaaaa-0000-0000-0000-000000000001/r.mp4');
+SELECT pg_temp.check((SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'reels') j WHERE j->>'video_path' IS NULL) = 0, 'reels tab = only videos');
+SELECT pg_temp.check((SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'reels')) >= 1, 'reels tab has the reel');
+SELECT pg_temp.check((SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'posts') j WHERE j->>'video_path' IS NOT NULL) = 0, 'posts tab = no videos');
+SELECT pg_temp.check((SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60))
+                   = (SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'posts'))
+                   + (SELECT count(*) FROM public.get_user_posts('aaaaaaaa-0000-0000-0000-000000000001', 0, 60, 'reels')), 'all = posts + reels');
+
 -- edit: only the author
 SELECT pg_temp.must_fail($q$SELECT public.update_post((SELECT id FROM public.posts WHERE body = 'یوازې دوستانو ته'), 'hacked', NULL)$q$, 'edit someone else''s post');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET body = 'hacked' WHERE body = 'یوازې دوستانو ته'$q$, 'direct update');

@@ -114,6 +114,7 @@ export const ps = {
   report_short: 'Report', edit: 'سمول', edit_post: 'پوسټ سمول (Edit)', edited: 'سم شوی',
   video_error: 'ویډیو ونه چلېده', no_following_reels: 'هغه کسان چې تاسو یې Follow کوئ لا ویډیو نه ده اچولې', upload_reel: 'ویډیو پورته کړئ', saved_toast: 'خوندي شو 🔖', comment_sent: 'کمنټ ولېږل شو',
   less: 'لږ', original_sound: 'اصلي غږ', tag_sub: 'د دې هشټېګ ټول پوسټونه', trending: 'ټرېنډنګ', mic_permission: 'د غږیز پیغام لپاره د مایکروفون اجازه ورکړئ', recording: 'غږ ثبتېږي...',
+  tab_all: 'ټول', no_reels_profile: 'لا هیڅ ریل نشته',
 };
 
 export type StringKey = keyof typeof ps;
@@ -218,6 +219,7 @@ export const en: Dict = {
   report_short: 'Report', edit: 'Edit', edit_post: 'Edit post', edited: 'edited',
   video_error: 'Could not play the video', no_following_reels: 'People you follow have not posted videos yet', upload_reel: 'Upload a video', saved_toast: 'Saved 🔖', comment_sent: 'Comment sent',
   less: 'Less', original_sound: 'Original sound', tag_sub: 'All posts with this hashtag', trending: 'Trending', mic_permission: 'Allow the microphone to send voice messages', recording: 'Recording...',
+  tab_all: 'All', no_reels_profile: 'No reels yet',
 };
 
 export const fa: Dict = {
@@ -319,4 +321,5 @@ export const fa: Dict = {
   report_short: 'گزارش', edit: 'ویرایش', edit_post: 'ویرایش پست', edited: 'ویرایش شده',
   video_error: 'ویدیو پخش نشد', no_following_reels: 'کسانی که Follow می‌کنید هنوز ویدیو نگذاشته‌اند', upload_reel: 'ویدیو بارگذاری کنید', saved_toast: 'ذخیره شد 🔖', comment_sent: 'نظر فرستاده شد',
   less: 'کمتر', original_sound: 'صدای اصلی', tag_sub: 'همه پست‌های این هشتگ', trending: 'ترند', mic_permission: 'برای پیام صوتی اجازه میکروفون را بدهید', recording: 'در حال ضبط...',
+  tab_all: 'همه', no_reels_profile: 'هنوز ریلی نیست',
 };

@@ -1,4 +1,5 @@
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { Share } from 'react-native';
 
 import { StringKey, tr } from '@/i18n';
@@ -20,6 +21,8 @@ export type Post = {
   body: string;
   image_path: string | null;
   video_path: string | null;
+  /** small JPG cover of a video (made on the phone when posting) */
+  thumb_path?: string | null;
   location: string | null;
   feeling: string | null;
   created_at: string;
@@ -122,8 +125,9 @@ export const social = {
   trendingTags: async () => check<TrendingTag[]>(await supabase.rpc('get_trending_tags', { p_limit: 15 })) ?? [],
   feed: async (mode: 'foryou' | 'following', offset = 0) =>
     check<Post[]>(await supabase.rpc('get_feed', { p_mode: mode, p_offset: offset, p_limit: PAGE })) ?? [],
-  userPosts: async (userId: string, offset = 0) =>
-    check<Post[]>(await supabase.rpc('get_user_posts', { p_user: userId, p_offset: offset, p_limit: PAGE })) ?? [],
+  /** kind: all / posts (no video) / reels (videos) — the profile tabs */
+  userPosts: async (userId: string, offset = 0, kind: 'all' | 'posts' | 'reels' = 'all', limit = PAGE) =>
+    check<Post[]>(await supabase.rpc('get_user_posts', { p_user: userId, p_offset: offset, p_limit: limit, p_kind: kind })) ?? [],
   savedPosts: async (offset = 0) =>
     check<Post[]>(await supabase.rpc('get_saved_posts', { p_offset: offset, p_limit: PAGE })) ?? [],
   post: async (id: string) => check<Post | null>(await supabase.rpc('get_post', { p_post: id })),
@@ -212,6 +216,7 @@ export const social = {
   ) => {
     let imagePath: string | null = null;
     let videoPath: string | null = null;
+    let thumbPath: string | null = null;
     const name = () => `${uid}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     if (input.image) {
       const img = await ImageManipulator.manipulateAsync(input.image, [{ resize: { width: 1080 } }], {
@@ -231,27 +236,45 @@ export const social = {
       videoPath = `${name()}.${mime === 'video/quicktime' ? 'mov' : mime === 'video/3gpp' ? '3gp' : mime === 'video/webm' ? 'webm' : 'mp4'}`;
       const up = await supabase.storage.from('posts').upload(videoPath, bytes, { contentType: mime });
       if (up.error) throw new ApiError(/size|large/i.test(up.error.message) ? 'video-too-big' : 'upload-failed');
+      thumbPath = await uploadThumb(input.video.uri, `${name()}.jpg`);
     }
     const r = await supabase.from('posts').insert({
       body: input.body.trim(),
       image_path: imagePath,
       video_path: videoPath,
+      thumb_path: thumbPath,
       location: input.location?.trim() || null,
       feeling: input.feeling || null,
       visibility: input.visibility ?? 'public',
     });
     if (r.error) {
-      const files = [imagePath, videoPath].filter(Boolean) as string[];
+      const files = [imagePath, videoPath, thumbPath].filter(Boolean) as string[];
       if (files.length) await supabase.storage.from('posts').remove(files);
       check(r);
     }
   },
   deletePost: async (post: Post) => {
     check(await supabase.from('posts').delete().eq('id', post.id));
-    const files = [post.image_path, post.video_path].filter(Boolean) as string[];
+    const files = [post.image_path, post.video_path, post.thumb_path].filter(Boolean) as string[];
     if (files.length) await supabase.storage.from('posts').remove(files);
   },
 };
+
+/** Cover picture of a video (frame at 0.5 s, 480 px wide). If it fails the post is made without one. */
+async function uploadThumb(videoUri: string, path: string): Promise<string | null> {
+  try {
+    const frame = await VideoThumbnails.getThumbnailAsync(videoUri, { time: 500, quality: 0.8 });
+    const img = await ImageManipulator.manipulateAsync(frame.uri, [{ resize: { width: 480 } }], {
+      compress: 0.7,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+    const bytes = await (await fetch(img.uri)).arrayBuffer();
+    const up = await supabase.storage.from('posts').upload(path, bytes, { contentType: 'image/jpeg' });
+    return up.error ? null : path;
+  } catch {
+    return null;
+  }
+}
 
 /** Relative time ("5 min ago") in the current language. */
 export function timeAgo(iso: string): string {

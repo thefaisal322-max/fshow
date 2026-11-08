@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useI18n } from '@/i18n';
+import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
@@ -14,6 +14,7 @@ import { colors, radius } from '@/theme';
 import { Avatar } from './Avatar';
 import { VerifiedBadge } from './PostCard';
 import { PostList, PostListHandle } from './PostList';
+import { ReelGrid, ReelGridHandle } from './ReelGrid';
 
 /** Profile header + posts (and "Saved" for your own profile). Used by the Profile tab and /user/[id]. */
 export function ProfileView({ userId }: { userId: string }) {
@@ -23,9 +24,10 @@ export function ProfileView({ userId }: { userId: string }) {
   const me = session?.user.id ?? '';
   const isMe = userId === me;
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [tab, setTab] = useState<'posts' | 'saved'>('posts');
+  const [tab, setTab] = useState<Tab>('all');
   const [busy, setBusy] = useState(false);
   const list = useRef<PostListHandle>(null);
+  const grid = useRef<ReelGridHandle>(null);
 
   const loadUser = useCallback(async () => {
     try {
@@ -46,12 +48,16 @@ export function ProfileView({ userId }: { userId: string }) {
         loadUser();
         refreshProfile();
         list.current?.reload();
+        grid.current?.reload();
       }
     }, [isMe, loadUser, refreshProfile]),
   );
 
   const load = useCallback(
-    (offset: number) => (tab === 'saved' ? social.savedPosts(offset) : social.userPosts(userId, offset)),
+    (offset: number) =>
+      tab === 'saved'
+        ? social.savedPosts(offset)
+        : social.userPosts(userId, offset, tab === 'reels' ? 'reels' : tab === 'posts' ? 'posts' : 'all', tab === 'reels' ? 21 : undefined),
     [tab, userId],
   );
 
@@ -173,25 +179,44 @@ export function ProfileView({ userId }: { userId: string }) {
           </Pressable>
         </View>
       ) : (
-        <>
-          <View style={[st.tabs, { flexDirection: d.row }]}>
-            <Pressable style={[st.tab, tab === 'posts' && st.tabOn]} onPress={() => setTab('posts')}>
-              <Text style={[st.tabText, tab === 'posts' && { color: colors.primary }]}>{t('posts')}</Text>
-            </Pressable>
-            <Pressable style={[st.tab, tab === 'saved' && st.tabOn]} onPress={() => setTab('saved')}>
-              <Text style={[st.tabText, tab === 'saved' && { color: colors.primary }]}>{t('saved')}</Text>
-            </Pressable>
-          </View>
-          <Pressable onPress={() => router.push('/create')} style={{ padding: 10 }}>
-            <Text style={{ color: colors.primary, textAlign: 'center', fontWeight: '700' }}>{t('new_post_btn')}</Text>
-          </Pressable>
-        </>
+        <Pressable onPress={() => router.push('/create')} style={[st.btn, st.btnBlue, { marginBottom: 8, flexDirection: 'row', justifyContent: 'center', gap: 6 }]}>
+          <Text style={st.btnText}>＋ {t('new_post_btn')}</Text>
+        </Pressable>
       )}
+
+      {/* small tabs like Facebook: All · Posts · Reels · Saved (Saved only on your own profile) */}
+      {!(user.blocked_by_me || user.blocked_me) || isMe ? (
+        <View style={[st.chips, { flexDirection: d.row }]}>
+          {TABS.filter((x) => isMe || x.key !== 'saved').map((x) => {
+            const on = tab === x.key;
+            return (
+              <Pressable key={x.key} onPress={() => setTab(x.key)} style={[st.chip, on && st.chipOn]}>
+                <Text style={[st.chipText, on && st.chipTextOn]}>{t(x.label)}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   ) : null;
 
+  if (tab === 'reels') {
+    return (
+      <ReelGrid
+        ref={grid}
+        load={load}
+        header={header}
+        empty={t('no_reels_profile')}
+        onOpen={(p) =>
+          router.push({ pathname: '/reels/[user]', params: { user: userId, start: p.id, name: user ? authorName(user) : '' } })
+        }
+      />
+    );
+  }
+
   return (
     <PostList
+      key={tab}
       ref={list}
       load={load}
       header={header}
@@ -199,6 +224,14 @@ export function ProfileView({ userId }: { userId: string }) {
     />
   );
 }
+
+type Tab = 'all' | 'posts' | 'reels' | 'saved';
+const TABS: { key: Tab; label: StringKey }[] = [
+  { key: 'all', label: 'tab_all' },
+  { key: 'posts', label: 'posts' },
+  { key: 'reels', label: 'tab_reels' },
+  { key: 'saved', label: 'saved' },
+];
 
 function Stat({ n, label }: { n: number; label: string }) {
   return (
@@ -222,8 +255,9 @@ const st = StyleSheet.create({
   btnBlue: { backgroundColor: colors.primary },
   btnLight: { backgroundColor: colors.soft },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  tabs: { backgroundColor: colors.card, borderRadius: radius.md, marginBottom: 2 },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 11, borderBottomWidth: 3, borderBottomColor: 'transparent' },
-  tabOn: { borderBottomColor: colors.primary },
-  tabText: { fontSize: 15, fontWeight: '700', color: colors.muted },
+  chips: { gap: 8, marginBottom: 8, paddingVertical: 2 },
+  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.full, backgroundColor: colors.card },
+  chipOn: { backgroundColor: colors.soft },
+  chipText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  chipTextOn: { color: colors.primary },
 });
