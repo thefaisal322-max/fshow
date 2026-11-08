@@ -1,7 +1,7 @@
 name: Deploy Supabase
 
 # Pushes database migrations + Edge Functions + the Resend key to your Supabase project.
-# Run manually: Actions → "Deploy Supabase" → Run workflow.
+# Runs by itself when database/function files change on main (or manually: Actions → "Deploy Supabase" → Run workflow).
 #
 # Repository secrets needed (Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN  supabase.com → Account → Access Tokens → Generate
@@ -11,6 +11,17 @@ name: Deploy Supabase
 
 on:
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/deploy-supabase.yml'
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
 
 jobs:
   deploy:

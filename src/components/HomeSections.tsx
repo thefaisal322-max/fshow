@@ -288,7 +288,7 @@ function ReelTile({ post, onPress }: { post: Post; onPress: () => void }) {
   });
   return (
     <Pressable style={st.reel} onPress={onPress}>
-      <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit="cover" pointerEvents="none" />
+      <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit="cover" surfaceType="textureView" pointerEvents="none" />
       <View style={st.storyShade} />
       <View style={st.reelViews}>
         <Ionicons name="play" size={14} color="#fff" />

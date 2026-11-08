@@ -220,7 +220,7 @@ function StoryVideo({ uri, paused, onEnd }: { uri: string; paused: boolean; onEn
     if (paused) player.pause();
     else player.play();
   }, [paused, player]);
-  return <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit="contain" />;
+  return <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit="contain" surfaceType="textureView" />;
 }
 
 const st = StyleSheet.create({

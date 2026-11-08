@@ -11,7 +11,7 @@ export function FeedVideo({ uri, style }: { uri: string; style?: StyleProp<ViewS
   const player = useVideoPlayer(uri, (p) => {
     p.loop = false;
   });
-  return <VideoView player={player} style={style} nativeControls contentFit="contain" allowsFullscreen />;
+  return <VideoView player={player} style={style} nativeControls contentFit="contain" allowsFullscreen surfaceType="textureView" />;
 }
 
 /**
@@ -75,7 +75,7 @@ export function ReelVideo({
 
   return (
     <View style={style}>
-      <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit={fit} />
+      <VideoView player={player} style={StyleSheet.absoluteFill} nativeControls={false} contentFit={fit} surfaceType="textureView" />
       {status === 'loading' && active ? <ActivityIndicator color="#fff" size="large" style={st.center} /> : null}
       {status === 'error' ? (
         <View style={st.center}>
