@@ -1,5 +1,6 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as VideoThumbnails from 'expo-video-thumbnails';
+import { Video as VideoCompressor } from 'react-native-compressor';
 import { Share } from 'react-native';
 
 import { StringKey, tr } from '@/i18n';
@@ -233,9 +234,21 @@ export const social = {
       if (up.error) throw new ApiError('upload-failed');
     } else if (input.video) {
       if (input.video.duration && input.video.duration > 61_000) throw new ApiError('video-too-long');
-      const bytes = await (await fetch(input.video.uri)).arrayBuffer();
+      // Phone videos are big (≈7 Mbps). Make them ≤ 720p ≈1.6 Mbps like TikTok, so they start fast on slow internet / VPN.
+      let videoUri = input.video.uri;
+      try {
+        videoUri = await VideoCompressor.compress(input.video.uri, {
+          compressionMethod: 'manual',
+          maxSize: 1280,
+          bitrate: 1_600_000,
+          minimumFileSizeForCompress: 2,
+        } as any);
+      } catch {
+        videoUri = input.video.uri; // could not compress → upload the original
+      }
+      const bytes = await (await fetch(videoUri)).arrayBuffer();
       if (bytes.byteLength > 25 * 1024 * 1024) throw new ApiError('video-too-big');
-      const mime = input.video.mime && input.video.mime.startsWith('video/') ? input.video.mime : 'video/mp4';
+      const mime = videoUri !== input.video.uri ? 'video/mp4' : input.video.mime && input.video.mime.startsWith('video/') ? input.video.mime : 'video/mp4';
       videoPath = `${name()}.${mime === 'video/quicktime' ? 'mov' : mime === 'video/3gpp' ? '3gp' : mime === 'video/webm' ? 'webm' : 'mp4'}`;
       const up = await supabase.storage.from('posts').upload(videoPath, bytes, { contentType: mime });
       if (up.error) throw new ApiError(/size|large/i.test(up.error.message) ? 'video-too-big' : 'upload-failed');
