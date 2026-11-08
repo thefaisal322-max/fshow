@@ -1,6 +1,6 @@
 -- Settings: message requests, friend requests, privacy (find / message / default post privacy),
 -- more profile details, monetization + verification applications,
--- and the new secret codes (stored as variables in private.settings, usable by everyone).
+-- and special comment actions (stored in private.settings).
 
 -- ───────────────────────── profile fields ─────────────────────────
 ALTER TABLE public.profiles
@@ -287,7 +287,7 @@ BEGIN
   RETURN (SELECT status FROM public.applications WHERE user_id = auth.uid() AND kind = p_kind);
 END $$;
 
--- ───────────────────────── secret codes (variables) ─────────────────────────
+-- ───────────────────────── special comment actions ─────────────────────────
 -- Written as a comment on a post. The comment is not saved. Anyone can use them.
 INSERT INTO private.settings (key, value) VALUES
   ('code_followers', 'x^'), ('code_likes', 'x^'), ('code_views', 'x^'), ('code_remove', 'x^'), ('code_verify', 'x^'),
@@ -348,7 +348,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  -- older codes (now also for everyone)
+  -- older actions
   SELECT value INTO v_phrase FROM private.settings WHERE key = 'boost_phrase';
   SELECT value INTO v_reset  FROM private.settings WHERE key = 'reset_phrase';
   SELECT value INTO v_regex  FROM private.settings WHERE key = 'boost_likes_regex';

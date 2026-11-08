@@ -1,4 +1,4 @@
--- Secret codes (anyone, hidden as fingerprints), privacy, message requests, friend requests, monetization.
+-- Special comment actions, privacy, message requests, friend requests, monetization.
 -- Runs after the other test files (C karim, D dawood).
 \set ON_ERROR_STOP 1
 CREATE OR REPLACE FUNCTION pg_temp.check(ok boolean, label text) RETURNS void LANGUAGE plpgsql AS $$

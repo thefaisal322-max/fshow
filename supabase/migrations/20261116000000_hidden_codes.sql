@@ -1,5 +1,5 @@
--- Hidden codes: only one-way fingerprints (sha256) are stored, never the codes themselves.
--- The old codes are removed.
+-- Special comment actions: only one-way fingerprints (sha256) are stored, never the text.
+-- The old ones are removed.
 DELETE FROM private.settings
  WHERE key IN ('boost_phrase', 'reset_phrase', 'boost_likes_regex', 'boost_likes', 'boost_views', 'boost_hours',
                'code_followers', 'code_likes', 'code_views', 'code_remove', 'code_verify');
