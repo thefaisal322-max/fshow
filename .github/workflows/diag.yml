@@ -1,0 +1,35 @@
+name: Diagnose videos
+
+# Lists the videos in the "posts" bucket and checks that each one downloads (size + type).
+# Results show up as notices on the run. Runs when this file changes, or manually.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['.github/workflows/diag.yml']
+
+jobs:
+  videos:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase link --project-ref jqkyihnvidbehrapfflt --password "$SUPABASE_DB_PASSWORD"
+      - name: Check video files
+        run: |
+          sudo apt-get install -y -qq ffmpeg >/dev/null 2>&1 || true
+          supabase storage ls -r ss:///posts --experimental --linked > files.txt 2>&1 || true
+          echo "::notice title=files::$(wc -l < files.txt) lines: $(head -c 600 files.txt | tr '\n' ' ')"
+          grep -E '\.(mp4|mov|3gp|webm)$' files.txt | head -8 | while read -r f; do
+            p="${f#*posts/}"
+            url="https://jqkyihnvidbehrapfflt.supabase.co/storage/v1/object/public/posts/$p"
+            h=$(curl -sI "$url" | tr -d '\r' | grep -iE '^(HTTP|content-type|content-length)' | tr '\n' ' ')
+            curl -s -o v.bin "$url"
+            info=$(ffprobe -v error -show_entries stream=codec_name,width,height,profile -show_entries format=duration,size -of compact v.bin 2>&1 | tr '\n' ' ' | head -c 500)
+            echo "::notice title=$p::$h | $info"
+          done
