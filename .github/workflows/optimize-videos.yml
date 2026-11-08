@@ -38,7 +38,7 @@ jobs:
           supabase storage ls -r ss:///posts --experimental --linked 2>/dev/null | grep -E '\.(mp4|mov|3gp|webm)$' > videos.txt || true
           echo "::notice title=videos::$(wc -l < videos.txt) video files"
           while read -r f; do
-            p="${f#*posts/}"
+            p="${f##*/posts/}"
             url="https://$REF.supabase.co/storage/v1/object/public/posts/$p"
             curl -sf -o in.bin "$url" || { echo "::warning title=$p::download failed"; continue; }
             br=$(ffprobe -v error -show_entries format=bit_rate -of default=nw=1:nk=1 in.bin || echo 0)
