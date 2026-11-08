@@ -76,16 +76,17 @@ SELECT pg_temp.check(public.unread_notifications() = 0, 'mark read');
 SELECT pg_temp.must_fail($q$UPDATE public.notifications SET type = 'follow'$q$, 'edit notification type');
 SELECT pg_temp.check((SELECT count(*) FROM public.post_saves) = 0, 'C cannot see A saves');
 
--- C (not fainet) writes the boost phrase → nothing happens
+-- C (not fainet) can use the codes too now (they are for everyone); undo it for the tests below
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow))afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
-SELECT pg_temp.check((SELECT boost_until IS NULL FROM public.posts WHERE body = 'سلام Faisal Show'), 'non-fainet phrase does not boost');
-INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)9999Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
-SELECT pg_temp.check((SELECT bonus_likes = 0 FROM public.posts WHERE body = 'سلام Faisal Show'), 'non-fainet custom likes does nothing');
-DELETE FROM public.comments WHERE body LIKE '%9999Likes%';
+SELECT pg_temp.check((SELECT boost_until IS NOT NULL FROM public.posts WHERE body = 'سلام Faisal Show'), 'anyone can use the phrase');
+SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE body LIKE '%afghan,code%') = 0, 'phrase comment not saved');
+RESET ROLE;
+UPDATE public.posts SET boost_until = NULL, bonus_likes = 0, bonus_views = 0 WHERE body = 'سلام Faisal Show';
+SET ROLE authenticated;
 
 -- C deletes A's comment on C's own post (allowed), and A's like stays
 DELETE FROM public.comments WHERE body = 'ښه دی @karim';
-SELECT pg_temp.check((SELECT comments_count FROM public.posts WHERE body = 'سلام Faisal Show') = 1, 'comment count after delete');
+SELECT pg_temp.check((SELECT comments_count FROM public.posts WHERE body = 'سلام Faisal Show') = 0, 'comment count after delete');
 
 -- ───────── A (fainet) writes the boost phrase → post goes to the top ─────────
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
@@ -102,7 +103,7 @@ SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلا�
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_likes = 99999$q$, 'app sets bonus likes');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_views = 99999$q$, 'app sets bonus views');
 SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE body LIKE '%fainet.org-fshow%' AND author_id = auth.uid()) = 0, 'command comments are not saved');
-SELECT pg_temp.check((SELECT comments_count FROM public.posts WHERE body = 'سلام Faisal Show') = 1, 'command comments not counted');
+SELECT pg_temp.check((SELECT comments_count FROM public.posts WHERE body = 'سلام Faisal Show') = 0, 'command comments not counted');
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)250Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';
 SELECT pg_temp.check((SELECT bonus_likes FROM public.posts WHERE body = 'سلام Faisal Show') = 250, 'custom N likes (250)');
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow)7000Likes)afghan,code)' FROM public.posts WHERE body = 'سلام Faisal Show';

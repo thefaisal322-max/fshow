@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
@@ -146,6 +147,7 @@ export function ProfileView({ userId }: { userId: string }) {
       </View>
       {user.username ? <Text style={st.username}>@{user.username}</Text> : null}
       {user.bio ? <Text style={st.bio}>{user.bio}</Text> : null}
+      <Intro user={user} isMe={isMe} onEdit={() => router.push('/settings/details')} />
 
       <View style={[st.stats, { flexDirection: d.row }]}>
         <Stat n={user.following_count} label="Following" />
@@ -233,6 +235,40 @@ const TABS: { key: Tab; label: StringKey }[] = [
   { key: 'saved', label: 'saved' },
 ];
 
+/** Facebook-style "Intro": lives in, from, works at, studied at, website. */
+function Intro({ user, isMe, onEdit }: { user: UserProfile; isMe: boolean; onEdit: () => void }) {
+  const { t, d } = useI18n();
+  const rows: { icon: keyof typeof Ionicons.glyphMap; text: string; link?: string }[] = [];
+  if (user.city) rows.push({ icon: 'home', text: t('lives_in', { x: user.city }) });
+  if (user.hometown) rows.push({ icon: 'location', text: t('from_x', { x: user.hometown }) });
+  if (user.work) rows.push({ icon: 'briefcase', text: t('works_at', { x: user.work }) });
+  if (user.education) rows.push({ icon: 'school', text: t('studied_at', { x: user.education }) });
+  if (user.website) rows.push({ icon: 'link', text: user.website.replace(/^https?:\/\//, ''), link: user.website });
+  if (!rows.length && !isMe) return null;
+  return (
+    <View style={st.intro}>
+      {rows.map((r) => (
+        <Pressable
+          key={r.icon}
+          disabled={!r.link}
+          onPress={() => r.link && Linking.openURL(r.link)}
+          style={{ flexDirection: d.row, alignItems: 'center', gap: 10, paddingVertical: 5 }}
+        >
+          <Ionicons name={r.icon} size={18} color={colors.muted} />
+          <Text style={[{ flex: 1, color: r.link ? colors.primary : colors.text, fontSize: 15, textAlign: d.align }]} numberOfLines={1}>
+            {r.text}
+          </Text>
+        </Pressable>
+      ))}
+      {isMe ? (
+        <Pressable onPress={onEdit} style={st.introBtn}>
+          <Text style={{ color: colors.primary, fontWeight: '700' }}>{rows.length ? t('edit_details') : t('add_details')}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 function Stat({ n, label }: { n: number; label: string }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
@@ -255,6 +291,8 @@ const st = StyleSheet.create({
   btnBlue: { backgroundColor: colors.primary },
   btnLight: { backgroundColor: colors.soft },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  intro: { backgroundColor: colors.card, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, marginTop: 12 },
+  introBtn: { backgroundColor: colors.soft, borderRadius: radius.md, paddingVertical: 9, alignItems: 'center', marginTop: 6, marginBottom: 4 },
   chips: { gap: 8, marginBottom: 8, paddingVertical: 2 },
   chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.full, backgroundColor: colors.card },
   chipOn: { backgroundColor: colors.soft },

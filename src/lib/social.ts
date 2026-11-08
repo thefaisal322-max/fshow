@@ -84,6 +84,11 @@ export type UserProfile = {
   follows_me: boolean;
   blocked_by_me: boolean;
   blocked_me: boolean;
+  city?: string;
+  hometown?: string;
+  work?: string;
+  education?: string;
+  website?: string;
 };
 
 export type SearchResult = Author & { followers_count: number; followed_by_me: boolean };

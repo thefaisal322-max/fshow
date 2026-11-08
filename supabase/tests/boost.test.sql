@@ -19,11 +19,13 @@ SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
 INSERT INTO public.posts (body) VALUES ('boost me');
 SELECT pg_temp.must_fail($q$UPDATE public.posts SET bonus_likes = 5000$q$, 'self bonus likes');
 SELECT pg_temp.must_fail($q$INSERT INTO public.posts (body, bonus_likes) VALUES ('x', 5000)$q$, 'post with bonus likes');
--- D is not fainet: the phrase does nothing and stays a normal comment
+-- Codes work for everyone now (D is not fainet): the phrase boosts and the comment is not saved
 INSERT INTO public.comments (post_id, body) SELECT id, '(((fainet.org-fshow))afghan,code)' FROM public.posts WHERE body = 'boost me';
-SELECT pg_temp.check((SELECT bonus_likes = 0 AND boost_until IS NULL FROM public.posts WHERE body = 'boost me'), 'non-fainet: no bonus');
-SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'boost me')) = 1, 'non-fainet comment stays');
-DELETE FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'boost me');
+SELECT pg_temp.check((SELECT bonus_likes = 500 AND boost_until > now() FROM public.posts WHERE body = 'boost me'), 'anyone can use the phrase');
+SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'boost me')) = 0, 'code comment not saved');
+RESET ROLE;
+UPDATE public.posts SET bonus_likes = 0, bonus_views = 0, boost_until = NULL WHERE body = 'boost me';
+SET ROLE authenticated;
 
 -- A is fainet
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';

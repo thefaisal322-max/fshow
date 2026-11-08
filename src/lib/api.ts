@@ -178,6 +178,8 @@ export function errorMessage(e: unknown): string {
     'already-opened': 'e_already_opened',
     forbidden: 'e_forbidden',
     blocked: 'blocked_me_banner',
+    'no-messages': 'e_no_messages',
+    'not-eligible': 'e_not_eligible',
   };
   if (err.reason === 'invalid-code') return d.remaining ? tr('e_invalid_code', { n: d.remaining }) : tr('e_invalid_code_plain');
   if (err.reason === 'resend-wait') return tr('e_wait', { n: d.wait ?? 60 });

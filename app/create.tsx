@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -24,6 +24,7 @@ import { ErrorBox } from '@/components/ui';
 import { FeedVideo } from '@/components/Video';
 import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
+import { account } from '@/lib/account';
 import { useAuth } from '@/lib/auth-context';
 import { feedSignal, profileSignal } from '@/lib/signals';
 import { useBottomSpace } from '@/lib/useBottomSpace';
@@ -47,6 +48,15 @@ export default function CreatePost() {
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [visOpen, setVisOpen] = useState(false);
   const vis = VISIBILITY.find((x) => x.v === visibility)!;
+
+  // start with "Who can see your posts" from Settings → Privacy
+  useEffect(() => {
+    if (session)
+      account
+        .settings(session.user.id)
+        .then((a) => setVisibility(a.default_visibility))
+        .catch(() => {});
+  }, [session]);
   const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

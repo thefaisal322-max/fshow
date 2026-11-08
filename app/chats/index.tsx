@@ -9,6 +9,7 @@ import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat, chatTitle, Conversation } from '@/lib/chat';
+import { account } from '@/lib/account';
 import { useUnread } from '@/lib/notifications';
 import { isOnline, usePresence } from '@/lib/presence';
 import { useBottomSpace } from '@/lib/useBottomSpace';
@@ -41,10 +42,15 @@ export default function Chats() {
     }
   }, [archived]);
 
+  const [requests, setRequests] = useState(0);
   useFocusEffect(
     useCallback(() => {
       load();
       refreshChats();
+      account
+        .counts()
+        .then((c) => setRequests(c.messages))
+        .catch(() => {});
     }, [load, refreshChats]),
   );
 
@@ -115,6 +121,19 @@ export default function Chats() {
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ paddingBottom: 100 + bottom }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} colors={[colors.primary]} />}
+          ListHeaderComponent={
+            !archived && requests > 0 ? (
+              <Pressable onPress={() => router.push('/settings/message-requests')} style={[st.reqRow, { flexDirection: d.row }]}>
+                <View style={st.reqIcon}>
+                  <Ionicons name="mail-unread" size={22} color="#fff" />
+                </View>
+                <Text style={[st.name, { flex: 1, textAlign: d.align }]}>{t('message_requests')}</Text>
+                <View style={st.dot}>
+                  <Text style={st.dotText}>{requests}</Text>
+                </View>
+              </Pressable>
+            ) : null
+          }
           ListEmptyComponent={<Text style={st.empty}>{archived ? t('archived_empty') : t('no_chats')}</Text>}
           renderItem={({ item }) => {
             const other = item.members?.[0];
@@ -180,6 +199,8 @@ const st = StyleSheet.create({
   time: { fontSize: 11, color: colors.muted },
   dot: { minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   dotText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  reqRow: { alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  reqIcon: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   online: { position: 'absolute', right: 1, bottom: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: '#31A24C', borderWidth: 2.5, borderColor: colors.card },
   groupAvatar: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   fab: {

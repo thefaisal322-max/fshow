@@ -37,6 +37,10 @@ SELECT pg_temp.must_fail($q$UPDATE public.profiles SET is_fainet = true WHERE id
 
 -- ───────── 1-to-1 chat A ↔ C ─────────
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
+-- C follows A, so A's message goes straight to C's inbox (not to message requests)
+SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
+INSERT INTO public.follows (followee_id) VALUES ('aaaaaaaa-0000-0000-0000-000000000001') ON CONFLICT DO NOTHING;
+SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 INSERT INTO ids VALUES ('dm', public.start_direct_chat('cccccccc-0000-0000-0000-000000000003'));
 SELECT pg_temp.check(public.start_direct_chat('cccccccc-0000-0000-0000-000000000003') = (SELECT v FROM ids WHERE k = 'dm'), 'same DM reused');
 SELECT pg_temp.must_fail($q$SELECT public.start_direct_chat('aaaaaaaa-0000-0000-0000-000000000001')$q$, 'chat with myself');

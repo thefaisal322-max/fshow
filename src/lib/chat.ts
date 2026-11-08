@@ -45,7 +45,7 @@ export type Attachment = { uri: string; type: 'image' | 'video' | 'audio'; mime?
 function check<T>(res: { data: T | null; error: { message?: string } | null }): T {
   if (res.error) {
     const msg = res.error.message ?? '';
-    for (const r of ['rate-limited', 'already-opened', 'forbidden', 'invalid-input', 'unauthenticated', 'blocked']) {
+    for (const r of ['rate-limited', 'already-opened', 'no-messages', 'forbidden', 'invalid-input', 'unauthenticated', 'blocked']) {
       if (msg.includes(r)) throw new ApiError(r);
     }
     if (/fetch|network/i.test(msg)) throw new ApiError('network');
