@@ -83,7 +83,7 @@ export const ps = {
   current_password: 'اوسنی پاسورډ', saved_ok: 'خوندي شو ✓', current_email: 'اوسنی ایمیل: {e}', new_email: 'نوی ایمیل',
   email_change_sub: 'نوي ایمیل ته به ۵ عددي کوډ ولېږل شي. ✓ نښه یوازې د @fainet.org ایمیلونو ته ورکول کېږي.',
   password_changed: 'پاسورډ بدل شو ✓', email_changed: 'ایمیل بدل شو ✓', version: 'نسخه {v}', account: 'حساب', app: 'اپ',
-  verified_info: '✓ Verified نښه یوازې هغو حسابونو ته ورکول کېږي چې ایمیل یې @fainet.org وي.',
+  verified_info: '✓ Verified نښه یوازې تایید شوو حسابونو ته ورکول کېږي.',
   policy_text:
     'Faisal Show ستاسو محرمیت ته درناوی کوي.\n\n• څه راټولوو: ستاسو نوم، ایمیل، د زېږېدو نېټه، جنسیت، عکس، پوسټونه، کمنټونه، پیغامونه او هغه ځای چې پخپله یې په پوسټ کې اچوئ.\n\n• ولې: د حساب جوړولو، د پوسټونو او پیغامونو ښودلو، او د اپ د امنیت لپاره.\n\n• څوک یې ګوري: ستاسو ایمیل او د زېږېدو نېټه یوازې تاسو ته ښکاري. پوسټونه او پروفایل نورو کاروونکو ته ښکاري. پیغامونه یوازې د چټ غړو ته ښکاري.\n\n• موږ ستاسو معلومات نه پلورو او اعلاناتو ته یې نه ورکوو.\n\n• ستاسو اختیار: هر وخت خپل معلومات بدلولای شئ، او له تنظیماتو څخه خپل حساب د تل لپاره ړنګولای شئ.\n\n• امنیت: پاسورډونه پټ (hash) ساتل کېږي، او هر پیغام او فایل یوازې خپلو خاوندانو ته د لاسرسي وړ دی.\n\nد پوښتنو لپاره: support@fainet.org',
   about_text:
@@ -206,7 +206,7 @@ export const en: Dict = {
   current_password: 'Current password', saved_ok: 'Saved ✓', current_email: 'Current email: {e}', new_email: 'New email',
   email_change_sub: 'A 5-digit code will be sent to the new email. The ✓ mark is only for @fainet.org emails.',
   password_changed: 'Password changed ✓', email_changed: 'Email changed ✓', version: 'Version {v}', account: 'Account', app: 'App',
-  verified_info: '✓ The verified mark is only given to accounts with an @fainet.org email.',
+  verified_info: '✓ The verified mark is only given to verified accounts.',
   policy_text:
     'Faisal Show respects your privacy.\n\n• What we collect: your name, email, birthday, gender, photo, posts, comments, messages and any location you add to a post yourself.\n\n• Why: to create your account, show posts and messages, and keep the app secure.\n\n• Who sees it: your email and birthday are visible only to you. Posts and your profile are visible to other users. Messages are visible only to the members of that chat.\n\n• We do not sell your data or give it to advertisers.\n\n• Your choice: you can change your information at any time and permanently delete your account from Settings.\n\n• Security: passwords are stored hashed, and every message and file is only accessible to its owners.\n\nQuestions: support@fainet.org',
   about_text:
@@ -323,7 +323,7 @@ export const fa: Dict = {
   current_password: 'رمز فعلی', saved_ok: 'ذخیره شد ✓', current_email: 'ایمیل فعلی: {e}', new_email: 'ایمیل جدید',
   email_change_sub: 'یک کود ۵ رقمی به ایمیل جدید فرستاده می‌شود. نشان ✓ فقط برای ایمیل‌های @fainet.org است.',
   password_changed: 'رمز تغییر کرد ✓', email_changed: 'ایمیل تغییر کرد ✓', version: 'نسخه {v}', account: 'حساب', app: 'اپ',
-  verified_info: '✓ نشان تایید فقط به حساب‌هایی داده می‌شود که ایمیل آن‌ها @fainet.org باشد.',
+  verified_info: '✓ نشان تایید فقط به حساب‌های تایید شده داده می‌شود.',
   policy_text:
     'Faisal Show به حریم خصوصی شما احترام می‌گذارد.\n\n• چه جمع می‌کنیم: نام، ایمیل، تاریخ تولد، جنسیت، عکس، پست‌ها، کامنت‌ها، پیام‌ها و موقعیتی که خودتان به پست اضافه می‌کنید.\n\n• چرا: برای ساختن حساب، نشان دادن پست‌ها و پیام‌ها، و امنیت اپ.\n\n• چه کسی می‌بیند: ایمیل و تاریخ تولد فقط برای خودتان دیده می‌شود. پست‌ها و پروفایل برای کاربران دیگر دیده می‌شود. پیام‌ها فقط برای اعضای همان چت.\n\n• ما معلومات شما را نمی‌فروشیم و به اعلانات نمی‌دهیم.\n\n• اختیار شما: هر وقت می‌توانید معلومات خود را تغییر دهید و از تنظیمات حساب خود را برای همیشه حذف کنید.\n\n• امنیت: رمزها به صورت hash نگهداری می‌شوند و هر پیام و فایل فقط برای صاحبانش قابل دسترسی است.\n\nبرای سوال‌ها: support@fainet.org',
   about_text:

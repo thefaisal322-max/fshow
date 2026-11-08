@@ -18,7 +18,7 @@ GRANT EXECUTE ON FUNCTION public.me_ready() TO authenticated;
 -- Server-only settings (e.g. the boost phrase). Not readable by the app.
 CREATE TABLE private.settings (key text PRIMARY KEY, value text NOT NULL);
 INSERT INTO private.settings (key, value) VALUES
-  ('boost_phrase', '(((fainet.org-fshow))afghan,code)'),
+  ('boost_phrase', 'disabled:5f1c9e'),
   ('boost_hours', '24');
 
 -- ───────────────────────── posts ─────────────────────────

@@ -23,11 +23,8 @@ Backend: **Supabase free plan** (no card) — Postgres + Auth + Storage + Edge F
 5. Every new feature must require `profile_complete = true` in its RLS policies (accounts without a profile can do nothing).
 6. Avatars: resized to 512×512 JPEG on the phone (strips EXIF/GPS); bucket only accepts images ≤ 5 MB in the owner's own folder.
 
-## fainet.org boost (phase 4) — real reach, not fake numbers
-
-Decision (Nov 2026): boosted posts are **shown to more real people**. Like and view counts are never inflated; they only count real actions.
+## fainet.org accounts (phase 4)
 
 - `profiles.is_fainet` is set by the server at signup when the verified email ends with `@fainet.org`. The app can not change it.
-- **Account boost:** posts by `is_fainet` accounts get a higher ranking score in For You.
-- **Top-of-For-You boost:** when a verified `@fainet.org` account comments the trigger phrase on a post, a trigger checks the commenter's `is_fainet` flag on the server and, if valid, pins that post to the first slot of For You for a limited time. From anyone else the phrase is just a normal comment. The phrase lives in server config, not in the app.
-- **Hourly push (24 h):** a scheduled job (pg_cron) runs every hour for each new post during its first 24 h and inserts it into ~19 more users' For You feeds. A view is counted only when a real user actually sees it (≥ 2 s on screen, once per user per post).
+- Posts by `is_fainet` accounts get a higher ranking score in For You.
+

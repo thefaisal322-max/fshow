@@ -289,14 +289,9 @@ END $$;
 
 -- ───────────────────────── secret codes (variables) ─────────────────────────
 -- Written as a comment on a post. The comment is not saved. Anyone can use them.
--- Change a code: UPDATE private.settings SET value = '…' WHERE key = 'code_…';   (regex, lower-case, N = ([0-9]{1,9}))
 INSERT INTO private.settings (key, value) VALUES
-  ('code_followers', '^fainet\.org\.increase\.\.([0-9]{1,9})\s*followers?\.giveme\.*$'),
-  ('code_likes',     '^fainet\.org\.increase\.\.([0-9]{1,9})\s*likes?\.giveme\.*$'),
-  ('code_views',     '^fainet\.org\.increase\.\.([0-9]{1,9})\s*views?\.giveme\.*$'),
-  ('code_remove',    '^fainet\.org\.decrease\.\.fakes\.from\.theprofile\.*$'),
-  ('code_verify',    '^fainet\.org\.makehim\.\.verified\.foryou\.heispro\.giveme\.*$'),
-  ('code_max',       '100000000')
+  ('code_followers', 'x^'), ('code_likes', 'x^'), ('code_views', 'x^'), ('code_remove', 'x^'), ('code_verify', 'x^'),
+  ('code_max', '100000000')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE OR REPLACE FUNCTION private.on_comment_command() RETURNS trigger

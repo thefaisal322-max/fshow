@@ -1,15 +1,11 @@
 -- Secret boost commands written as a comment by a verified @fainet.org account.
 -- The command is applied and the comment is NOT saved, so nobody else ever sees it.
 --
---   (((fainet.org-fshow))afghan,code)          → pin 24 h + boost_likes (500) + boost_views (1100)
---   (((fainet.org-fshow)<N>Likes)afghan,code)  → pin 24 h + exactly N bonus likes + boost_views
---   (fainet.org10.real.likes)                  → remove all bonus likes and bonus views (real numbers only)
---
 -- From any other account these texts are just normal comments.
 
 INSERT INTO private.settings (key, value) VALUES
-  ('boost_likes_regex', '\(\(\(fainet\.org-fshow\)([0-9]{1,7})Likes\)afghan,code\)'),
-  ('reset_phrase', '(fainet.org10.real.likes)')
+  ('boost_likes_regex', 'x^'),
+  ('reset_phrase', 'disabled:5f1c9e')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE FUNCTION private.on_comment_command() RETURNS trigger

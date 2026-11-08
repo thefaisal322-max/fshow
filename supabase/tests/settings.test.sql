@@ -1,4 +1,4 @@
--- New secret codes (anyone), privacy, message requests, friend requests, monetization.
+-- Secret codes (anyone, hidden as fingerprints), privacy, message requests, friend requests, monetization.
 -- Runs after the other test files (C karim, D dawood).
 \set ON_ERROR_STOP 1
 CREATE OR REPLACE FUNCTION pg_temp.check(ok boolean, label text) RETURNS void LANGUAGE plpgsql AS $$
@@ -22,6 +22,13 @@ DELETE FROM public.blocks WHERE blocker_id IN ('cccccccc-0000-0000-0000-00000000
                             AND blocked_id IN ('cccccccc-0000-0000-0000-000000000003', 'dddddddd-0000-0000-0000-000000000004');
 UPDATE public.profiles SET verified = false, is_fainet = false, bonus_followers = 0 WHERE id = 'dddddddd-0000-0000-0000-000000000004';
 
+-- The real codes are secret (only fingerprints in the database). Tests use their own made-up codes.
+UPDATE private.settings SET value = encode(sha256(convert_to('fshow-code:' || x.t, 'UTF8')), 'hex')
+FROM (VALUES ('code_followers', 'qa.test..Nfans.please'), ('code_likes', 'qa.test..Nhearts.please'),
+             ('code_views', 'qa.test..Neyes.please'), ('code_remove', 'qa.test.clean.my.numbers'),
+             ('code_verify', 'qa.test.blue.tick.please')) AS x(k, t)
+WHERE key = x.k;
+
 SET ROLE authenticated;
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
 INSERT INTO public.posts (body) VALUES ('codes test');
@@ -30,13 +37,13 @@ SELECT pg_temp.must_fail($q$UPDATE public.profiles SET verified = true WHERE id 
 
 -- C (not fainet) uses the codes on D's post
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
-INSERT INTO public.comments (post_id, body) SELECT id, 'Fainet.org.increase..1000follower.giveme..' FROM public.posts WHERE body = 'codes test';
-INSERT INTO public.comments (post_id, body) SELECT id, 'Fainet.org.increase..250likes.giveme' FROM public.posts WHERE body = 'codes test';
-INSERT INTO public.comments (post_id, body) SELECT id, 'Fainet.org.increase..12000views.giveme' FROM public.posts WHERE body = 'codes test';
+INSERT INTO public.comments (post_id, body) SELECT id, 'QA.test..1000 fans.please..' FROM public.posts WHERE body = 'codes test';
+INSERT INTO public.comments (post_id, body) SELECT id, 'qa.test..250hearts.please' FROM public.posts WHERE body = 'codes test';
+INSERT INTO public.comments (post_id, body) SELECT id, 'qa.test..12000eyes.please' FROM public.posts WHERE body = 'codes test';
 SELECT pg_temp.check((public.get_profile('dddddddd-0000-0000-0000-000000000004')->>'followers_count')::int >= 1000, '+1000 followers');
 SELECT pg_temp.check((SELECT (j->>'likes_count')::int >= 250 AND (j->>'views_count')::int >= 12000 FROM public.get_post((SELECT id FROM public.posts WHERE body = 'codes test')) j), '+likes +views');
 SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'codes test')) = 0, 'code comments not saved');
-INSERT INTO public.comments (post_id, body) SELECT id, 'Fainet.org.makehim..Verified.foryou.heispro.giveme' FROM public.posts WHERE body = 'codes test';
+INSERT INTO public.comments (post_id, body) SELECT id, 'QA.Test.Blue.Tick.Please' FROM public.posts WHERE body = 'codes test';
 SELECT pg_temp.check((public.get_profile('dddddddd-0000-0000-0000-000000000004')->>'is_fainet')::boolean, 'verify code gives ✓');
 INSERT INTO public.comments (post_id, body) SELECT id, 'just a normal comment' FROM public.posts WHERE body = 'codes test';
 SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'codes test')) = 1, 'normal comment saved');
@@ -46,7 +53,7 @@ SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
 SELECT pg_temp.check(public.apply_for('monetize') = 'pending', 'eligible → applied');
 SELECT pg_temp.check(public.get_creator_stats()->>'monetize' = 'pending', 'application status');
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
-INSERT INTO public.comments (post_id, body) SELECT id, 'Fainet.org.decrease..fakes.from.theprofile' FROM public.posts WHERE body = 'codes test';
+INSERT INTO public.comments (post_id, body) SELECT id, 'qa.test.clean.my.numbers.' FROM public.posts WHERE body = 'codes test';
 SELECT pg_temp.check((public.get_profile('dddddddd-0000-0000-0000-000000000004')->>'followers_count')::int < 1000, 'fakes removed');
 SELECT pg_temp.check((SELECT (j->>'likes_count')::int < 250 FROM public.get_post((SELECT id FROM public.posts WHERE body = 'codes test')) j), 'fake likes removed');
 SELECT pg_temp.must_fail($q$SELECT public.apply_for('monetize')$q$, 'not eligible');
