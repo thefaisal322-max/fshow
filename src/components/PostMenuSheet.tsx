@@ -160,7 +160,8 @@ export function PostMenuSheet({
     setView('save');
     setProgress(0);
     try {
-      const local = await downloadToCache(url, extOf(path), setProgress);
+      // already on the phone (saved for offline)? then no download is needed
+      const local = url.startsWith('file:') ? url : await downloadToCache(url, extOf(path), setProgress);
       if (post.video_path) {
         await saveToGallery(local);
         onClose();

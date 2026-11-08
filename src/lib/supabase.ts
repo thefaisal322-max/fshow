@@ -6,6 +6,8 @@ import { AppState } from 'react-native';
 
 import { SUPABASE_KEY, SUPABASE_URL } from '@/config/supabase.config';
 
+import { mediaUrl } from './offline';
+
 /**
  * Network that drops now and then (VPN switching servers, weak 3G/4G):
  *  • every request gives up after 30 s instead of hanging forever (uploads get 3 minutes)
@@ -61,5 +63,5 @@ AppState.addEventListener('change', (state) => {
 /** Public URL of a profile picture stored in the "avatars" bucket. */
 export function avatarUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  return supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  return mediaUrl('avatars', path); // the phone's copy when saved for offline
 }

@@ -131,6 +131,7 @@ export const ps = {
   app_pending: 'ستاسو غوښتنه کتل کېږي ⏳', app_approved: 'منل شوې ✓', app_rejected: 'ونه منل شوه',
   verified_sub: 'تایید شوی اکاونټ (Verified)', verified_hero: 'آبي ✓ نښه، ډېر لیدونکي او ځانګړې ملاتړ.', perk_badge: 'د نوم تر څنګ آبي ✓ نښه', perk_reach: 'پوسټونه او ریلز ډېرو خلکو ته رسېږي', perk_protect: 'ستاسو د نوم او عکس په نوم جعلي اکاونټونو ته مخنیوی', perk_support: 'ځانګړی ملاتړ', perk_stickers: 'ځانګړي سټیکرونه او تیمونه',
   plan_month: 'میاشتنی', plan_year: 'کلنی', save_17: '۱۷٪ سپما', request_verify: 'د تایید غوښتنه', verify_requested: 'غوښتنه مو ولېږل شوه', already_verified: 'ستاسو اکاونټ تایید شوی دی ✓', verified_note: 'پیسې ورکول لا په ایپ کې نشته؛ غوښتنه ثبتېږي او اډمین یې ګوري.',
+  offline_bar: 'انټرنېټ نشته — خوندي شوي پوسټونه ښکاري', offline_title: 'آفلاین (بې انټرنېټه)', offline_info: '{n} انځورونه او ویډیوګانې ({mb} MB) پر موبایل خوندي دي، چې بې انټرنېټه هم ښکاري. خوندي (🔖) شوي پوسټونه هم آفلاین کار کوي.', offline_clear: 'پاکول',
 };
 
 export type StringKey = keyof typeof ps;
@@ -251,6 +252,7 @@ export const en: Dict = {
   app_pending: 'Your application is under review ⏳', app_approved: 'Approved ✓', app_rejected: 'Not approved',
   verified_sub: 'Verified subscription', verified_hero: 'Blue ✓ badge, more reach and priority support.', perk_badge: 'Blue ✓ badge next to your name', perk_reach: 'Your posts and reels reach more people', perk_protect: 'Protection against fake accounts using your name and photo', perk_support: 'Priority support', perk_stickers: 'Exclusive stickers and themes',
   plan_month: 'Monthly', plan_year: 'Yearly', save_17: 'Save 17%', request_verify: 'Request verification', verify_requested: 'Request sent', already_verified: 'Your account is verified ✓', verified_note: 'Payment is not in the app yet; your request is saved and reviewed by an admin.',
+  offline_bar: 'No internet — showing saved posts', offline_title: 'Offline mode', offline_info: '{n} pictures and videos ({mb} MB) are saved on this phone and work without internet. Saved (🔖) posts work offline too.', offline_clear: 'Clear',
 };
 
 export const fa: Dict = {
@@ -368,4 +370,5 @@ export const fa: Dict = {
   app_pending: 'درخواست شما بررسی می‌شود ⏳', app_approved: 'پذیرفته شد ✓', app_rejected: 'پذیرفته نشد',
   verified_sub: 'اشتراک تأیید (Verified)', verified_hero: 'نشان آبی ✓، بازدید بیشتر و پشتیبانی ویژه.', perk_badge: 'نشان آبی ✓ کنار نام', perk_reach: 'پست‌ها و ریل‌ها به افراد بیشتری می‌رسند', perk_protect: 'محافظت در برابر حساب‌های جعلی با نام و عکس شما', perk_support: 'پشتیبانی ویژه', perk_stickers: 'استیکرها و تم‌های ویژه',
   plan_month: 'ماهانه', plan_year: 'سالانه', save_17: '۱۷٪ صرفه‌جویی', request_verify: 'درخواست تأیید', verify_requested: 'درخواست فرستاده شد', already_verified: 'حساب شما تأیید شده ✓', verified_note: 'پرداخت هنوز در اپ نیست؛ درخواست ذخیره و توسط مدیر بررسی می‌شود.',
+  offline_bar: 'اینترنت نیست — پست‌های ذخیره شده نشان داده می‌شوند', offline_title: 'حالت آفلاین', offline_info: '{n} عکس و ویدیو ({mb} MB) روی گوشی ذخیره شده و بدون اینترنت کار می‌کند. پست‌های ذخیره شده (🔖) هم آفلاین کار می‌کنند.', offline_clear: 'پاک کردن',
 };

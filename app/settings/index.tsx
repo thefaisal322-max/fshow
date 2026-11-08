@@ -7,6 +7,7 @@ import { Card, P, Page, Row } from '@/components/ui';
 import { LANGUAGES, StringKey, useI18n } from '@/i18n';
 import { account, AccountSettings } from '@/lib/account';
 import { useAuth } from '@/lib/auth-context';
+import { clearOffline, offlineInfo } from '@/lib/offline';
 import { colors, themeName } from '@/theme';
 
 export default function Settings() {
@@ -27,6 +28,27 @@ export default function Settings() {
   const msgRule = acc ? t(`msg_${acc.who_can_message}` as StringKey) : undefined;
   const postsRule = acc ? t(`vis_${acc.default_visibility}` as StringKey) : undefined;
   const n = (x: number) => (x > 0 ? String(x) : undefined);
+  const [off, setOff] = useState<{ files: number; mb: number } | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      offlineInfo().then(setOff).catch(() => {});
+    }, []),
+  );
+
+  function offlineMenu() {
+    Alert.alert(t('offline_title'), t('offline_info', { n: off?.files ?? 0, mb: off?.mb ?? 0 }), [
+      { text: t('close'), style: 'cancel' },
+      {
+        text: t('offline_clear'),
+        style: 'destructive',
+        onPress: async () => {
+          await clearOffline().catch(() => {});
+          setOff({ files: 0, mb: 0 });
+        },
+      },
+    ]);
+  }
 
   return (
     <Page>
@@ -49,6 +71,7 @@ export default function Settings() {
         <Row icon="checkmark-circle-outline" label={t('verified_sub')} onPress={() => router.push('/settings/verified')} last />
       </Card>
       <Card>
+        <Row icon="cloud-download-outline" label={t('offline_title')} value={off ? `${off.mb} MB` : undefined} onPress={offlineMenu} />
         <Row icon="language-outline" label={t('language')} value={langName} onPress={() => router.push('/settings/language')} />
         <Row icon="color-palette-outline" label={t('theme')} value={t(`theme_${themeName}` as StringKey)} onPress={() => router.push('/settings/theme')} last />
       </Card>

@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HomeHeader, PeopleYouMayKnow, ReelsRow } from '@/components/HomeSections';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PostList, PostListHandle } from '@/components/PostList';
 import { feedSignal } from '@/lib/signals';
 import { social } from '@/lib/social';
@@ -35,6 +36,7 @@ export default function Home() {
         <Tab label={t('for_you')} active={mode === 'foryou'} onPress={() => setMode('foryou')} />
         <Tab label={t('following')} active={mode === 'following'} onPress={() => setMode('following')} />
       </View>
+      <OfflineBanner />
       <PostList
         ref={list}
         load={load}

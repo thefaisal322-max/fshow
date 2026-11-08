@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/Avatar';
 import { CommentsSheet } from '@/components/CommentsSheet';
 import { DoubleTap, HeartBurst, HeartBurstHandle } from '@/components/Heart';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PostMenuSheet } from '@/components/PostMenuSheet';
 import { ShareSheet } from '@/components/ShareSheet';
 import { TagText } from '@/components/TagText';
@@ -237,6 +238,10 @@ export function ReelsFeed({ userId, query, startId, title }: { userId?: string; 
         </Pressable>
       </View>
       )}
+
+      <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: insets.top + 52 }}>
+        <OfflineBanner dark />
+      </View>
 
       {toast ? (
         <View pointerEvents="none" style={st.toastWrap}>

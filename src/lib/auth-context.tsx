@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
 import { api, ProfileRow } from './api';
+import { readList, saveList } from './offline';
 import { avatarUrl, supabase } from './supabase';
 
 /** Profile in the shape the screens use. */
@@ -70,8 +72,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const uid = session?.user.id ?? null;
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      let s = data.session;
+      // Offline with an old login token: keep the user logged in with the saved session
+      // (it refreshes by itself when the internet comes back).
+      if (!s && error && /fetch|network|abort/i.test(String(error.message))) s = await savedSession();
+      setSession(s);
       setSessionReady(true);
     });
     const { data } = supabase.auth.onAuthStateChange((_event, s) => {
@@ -84,7 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadProfile = useCallback(async (id: string) => {
     try {
       const row = await api.getProfile(id);
-      if (row) setProfile(toProfile(row));
+      if (row) {
+        setProfile(toProfile(row));
+        saveList(`me:${id}`, row);
+      }
       else {
         // Every real account gets its profile from the signup function.
         // A login without one is not a valid Faisal Show account.
@@ -92,7 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
       }
     } catch {
-      // offline — keep whatever we had
+      // offline — use the copy saved on the phone
+      const saved = await readList<ProfileRow>(`me:${id}`);
+      if (saved) setProfile((p) => p ?? toProfile(saved));
     } finally {
       setProfileReady(true);
     }
@@ -124,3 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+/** The login saved by supabase-js on the phone (used only when offline). */
+async function savedSession(): Promise<Session | null> {
+  try {
+    const key = (await AsyncStorage.getAllKeys()).find((k) => /^sb-.*-auth-token$/.test(k));
+    if (!key) return null;
+    const raw = await AsyncStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const s = parsed?.currentSession ?? parsed;
+    return s?.user?.id ? (s as Session) : null;
+  } catch {
+    return null;
+  }
+}

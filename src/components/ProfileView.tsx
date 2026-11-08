@@ -13,6 +13,7 @@ import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
+import { OfflineBanner } from './OfflineBanner';
 import { VerifiedBadge } from './PostCard';
 import { PostList, PostListHandle } from './PostList';
 import { ReelGrid, ReelGridHandle } from './ReelGrid';
@@ -129,6 +130,7 @@ export function ProfileView({ userId }: { userId: string }) {
 
   const header = user ? (
     <View>
+      <OfflineBanner />
       <View style={st.cover}>
         {!isMe ? (
           <Pressable onPress={menu} style={[st.menuBtn, d.rtl ? { left: 12 } : { right: 12 }]} hitSlop={10}>

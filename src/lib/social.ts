@@ -6,6 +6,7 @@ import { Share } from 'react-native';
 import { StringKey, tr } from '@/i18n';
 
 import { ApiError } from './api';
+import { keepForOffline, mediaUrl, withOffline } from './offline';
 import { supabase } from './supabase';
 
 export type Author = {
@@ -111,7 +112,7 @@ function check<T>(res: { data: T | null; error: { message?: string } | null }): 
   if (res.error) {
     const msg = res.error.message ?? '';
     for (const r of ['rate-limited', 'forbidden', 'invalid-input', 'blocked']) if (msg.includes(r)) throw new ApiError(r);
-    if (/fetch|network/i.test(msg)) throw new ApiError('network');
+    if (/fetch|network|abort/i.test(msg)) throw new ApiError('network');
     throw new ApiError('internal', { message: msg });
   }
   return res.data as T;
@@ -119,27 +120,49 @@ function check<T>(res: { data: T | null; error: { message?: string } | null }): 
 
 export function postImageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  return supabase.storage.from('posts').getPublicUrl(path).data.publicUrl;
+  return mediaUrl('posts', path); // the phone's copy when saved for offline
 }
 
 export const social = {
   // ── reading ──
-  reels: async (offset = 0, mode: 'foryou' | 'following' = 'foryou') =>
-    check<Post[]>(await supabase.rpc('get_reels', { p_offset: offset, p_limit: 10, p_mode: mode })) ?? [],
+  reels: (offset = 0, mode: 'foryou' | 'following' = 'foryou') =>
+    withOffline(
+      `reels:${mode}`,
+      offset === 0,
+      async () => check<Post[]>(await supabase.rpc('get_reels', { p_offset: offset, p_limit: 10, p_mode: mode })) ?? [],
+      (list) => keepForOffline(list, 5),
+    ),
   tagPosts: async (tag: string, offset = 0) =>
     check<Post[]>(await supabase.rpc('get_tag_posts', { p_tag: tag, p_offset: offset, p_limit: PAGE })) ?? [],
   trendingTags: async () => check<TrendingTag[]>(await supabase.rpc('get_trending_tags', { p_limit: 15 })) ?? [],
-  feed: async (mode: 'foryou' | 'following', offset = 0) =>
-    check<Post[]>(await supabase.rpc('get_feed', { p_mode: mode, p_offset: offset, p_limit: PAGE })) ?? [],
+  feed: (mode: 'foryou' | 'following', offset = 0) =>
+    withOffline(
+      `feed:${mode}`,
+      offset === 0,
+      async () => check<Post[]>(await supabase.rpc('get_feed', { p_mode: mode, p_offset: offset, p_limit: PAGE })) ?? [],
+      (list) => keepForOffline(list, mode === 'foryou' ? 3 : 2),
+    ),
   /** kind: all / posts (no video) / reels (videos) — the profile tabs */
-  userPosts: async (userId: string, offset = 0, kind: 'all' | 'posts' | 'reels' = 'all', limit = PAGE) =>
-    check<Post[]>(await supabase.rpc('get_user_posts', { p_user: userId, p_offset: offset, p_limit: limit, p_kind: kind })) ?? [],
-  savedPosts: async (offset = 0) =>
-    check<Post[]>(await supabase.rpc('get_saved_posts', { p_offset: offset, p_limit: PAGE })) ?? [],
+  userPosts: (userId: string, offset = 0, kind: 'all' | 'posts' | 'reels' = 'all', limit = PAGE) =>
+    withOffline(
+      `user:${userId}:${kind}:${limit}`,
+      offset === 0,
+      async () => check<Post[]>(await supabase.rpc('get_user_posts', { p_user: userId, p_offset: offset, p_limit: limit, p_kind: kind })) ?? [],
+      (list) => keepForOffline(list, 0),
+    ),
+  /** Saved posts are kept on the phone with their videos, so they play offline. */
+  savedPosts: (offset = 0) =>
+    withOffline(
+      'saved',
+      offset === 0,
+      async () => check<Post[]>(await supabase.rpc('get_saved_posts', { p_offset: offset, p_limit: PAGE })) ?? [],
+      (list) => keepForOffline(list, 6),
+    ),
   post: async (id: string) => check<Post | null>(await supabase.rpc('get_post', { p_post: id })),
   comments: async (postId: string) =>
     check<Comment[]>(await supabase.rpc('get_comments', { p_post: postId, p_offset: 0, p_limit: 100 })) ?? [],
-  profile: async (userId: string) => check<UserProfile | null>(await supabase.rpc('get_profile', { p_user: userId })),
+  profile: (userId: string) =>
+    withOffline(`profile:${userId}`, true, async () => check<UserProfile | null>(await supabase.rpc('get_profile', { p_user: userId }))),
   /** Posts and reels whose text, #hashtags or author name match. kind: all / posts / reels */
   searchPosts: async (q: string, kind: 'all' | 'posts' | 'reels' = 'all', offset = 0, limit = PAGE) =>
     check<Post[]>(await supabase.rpc('search_posts', { p_query: q, p_kind: kind, p_offset: offset, p_limit: limit })) ?? [],

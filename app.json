@@ -3,7 +3,7 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.7.1",
+    "version": "0.8.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
         "backgroundImage": "./assets/adaptive-bg.png",
         "backgroundColor": "#D63AF9"
       },
-      "versionCode": 12
+      "versionCode": 13
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
