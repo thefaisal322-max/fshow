@@ -7,18 +7,16 @@ import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useI18n } from '@/i18n';
 import { account, FriendRequest } from '@/lib/account';
 import { errorMessage } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
-import { authorName, social, timeAgo } from '@/lib/social';
+import { friends } from '@/lib/friends';
+import { authorName, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
-/** Like Facebook: people who follow you. Confirm = follow back (you become friends), Delete = hide. */
+/** Like Facebook: Confirm = you become friends (you follow each other), Delete = request removed. */
 export default function FriendRequests() {
   const router = useRouter();
   const { t, d } = useI18n();
-  const { session } = useAuth();
-  const me = session?.user.id ?? '';
   const bottom = useBottomSpace();
   const [items, setItems] = useState<FriendRequest[] | null>(null);
 
@@ -36,8 +34,7 @@ export default function FriendRequests() {
   async function act(u: FriendRequest, confirm: boolean) {
     setItems((old) => old?.filter((x) => x.id !== u.id) ?? null);
     try {
-      if (confirm) await social.follow(u.id, true, me);
-      else await account.dismissFriend(u.id);
+      await friends.respond(u.id, confirm);
     } catch (e) {
       Alert.alert('', errorMessage(e));
       load();

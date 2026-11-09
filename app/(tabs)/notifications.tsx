@@ -16,12 +16,16 @@ const TEXT: Record<Notification['type'], StringKey> = {
   comment: 'n_comment',
   mention: 'n_mention',
   follow: 'n_follow',
+  friend_request: 'n_friend_request',
+  friend_accept: 'n_friend_accept',
 };
 const ICON: Record<Notification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
   like: { name: 'heart', color: colors.error },
   comment: { name: 'chatbubble', color: colors.primary },
   mention: { name: 'at', color: '#8E44AD' },
   follow: { name: 'person-add', color: colors.success },
+  friend_request: { name: 'people', color: colors.primary },
+  friend_accept: { name: 'people', color: colors.success },
 };
 
 export default function Notifications() {
@@ -54,7 +58,8 @@ export default function Notifications() {
   );
 
   function open(n: Notification) {
-    if (n.post_id) router.push({ pathname: '/post/[id]', params: { id: n.post_id } });
+    if (n.type === 'friend_request') router.push('/friends');
+    else if (n.post_id) router.push({ pathname: '/post/[id]', params: { id: n.post_id } });
     else router.push({ pathname: '/user/[id]', params: { id: n.actor.id } });
   }
 

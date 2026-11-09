@@ -13,6 +13,7 @@ import { colors, radius } from '@/theme';
 
 const MSG: { v: AccountSettings['who_can_message']; icon: keyof typeof Ionicons.glyphMap; label: StringKey; sub: StringKey }[] = [
   { v: 'everyone', icon: 'earth', label: 'msg_everyone', sub: 'msg_everyone_sub' },
+  { v: 'friends', icon: 'heart', label: 'msg_friends', sub: 'msg_friends_sub' },
   { v: 'followers', icon: 'people', label: 'msg_followers', sub: 'msg_followers_sub' },
   { v: 'nobody', icon: 'close-circle', label: 'msg_nobody', sub: 'msg_nobody_sub' },
 ];

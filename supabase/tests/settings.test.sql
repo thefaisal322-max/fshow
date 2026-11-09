@@ -83,14 +83,10 @@ SELECT pg_temp.check((public.request_counts()->>'messages')::int >= 1, 'request 
 SELECT public.accept_message_request((SELECT id FROM req));
 SELECT pg_temp.check((SELECT count(*) FROM public.get_conversations() j WHERE (j->>'id')::uuid = (SELECT id FROM req)) = 1, 'accepted → inbox');
 
--- friend request: C follows D, D has not followed back
+-- (friend requests are tested in friends.test.sql)
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
 INSERT INTO public.follows (followee_id) VALUES ('dddddddd-0000-0000-0000-000000000004');
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
-SELECT pg_temp.check((SELECT count(*) FROM public.get_friend_requests() j WHERE j->>'id' = 'cccccccc-0000-0000-0000-000000000003') = 1, 'friend request listed');
-SELECT public.dismiss_friend_request('cccccccc-0000-0000-0000-000000000003');
-SELECT pg_temp.check((SELECT count(*) FROM public.get_friend_requests() j WHERE j->>'id' = 'cccccccc-0000-0000-0000-000000000003') = 0, 'friend request removed');
-SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.follows WHERE follower_id = 'cccccccc-0000-0000-0000-000000000003' AND followee_id = auth.uid()), 'C still follows D');
 
 -- how people find you
 UPDATE public.profiles SET searchable = false, city = 'Kabul', website = 'https://fainet.org' WHERE id = auth.uid();

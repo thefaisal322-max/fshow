@@ -132,6 +132,11 @@ export const ps = {
   verified_sub: 'تایید شوی اکاونټ (Verified)', verified_hero: 'آبي ✓ نښه، ډېر لیدونکي او ځانګړې ملاتړ.', perk_badge: 'د نوم تر څنګ آبي ✓ نښه', perk_reach: 'پوسټونه او ریلز ډېرو خلکو ته رسېږي', perk_protect: 'ستاسو د نوم او عکس په نوم جعلي اکاونټونو ته مخنیوی', perk_support: 'ځانګړی ملاتړ', perk_stickers: 'ځانګړي سټیکرونه او تیمونه',
   plan_month: 'میاشتنی', plan_year: 'کلنی', save_17: '۱۷٪ سپما', request_verify: 'د تایید غوښتنه', verify_requested: 'غوښتنه مو ولېږل شوه', already_verified: 'ستاسو اکاونټ تایید شوی دی ✓', verified_note: 'پیسې ورکول لا په ایپ کې نشته؛ غوښتنه ثبتېږي او اډمین یې ګوري.',
   offline_bar: 'انټرنېټ نشته — خوندي شوي پوسټونه ښکاري', offline_title: 'آفلاین (بې انټرنېټه)', offline_info: '{n} انځورونه او ویډیوګانې ({mb} MB) پر موبایل خوندي دي، چې بې انټرنېټه هم ښکاري. خوندي (🔖) شوي پوسټونه هم آفلاین کار کوي.', offline_clear: 'پاکول',
+  // friends v0.9
+  tab_friends: 'ملګري', n_online: '{n} آنلاین', suggestions: 'وړاندیزونه', your_friends: 'ستاسو ملګري', sent_requests: 'لېږل شوې غوښتنې', nobody_online: 'اوس هېڅ ملګری آنلاین نه دی', no_friends_yet: 'لا ملګري نه لرئ. یو چا ته د ملګرتیا غوښتنه ولېږئ!', no_sent_requests: 'تاسو هېڅ غوښتنه نه ده لېږلې',
+  mutual_friends_n: '{n} ګډ ملګري', followed_by_n: '{n} فالوور', hold_follow_hint: 'د Follow بټن ۵ ثانیې ونیسئ — د ملګرتیا غوښتنه ورته ځي', cancel_request: 'غوښتنه لغوه کړه', add_friend: 'ملګری جوړول',
+  n_friend_request: 'تاسو ته یې د ملګرتیا غوښتنه لېږلې ده', n_friend_accept: 'ستاسو د ملګرتیا غوښتنه یې ومنله — اوس ملګري یاست 👥', msg_friends: 'یوازې ملګري', msg_friends_sub: 'هغه کسان چې ستاسو د ملګرتیا غوښتنه یې منلې (یو بل Follow کوئ)',
+  now_friends: 'اوس ملګري یاست 👥', request_sent_to: '{name} ته د ملګرتیا غوښتنه ولېږل شوه ✓', you_are_friends: 'تاسو ملګري یاست', unfriend: 'له ملګرتیا ایستل', wants_friend: 'غواړي ستاسو ملګری شي', friends_btn: 'ملګري', request_sent: 'غوښتنه لېږل شوې', confirm_request: 'غوښتنه ومنئ',
 };
 
 export type StringKey = keyof typeof ps;
@@ -253,6 +258,10 @@ export const en: Dict = {
   verified_sub: 'Verified subscription', verified_hero: 'Blue ✓ badge, more reach and priority support.', perk_badge: 'Blue ✓ badge next to your name', perk_reach: 'Your posts and reels reach more people', perk_protect: 'Protection against fake accounts using your name and photo', perk_support: 'Priority support', perk_stickers: 'Exclusive stickers and themes',
   plan_month: 'Monthly', plan_year: 'Yearly', save_17: 'Save 17%', request_verify: 'Request verification', verify_requested: 'Request sent', already_verified: 'Your account is verified ✓', verified_note: 'Payment is not in the app yet; your request is saved and reviewed by an admin.',
   offline_bar: 'No internet — showing saved posts', offline_title: 'Offline mode', offline_info: '{n} pictures and videos ({mb} MB) are saved on this phone and work without internet. Saved (🔖) posts work offline too.', offline_clear: 'Clear',
+  tab_friends: 'Friends', n_online: '{n} online', suggestions: 'Suggestions', your_friends: 'Your friends', sent_requests: 'Sent requests', nobody_online: 'No friends online right now', no_friends_yet: 'No friends yet. Send someone a friend request!', no_sent_requests: 'You have not sent any requests',
+  mutual_friends_n: '{n} mutual friends', followed_by_n: 'Followed by {n}', hold_follow_hint: 'Hold the Follow button for 5 seconds to send a friend request', cancel_request: 'Cancel request', add_friend: 'Add friend',
+  n_friend_request: 'sent you a friend request', n_friend_accept: 'accepted your friend request — you are friends now 👥', msg_friends: 'Friends only', msg_friends_sub: 'People who accepted your friend request (you follow each other)',
+  now_friends: 'You are friends now 👥', request_sent_to: 'Friend request sent to {name} ✓', you_are_friends: 'You are friends', unfriend: 'Unfriend', wants_friend: 'wants to be your friend', friends_btn: 'Friends', request_sent: 'Request sent', confirm_request: 'Confirm request',
 };
 
 export const fa: Dict = {
@@ -371,4 +380,8 @@ export const fa: Dict = {
   verified_sub: 'اشتراک تأیید (Verified)', verified_hero: 'نشان آبی ✓، بازدید بیشتر و پشتیبانی ویژه.', perk_badge: 'نشان آبی ✓ کنار نام', perk_reach: 'پست‌ها و ریل‌ها به افراد بیشتری می‌رسند', perk_protect: 'محافظت در برابر حساب‌های جعلی با نام و عکس شما', perk_support: 'پشتیبانی ویژه', perk_stickers: 'استیکرها و تم‌های ویژه',
   plan_month: 'ماهانه', plan_year: 'سالانه', save_17: '۱۷٪ صرفه‌جویی', request_verify: 'درخواست تأیید', verify_requested: 'درخواست فرستاده شد', already_verified: 'حساب شما تأیید شده ✓', verified_note: 'پرداخت هنوز در اپ نیست؛ درخواست ذخیره و توسط مدیر بررسی می‌شود.',
   offline_bar: 'اینترنت نیست — پست‌های ذخیره شده نشان داده می‌شوند', offline_title: 'حالت آفلاین', offline_info: '{n} عکس و ویدیو ({mb} MB) روی گوشی ذخیره شده و بدون اینترنت کار می‌کند. پست‌های ذخیره شده (🔖) هم آفلاین کار می‌کنند.', offline_clear: 'پاک کردن',
+  tab_friends: 'دوستان', n_online: '{n} آنلاین', suggestions: 'پیشنهادها', your_friends: 'دوستان شما', sent_requests: 'درخواست‌های فرستاده', nobody_online: 'الان هیچ دوستی آنلاین نیست', no_friends_yet: 'هنوز دوستی ندارید. برای کسی درخواست دوستی بفرستید!', no_sent_requests: 'هیچ درخواستی نفرستاده‌اید',
+  mutual_friends_n: '{n} دوست مشترک', followed_by_n: '{n} دنبال‌کننده', hold_follow_hint: 'دکمه Follow را ۵ ثانیه نگه دارید — درخواست دوستی فرستاده می‌شود', cancel_request: 'لغو درخواست', add_friend: 'افزودن دوست',
+  n_friend_request: 'به شما درخواست دوستی فرستاد', n_friend_accept: 'درخواست دوستی شما را قبول کرد — حالا دوست هستید 👥', msg_friends: 'فقط دوستان', msg_friends_sub: 'کسانی که درخواست دوستی را قبول کرده‌اند (همدیگر را دنبال می‌کنید)',
+  now_friends: 'حالا دوست هستید 👥', request_sent_to: 'درخواست دوستی به {name} فرستاده شد ✓', you_are_friends: 'شما دوست هستید', unfriend: 'حذف از دوستان', wants_friend: 'می‌خواهد دوست شما شود', friends_btn: 'دوستان', request_sent: 'درخواست فرستاده شد', confirm_request: 'قبول درخواست',
 };

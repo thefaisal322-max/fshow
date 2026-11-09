@@ -7,12 +7,14 @@ import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
+import { friends } from '@/lib/friends';
 import { profileSignal } from '@/lib/signals';
 import { authorName, formatCount, social, UserProfile } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
+import { HoldButton } from './HoldButton';
 import { OfflineBanner } from './OfflineBanner';
 import { VerifiedBadge } from './PostCard';
 import { PostList, PostListHandle } from './PostList';
@@ -76,6 +78,46 @@ export function ProfileView({ userId }: { userId: string }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Hold Follow for 5 s → friend request. Confirmed → you follow each other (friends). */
+  async function friendAction(kind: 'send' | 'cancel' | 'accept' | 'unfriend') {
+    if (!user) return;
+    setBusy(true);
+    try {
+      if (kind === 'send') {
+        const r = await friends.send(user.id);
+        Alert.alert('', r === 'friends' ? t('now_friends') : t('request_sent_to', { name: authorName(user) }));
+      } else if (kind === 'cancel') await friends.cancel(user.id);
+      else if (kind === 'accept') await friends.respond(user.id, true);
+      else await friends.unfriend(user.id);
+      await loadUser();
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function friendMenu() {
+    if (!user) return;
+    const fs = user.friend_status ?? 'none';
+    if (fs === 'friends')
+      Alert.alert(authorName(user), t('you_are_friends'), [
+        { text: t('close'), style: 'cancel' },
+        { text: t('unfriend'), style: 'destructive', onPress: () => friendAction('unfriend') },
+      ]);
+    else if (fs === 'sent')
+      Alert.alert('', t('request_sent_to', { name: authorName(user) }), [
+        { text: t('close'), style: 'cancel' },
+        { text: t('cancel_request'), style: 'destructive', onPress: () => friendAction('cancel') },
+      ]);
+    else if (fs === 'received')
+      Alert.alert(authorName(user), t('wants_friend'), [
+        { text: t('close'), style: 'cancel' },
+        { text: t('delete'), style: 'destructive', onPress: () => friends.respond(user.id, false).then(loadUser).catch(() => {}) },
+        { text: t('confirm'), onPress: () => friendAction('accept') },
+      ]);
   }
 
   async function message() {
@@ -156,6 +198,7 @@ export function ProfileView({ userId }: { userId: string }) {
         <Stat n={user.followers_count} label="Followers" />
         <Stat n={user.likes_count} label="Likes" />
         <Stat n={user.posts_count} label="Posts" />
+        <Stat n={user.friends_count ?? 0} label="Friends" />
       </View>
 
       {!isMe && (user.blocked_by_me || user.blocked_me) ? (
@@ -169,19 +212,34 @@ export function ProfileView({ userId }: { userId: string }) {
         </View>
       ) : !isMe ? (
         <View style={{ flexDirection: d.row, gap: 8, marginBottom: 8 }}>
-          <Pressable
-            onPress={toggleFollow}
-            disabled={busy}
-            style={[st.btn, { flex: 2 }, user.followed_by_me ? st.btnLight : st.btnBlue]}
-          >
-            <Text style={[st.btnText, user.followed_by_me && { color: colors.primary }]}>
-              {user.followed_by_me ? t('following_btn') : user.follows_me ? t('follow_back') : t('follow')}
-            </Text>
-          </Pressable>
+          {user.friend_status && user.friend_status !== 'none' ? (
+            <Pressable onPress={friendMenu} disabled={busy} style={[st.btn, { flex: 2 }, user.friend_status === 'received' ? st.btnBlue : st.btnLight]}>
+              <Text style={[st.btnText, user.friend_status !== 'received' && { color: colors.primary }]}>
+                {user.friend_status === 'friends' ? `👥 ${t('friends_btn')}` : user.friend_status === 'sent' ? `⏳ ${t('request_sent')}` : t('confirm_request')}
+              </Text>
+            </Pressable>
+          ) : (
+            <HoldButton
+              onPress={toggleFollow}
+              onHold={() => friendAction('send')}
+              disabled={busy}
+              style={[st.btn, { flex: 2 }, user.followed_by_me ? st.btnLight : st.btnBlue]}
+              fill={user.followed_by_me ? 'rgba(24,119,242,0.25)' : 'rgba(255,255,255,0.35)'}
+            >
+              <Text style={[st.btnText, user.followed_by_me && { color: colors.primary }]}>
+                {user.followed_by_me ? t('following_btn') : user.follows_me ? t('follow_back') : t('follow')}
+              </Text>
+            </HoldButton>
+          )}
           <Pressable onPress={message} disabled={busy} style={[st.btn, st.btnLight, { flex: 1 }]}>
             <Text style={[st.btnText, { color: colors.primary }]}>{t('message_btn')}</Text>
           </Pressable>
         </View>
+      ) : null}
+      {!isMe ? (
+        !(user.blocked_by_me || user.blocked_me) && (user.friend_status ?? 'none') === 'none' ? (
+          <Text style={st.holdHint}>💡 {t('hold_follow_hint')}</Text>
+        ) : null
       ) : (
         <Pressable onPress={() => router.push('/create')} style={[st.btn, st.btnBlue, { marginBottom: 8, flexDirection: 'row', justifyContent: 'center', gap: 6 }]}>
           <Text style={st.btnText}>＋ {t('new_post_btn')}</Text>
@@ -293,6 +351,7 @@ const st = StyleSheet.create({
   btnBlue: { backgroundColor: colors.primary },
   btnLight: { backgroundColor: colors.soft },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  holdHint: { textAlign: 'center', color: colors.muted, fontSize: 12, marginBottom: 8 },
   intro: { backgroundColor: colors.card, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8, marginTop: 12 },
   introBtn: { backgroundColor: colors.soft, borderRadius: radius.md, paddingVertical: 9, alignItems: 'center', marginTop: 6, marginBottom: 4 },
   chips: { gap: 8, marginBottom: 8, paddingVertical: 2 },

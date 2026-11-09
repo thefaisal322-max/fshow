@@ -85,6 +85,8 @@ export type UserProfile = {
   follows_me: boolean;
   blocked_by_me: boolean;
   blocked_me: boolean;
+  friends_count?: number;
+  friend_status?: 'friends' | 'sent' | 'received' | 'none';
   city?: string;
   hometown?: string;
   work?: string;
@@ -96,7 +98,7 @@ export type SearchResult = Author & { followers_count: number; followed_by_me: b
 
 export type Notification = {
   id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention';
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'friend_request' | 'friend_accept';
   read: boolean;
   created_at: string;
   post_id: string | null;

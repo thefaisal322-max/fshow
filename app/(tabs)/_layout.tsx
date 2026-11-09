@@ -27,11 +27,11 @@ function HeaderButton({ name, onPress, badge }: { name: IconName; onPress: () =>
   );
 }
 
-/** Tabs: Home (🔍 + 💬 in the header), Reels, Notifications, Profile (⚙️ in the header). */
+/** Tabs: Home (🔍 + 💬 in the header), Reels, Friends, Notifications, Profile (⚙️ in the header). */
 export default function TabsLayout() {
   const router = useRouter();
   const { t, d } = useI18n();
-  const { unread, chatUnread } = useUnread();
+  const { unread, chatUnread, friendRequests } = useUnread();
 
   const homeButtons = () => (
     <View style={{ flexDirection: 'row', gap: 4, marginHorizontal: 8 }}>
@@ -59,6 +59,21 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#fff',
         tabBarInactiveTintColor: '#8a8a8a',
       }} />,
+    <Tabs.Screen
+      key="friends"
+      name="friends"
+      options={{
+        title: t('tab_friends'),
+        headerTitle: t('tab_friends'),
+        tabBarIcon: icon('people'),
+        tabBarBadge: friendRequests > 0 ? (friendRequests > 99 ? '99+' : friendRequests) : undefined,
+        ...side(() => (
+          <View style={{ marginHorizontal: 8 }}>
+            <HeaderButton name="search" onPress={() => router.push('/search')} />
+          </View>
+        )),
+      }}
+    />,
     <Tabs.Screen
       key="notifications"
       name="notifications"

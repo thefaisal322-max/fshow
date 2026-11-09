@@ -5,7 +5,7 @@ import { supabase } from './supabase';
 
 /** My privacy settings + extra profile details (columns of public.profiles). */
 export type AccountSettings = {
-  who_can_message: 'everyone' | 'followers' | 'nobody';
+  who_can_message: 'everyone' | 'followers' | 'friends' | 'nobody';
   searchable: boolean;
   default_visibility: Visibility;
   city: string;
@@ -15,7 +15,7 @@ export type AccountSettings = {
   website: string;
 };
 
-export type FriendRequest = Author & { requested_at: string; mutual: number };
+export type FriendRequest = Author & { requested_at: string; mutual: number; followers_count?: number };
 
 export type CreatorStats = {
   followers: number;
