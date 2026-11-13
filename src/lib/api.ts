@@ -22,6 +22,7 @@ export type ProfileRow = {
   following_count: number;
   likes_count: number;
   posts_count: number;
+  banned?: boolean;
 };
 
 /** Error with a stable `reason` code + optional details (remaining, wait, message). */

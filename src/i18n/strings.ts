@@ -149,6 +149,15 @@ export const ps = {
   ch_post_views: 'یو پوسټ چې {n} لیدونه ولري', ch_reel_plays: 'یو ریل چې {n} ځله ولیدل شي', ch_likes_total: 'ټول {n} لایکونه', ch_posts_count: '{n} پوسټونه وکړئ', ch_comments_received: 'ستاسو پوسټونو ته {n} کمنټونه', ch_shares_total: '{n} ځله شریک شي',
   messages_off: 'پیغامونه بند', message_request_btn: 'د پیغام غوښتنه', message_request_info: '{name} یوازې د ملګرو پیغامونه مستقیم اخلي. ستاسو پیغام به د هغه «د پیغام غوښتنو» ته ولاړ شي، چې ومني یې.', continue_btn: 'مخته',
   repost: 'Repost', reposted: 'Repost شو',
+  // admin v0.11
+  adm_overview: 'لنډیز', adm_monetize: 'مانیټایز', adm_codes: 'جعلي شمېرې', adm_reports: 'ریپورټونه', adm_users: 'اکاونټونه',
+  adm_t_users: 'ټول کاروونکي', adm_t_today: 'نن نوي', adm_t_online: 'اوس آنلاین', adm_t_posts: 'پوسټونه', adm_t_reels: 'ریلز', adm_t_monetize: 'مانیټایز غوښتنې', adm_t_proofs: 'ثبوتونه', adm_t_payouts: 'د پیسو غوښتنې', adm_t_reports: 'ریپورټونه', adm_t_codes: 'نن کوډونه', adm_t_banned: 'بند اکاونټونه',
+  adm_codes_sub: 'چا جعلي شمېرې ورکړې او چا ترلاسه کړې', adm_gave: 'ورکړل:', adm_got: 'ترلاسه کړل:', adm_kind_followers: 'فالوور', adm_kind_likes: 'لایک', adm_kind_views: 'لید', adm_kind_remove: 'جعلي شمېرې لرې شوې', adm_kind_verify: 'تایید شو ✓',
+  adm_reported: 'ریپورټ شوی:', adm_by: 'ریپورټ کوونکی:', adm_dismiss: 'پرېښودل', adm_view: 'پروفایل کتل', adm_verify: 'تایید ✓ ورکول', adm_unverify: 'تایید لرې کول', adm_reset_fakes: 'جعلي شمېرې لرې کول', adm_ban: 'اکاونټ بندول', adm_unban: 'اکاونټ خلاصول', adm_delete: 'اکاونټ ړنګول', adm_delete_q: 'د {name} اکاونټ ړنګ شي؟',
+  adm_search_users: 'نوم، @ID یا ایمیل ولټوئ', adm_fake: 'جعلي', adm_banned: 'بند', adm_verified: 'تایید شوی',
+  banned_title: 'ستاسو اکاونټ بند شوی', banned_text: 'د Faisal Show اډمین ستاسو اکاونټ بند کړی. که فکر کوئ چې دا تېروتنه ده، له fainet.org سره اړیکه ونیسئ.',
+  ch_hesabpay_account: 'د دې لینک له لارې HesabPay حساب جوړ کړئ', open_hesabpay: 'HesabPay خلاصول', proof_hesab_help: 'لاندې لینک خلاص کړئ، HesabPay حساب جوړ کړئ، بیا یې سکرین شاټ ولېږئ.',
+  rules_done: 'ټول ۵ قانونونه بشپړ شول!', phone_needed: 'خپله HesabPay شمېره ولیکئ. پیسې به همدې شمېرې ته لېږل کېږي. اډمین به یې تایید کړي.', send_for_approval: 'د تایید لپاره ولېږئ', phone_sent: 'ولېږل شو. اډمین به ستاسو اکاونټ تایید کړي.', monetize_waiting: 'اډمین ستاسو غوښتنه ګوري', monetize_rejected: 'ستاسو غوښتنه ونه منل شوه. شمېره وګورئ او بیا یې ولېږئ.',
 };
 
 export type StringKey = keyof typeof ps;
@@ -285,6 +294,14 @@ export const en: Dict = {
   ch_post_views: 'A post with {n} views', ch_reel_plays: 'A reel with {n} plays', ch_likes_total: '{n} likes in total', ch_posts_count: 'Make {n} posts', ch_comments_received: '{n} comments on your posts', ch_shares_total: 'Shared {n} times',
   messages_off: 'Messages off', message_request_btn: 'Message request', message_request_info: '{name} only takes messages from friends. Your message goes to their Message requests until they accept.', continue_btn: 'Continue',
   repost: 'Repost', reposted: 'Reposted',
+  adm_overview: 'Overview', adm_monetize: 'Monetize', adm_codes: 'Fake numbers', adm_reports: 'Reports', adm_users: 'Accounts',
+  adm_t_users: 'All users', adm_t_today: 'New today', adm_t_online: 'Online now', adm_t_posts: 'Posts', adm_t_reels: 'Reels', adm_t_monetize: 'Monetize requests', adm_t_proofs: 'Proofs', adm_t_payouts: 'Payout requests', adm_t_reports: 'Reports', adm_t_codes: 'Codes today', adm_t_banned: 'Banned',
+  adm_codes_sub: 'Who gave fake numbers and who received them', adm_gave: 'Gave:', adm_got: 'Received:', adm_kind_followers: 'followers', adm_kind_likes: 'likes', adm_kind_views: 'views', adm_kind_remove: 'fakes removed', adm_kind_verify: 'verified ✓',
+  adm_reported: 'Reported:', adm_by: 'Reported by:', adm_dismiss: 'Dismiss', adm_view: 'View profile', adm_verify: 'Give ✓', adm_unverify: 'Remove ✓', adm_reset_fakes: 'Remove fake numbers', adm_ban: 'Ban account', adm_unban: 'Unban account', adm_delete: 'Delete account', adm_delete_q: 'Delete {name}\'s account?',
+  adm_search_users: 'Search name, @ID or email', adm_fake: 'fake', adm_banned: 'Banned', adm_verified: 'Verified',
+  banned_title: 'Your account is suspended', banned_text: 'A Faisal Show admin suspended your account. If you think this is a mistake, contact fainet.org.',
+  ch_hesabpay_account: 'Create a HesabPay account with this link', open_hesabpay: 'Open HesabPay', proof_hesab_help: 'Open the link below, create a HesabPay account, then send a screenshot.',
+  rules_done: 'All 5 rules done!', phone_needed: 'Enter your HesabPay number. Money will be sent to it. An admin will approve it.', send_for_approval: 'Send for approval', phone_sent: 'Sent. An admin will approve your account.', monetize_waiting: 'An admin is checking your request', monetize_rejected: 'Your request was not approved. Check the number and send again.',
 };
 
 export const fa: Dict = {
@@ -418,4 +435,12 @@ export const fa: Dict = {
   ch_post_views: 'پستی با {n} بازدید', ch_reel_plays: 'ریلی با {n} پخش', ch_likes_total: 'مجموعاً {n} لایک', ch_posts_count: '{n} پست بگذارید', ch_comments_received: '{n} نظر روی پست‌های شما', ch_shares_total: '{n} بار اشتراک‌گذاری',
   messages_off: 'پیام‌ها بسته', message_request_btn: 'درخواست پیام', message_request_info: '{name} فقط پیام دوستان را مستقیم می‌گیرد. پیام شما به «درخواست‌های پیام» او می‌رود تا قبول کند.', continue_btn: 'ادامه',
   repost: 'Repost', reposted: 'Repost شد',
+  adm_overview: 'خلاصه', adm_monetize: 'کسب درآمد', adm_codes: 'اعداد جعلی', adm_reports: 'گزارش‌ها', adm_users: 'حساب‌ها',
+  adm_t_users: 'همه کاربران', adm_t_today: 'جدید امروز', adm_t_online: 'آنلاین', adm_t_posts: 'پست‌ها', adm_t_reels: 'ریل‌ها', adm_t_monetize: 'درخواست کسب درآمد', adm_t_proofs: 'مدارک', adm_t_payouts: 'درخواست پول', adm_t_reports: 'گزارش‌ها', adm_t_codes: 'کدهای امروز', adm_t_banned: 'مسدود',
+  adm_codes_sub: 'چه کسی اعداد جعلی داد و چه کسی گرفت', adm_gave: 'داد:', adm_got: 'گرفت:', adm_kind_followers: 'دنبال‌کننده', adm_kind_likes: 'لایک', adm_kind_views: 'بازدید', adm_kind_remove: 'اعداد جعلی حذف شد', adm_kind_verify: 'تأیید شد ✓',
+  adm_reported: 'گزارش شده:', adm_by: 'گزارش‌دهنده:', adm_dismiss: 'رد کردن', adm_view: 'دیدن پروفایل', adm_verify: 'دادن ✓', adm_unverify: 'حذف ✓', adm_reset_fakes: 'حذف اعداد جعلی', adm_ban: 'مسدود کردن حساب', adm_unban: 'باز کردن حساب', adm_delete: 'حذف حساب', adm_delete_q: 'حساب {name} حذف شود؟',
+  adm_search_users: 'نام، @ID یا ایمیل را جستجو کنید', adm_fake: 'جعلی', adm_banned: 'مسدود', adm_verified: 'تأیید شده',
+  banned_title: 'حساب شما مسدود شده', banned_text: 'مدیر Faisal Show حساب شما را مسدود کرده. اگر فکر می‌کنید اشتباه است، با fainet.org تماس بگیرید.',
+  ch_hesabpay_account: 'با این لینک حساب HesabPay بسازید', open_hesabpay: 'باز کردن HesabPay', proof_hesab_help: 'لینک زیر را باز کنید، حساب HesabPay بسازید، بعد اسکرین‌شات بفرستید.',
+  rules_done: 'هر ۵ قانون تمام شد!', phone_needed: 'شماره HesabPay خود را بنویسید. پول به همین شماره فرستاده می‌شود. مدیر تأیید می‌کند.', send_for_approval: 'فرستادن برای تأیید', phone_sent: 'فرستاده شد. مدیر حساب شما را تأیید می‌کند.', monetize_waiting: 'مدیر درخواست شما را بررسی می‌کند', monetize_rejected: 'درخواست شما قبول نشد. شماره را ببینید و دوباره بفرستید.',
 };

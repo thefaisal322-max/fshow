@@ -18,7 +18,13 @@ export type Challenge = {
 export type Payout = { id: string; amount: number; method: string; status: 'pending' | 'paid' | 'rejected'; created_at: string };
 
 export type Monetization = {
+  /** all 5 rules finished */
+  all_done: boolean;
+  /** approved by an admin (money counts from now on) */
   qualified: boolean;
+  /** after all 5: null = phone not sent yet, else pending / approved / rejected */
+  application: 'pending' | 'approved' | 'rejected' | null;
+  phone: string | null;
   is_admin: boolean;
   reward_every: number;
   reward_afs: number;
@@ -65,6 +71,9 @@ export const monetize = {
     }
     check(await supabase.rpc('submit_challenge_proof', { p_challenge: challengeId, p_text: text, p_path: path }));
   },
+
+  /** All 5 rules done → send the HesabPay number; an admin approves it. */
+  requestMonetization: async (phone: string) => check<string>(await supabase.rpc('request_monetization', { p_phone: phone })),
 
   requestPayout: async (amount: number, method: string, account: string) => {
     check(await supabase.rpc('request_payout', { p_amount: amount, p_method: method, p_account: account }));

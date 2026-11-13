@@ -28,8 +28,11 @@ import { colors, radius } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
+const HESAB_LINK = 'https://application.hesab.com/I1651B8V';
+
 const META: Record<string, { icon: IconName; key: StringKey }> = {
   fainet_account: { icon: 'globe', key: 'ch_fainet_account' },
+  hesabpay_account: { icon: 'wallet', key: 'ch_hesabpay_account' },
   facebook_mention: { icon: 'logo-facebook', key: 'ch_facebook_mention' },
   profile_ready: { icon: 'person-circle', key: 'ch_profile_ready' },
   reels_count: { icon: 'film', key: 'ch_reels_count' },
@@ -100,7 +103,7 @@ export default function Monetize() {
             <Text style={st.walletBtnText}>{t('withdraw')}</Text>
           </Pressable>
           {m.is_admin ? (
-            <Pressable onPress={() => router.push('/settings/admin')} style={st.walletBtn}>
+            <Pressable onPress={() => router.push('/main')} style={st.walletBtn}>
               <Ionicons name="shield-checkmark-outline" size={18} color="#B5136C" />
               <Text style={st.walletBtnText}>{t('admin_panel')}</Text>
             </Pressable>
@@ -123,6 +126,7 @@ export default function Monetize() {
         {qualify.map((c) => (
           <ChallengeRow key={c.id} c={c} value={m.metrics[c.metric]} onProof={() => setProof(c)} />
         ))}
+        {m.all_done && m.application !== 'approved' ? <PhoneStep m={m} onSent={load} /> : null}
       </Card>
 
       {/* stage 2 */}
@@ -170,7 +174,7 @@ export default function Monetize() {
       ) : null}
 
       {proof ? <ProofSheet c={proof} onClose={() => setProof(null)} onSent={load} /> : null}
-      {payout ? <PayoutSheet max={m.balance_afs} min={m.min_payout} onClose={() => setPayout(false)} onSent={load} /> : null}
+      {payout ? <PayoutSheet max={m.balance_afs} min={m.min_payout} phone={m.phone ?? ''} onClose={() => setPayout(false)} onSent={load} /> : null}
     </Page>
   );
 }
@@ -200,6 +204,11 @@ function ChallengeRow({ c, value = 0, onProof, locked }: { c: Challenge; value?:
             </Text>
           </>
         ) : null}
+        {c.metric === 'hesabpay_account' && !done ? (
+          <Text style={[st.link, { textAlign: d.align }]} onPress={() => Linking.openURL(HESAB_LINK)}>
+            {t('open_hesabpay')} ↗
+          </Text>
+        ) : null}
         {c.metric === 'fainet_account' && !done ? (
           <Text style={[st.link, { textAlign: d.align }]} onPress={() => Linking.openURL('https://fainet.org')}>
             fainet.org ↗
@@ -216,6 +225,56 @@ function ChallengeRow({ c, value = 0, onProof, locked }: { c: Challenge; value?:
   );
 }
 
+/** After the 5 rules: the HesabPay number money will be sent to, then an admin approves. */
+function PhoneStep({ m, onSent }: { m: Monetization; onSent: () => void }) {
+  const { t, d } = useI18n();
+  const [phone, setPhone] = useState(m.phone ?? '');
+  const [busy, setBusy] = useState(false);
+  const clean = phone.replace(/[\s-]/g, '');
+  const valid = /^(\+93|0)7[0-9]{8}$/.test(clean);
+
+  async function send() {
+    setBusy(true);
+    try {
+      await monetize.requestMonetization(clean);
+      onSent();
+      Alert.alert('✓', t('phone_sent'));
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (m.application === 'pending') {
+    return (
+      <View style={st.phoneBox}>
+        <Text style={[st.chTitle, { textAlign: d.align }]}>⏳ {t('monetize_waiting')}</Text>
+        <Text style={[st.small, { textAlign: d.align }]}>HesabPay: {m.phone}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={st.phoneBox}>
+      <Text style={[st.chTitle, { textAlign: d.align }]}>🎉 {t('rules_done')}</Text>
+      {m.application === 'rejected' ? <Text style={[st.small, { color: colors.error, textAlign: d.align }]}>{t('monetize_rejected')}</Text> : null}
+      <Text style={[st.small, { textAlign: d.align }]}>{t('phone_needed')}</Text>
+      <TextInput
+        value={phone}
+        onChangeText={setPhone}
+        placeholder="07xxxxxxxx"
+        placeholderTextColor={colors.muted}
+        keyboardType="phone-pad"
+        maxLength={16}
+        style={[st.input, { textAlign: 'left' }]}
+      />
+      <Pressable onPress={send} disabled={!valid || busy} style={[st.cta, !valid && { opacity: 0.5 }]}>
+        {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.ctaText}>{t('send_for_approval')}</Text>}
+      </Pressable>
+    </View>
+  );
+}
+
 function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void; onSent: () => void }) {
   const { t, d } = useI18n();
   const { session } = useAuth();
@@ -224,6 +283,7 @@ function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void;
   const [img, setImg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isEmail = c.metric === 'fainet_account';
+  const help = isEmail ? t('proof_email_help') : c.metric === 'hesabpay_account' ? t('proof_hesab_help') : t('proof_fb_help');
 
   async function pick() {
     const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
@@ -251,7 +311,13 @@ function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void;
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={[st.sheet, { paddingBottom: 20 + bottom }]}>
             <Text style={st.sheetTitle}>{challengeTitle(c)}</Text>
-            <P muted>{isEmail ? t('proof_email_help') : t('proof_fb_help')}</P>
+            <P muted>{help}</P>
+            {c.metric === 'hesabpay_account' ? (
+              <Pressable onPress={() => Linking.openURL(HESAB_LINK)} style={st.hesabBtn}>
+                <Ionicons name="wallet" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '800' }}>{t('open_hesabpay')}</Text>
+              </Pressable>
+            ) : null}
             <TextInput
               value={text}
               onChangeText={setText}
@@ -285,12 +351,12 @@ function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void;
 // Money is paid out through HesabPay only.
 const METHODS = ['HesabPay'];
 
-function PayoutSheet({ max, min, onClose, onSent }: { max: number; min: number; onClose: () => void; onSent: () => void }) {
+function PayoutSheet({ max, min, phone, onClose, onSent }: { max: number; min: number; phone: string; onClose: () => void; onSent: () => void }) {
   const { t, d } = useI18n();
   const bottom = useBottomSpace();
   const [amount, setAmount] = useState(String(max));
   const [method, setMethod] = useState(METHODS[0]);
-  const [account, setAccount] = useState('');
+  const [account, setAccount] = useState(phone);
   const [busy, setBusy] = useState(false);
 
   async function send() {
@@ -330,6 +396,7 @@ function PayoutSheet({ max, min, onClose, onSent }: { max: number; min: number; 
             <TextInput
               value={account}
               onChangeText={setAccount}
+              editable={false}
               placeholder={t('payout_account_ph')}
               keyboardType="phone-pad"
               placeholderTextColor={colors.muted}
@@ -369,6 +436,8 @@ const st = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, gap: 8 },
   sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
+  phoneBox: { marginTop: 12, gap: 8, backgroundColor: colors.soft, borderRadius: radius.md, padding: 12 },
+  hesabBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2E7D32', borderRadius: radius.md, paddingVertical: 11 },
   input: { backgroundColor: colors.input, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, fontSize: 16, color: colors.text },
   pick: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: radius.md, minHeight: 110, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 },
   cta: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', marginTop: 4 },

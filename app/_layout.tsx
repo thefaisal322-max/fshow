@@ -2,7 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/ui';
@@ -33,7 +33,7 @@ const navTheme = {
  *  - ready                → (tabs) + post / user / create screens
  */
 function Gate() {
-  const { session, profile, loading: authLoading } = useAuth();
+  const { session, profile, loading: authLoading, signOut } = useAuth();
   const { ready: langReady, t } = useI18n();
   const loading = authLoading || !langReady;
   const segments = useSegments();
@@ -57,6 +57,17 @@ function Gate() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack screenOptions={{ headerShown: false, headerBackTitle: t('back') }} />
       {loading ? <Loading /> : null}
+      {!loading && profile?.banned ? (
+        // account suspended by an admin
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 30, gap: 14 }]}>
+          <Text style={{ fontSize: 48 }}>⛔</Text>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, textAlign: 'center' }}>{t('banned_title')}</Text>
+          <Text style={{ fontSize: 15, color: colors.muted, textAlign: 'center', lineHeight: 22 }}>{t('banned_text')}</Text>
+          <Pressable onPress={signOut} style={{ backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}>
+            <Text style={{ color: '#fff', fontWeight: '800' }}>{t('logout')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }

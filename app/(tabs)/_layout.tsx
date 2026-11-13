@@ -4,6 +4,7 @@ import { ReactElement } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '@/i18n';
+import { useIsAdmin } from '@/lib/admin';
 import { useUnread } from '@/lib/notifications';
 import { colors } from '@/theme';
 
@@ -32,6 +33,7 @@ export default function TabsLayout() {
   const router = useRouter();
   const { t, d } = useI18n();
   const { unread, chatUnread, friendRequests } = useUnread();
+  const isAdmin = useIsAdmin();
 
   const homeButtons = () => (
     <View style={{ flexDirection: 'row', gap: 4, marginHorizontal: 8 }}>
@@ -84,6 +86,12 @@ export default function TabsLayout() {
       }}
     />,
     <Tabs.Screen key="profile" name="profile" options={{ title: t('tab_profile'), tabBarIcon: icon('person'), ...side(settingsButton) }} />,
+    // admin-only tab (hidden for everyone else)
+    <Tabs.Screen
+      key="main"
+      name="main"
+      options={{ title: 'Main', headerTitle: t('admin_panel'), tabBarIcon: icon('shield-checkmark'), href: isAdmin ? undefined : null }}
+    />,
   ];
 
   return (

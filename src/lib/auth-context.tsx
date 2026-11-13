@@ -23,6 +23,8 @@ export type Profile = {
   followingCount: number;
   likesCount: number;
   postsCount: number;
+  /** suspended by an admin */
+  banned: boolean;
 };
 
 export function toProfile(r: ProfileRow): Profile {
@@ -42,6 +44,7 @@ export function toProfile(r: ProfileRow): Profile {
     followingCount: Number(r.following_count),
     likesCount: Number(r.likes_count),
     postsCount: Number(r.posts_count),
+    banned: !!r.banned,
   };
 }
 
