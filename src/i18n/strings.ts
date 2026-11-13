@@ -137,6 +137,18 @@ export const ps = {
   mutual_friends_n: '{n} ګډ ملګري', followed_by_n: '{n} فالوور', hold_follow_hint: 'د Follow بټن ۵ ثانیې ونیسئ — د ملګرتیا غوښتنه ورته ځي', cancel_request: 'غوښتنه لغوه کړه', add_friend: 'ملګری جوړول',
   n_friend_request: 'تاسو ته یې د ملګرتیا غوښتنه لېږلې ده', n_friend_accept: 'ستاسو د ملګرتیا غوښتنه یې ومنله — اوس ملګري یاست 👥', msg_friends: 'یوازې ملګري', msg_friends_sub: 'هغه کسان چې ستاسو د ملګرتیا غوښتنه یې منلې (یو بل Follow کوئ)',
   now_friends: 'اوس ملګري یاست 👥', request_sent_to: '{name} ته د ملګرتیا غوښتنه ولېږل شوه ✓', you_are_friends: 'تاسو ملګري یاست', unfriend: 'له ملګرتیا ایستل', wants_friend: 'غواړي ستاسو ملګری شي', friends_btn: 'ملګري', request_sent: 'غوښتنه لېږل شوې', confirm_request: 'غوښتنه ومنئ',
+  // monetize v0.10
+  your_balance: 'ستاسو پیسې', earned_total: 'ټول ګټل شوي: {n}', reward_rule: 'هر {n} چلنجونه = {afs} افغانۍ', min_payout: 'لږ تر لږه {n} افغانۍ باید ولرئ', withdraw: 'پیسې اخیستل', admin_panel: 'اډمین پاڼه',
+  stage_qualify: 'پړاو ۱: مانیټایز کېدل', qualify_text: 'دا ۵ چلنجونه بشپړ کړئ چې ستاسو اکاونټ مانیټایز شي.', qualified_text: 'مبارک! ستاسو اکاونټ مانیټایز شو 🎉',
+  stage_earn: 'پړاو ۲: پیسې ګټل', earn_text: 'هر {n} بشپړ شوي چلنجونه = {afs} افغانۍ. یوازې ریښتیني لیدونه او لایکونه حسابېږي.', earn_locked: 'لومړی پړاو ۱ بشپړ کړئ.', next_reward: 'تر راتلونکو {afs} افغانیو {n} چلنجه پاتې دي', show_all_challenges: 'ټول {n} چلنجونه وګورئ',
+  payouts: 'د پیسو غوښتنې', pay_pending: 'په تمه ⏳', pay_paid: 'ورکړل شوې ✓', pay_rejected: 'رد شوه', ch_pending: 'اډمین یې ګوري', ch_rejected: 'ونه منل شو', ch_rejected_note: 'ثبوت سم نه و، بیا یې ولېږئ',
+  send_proof: 'ثبوت ولېږئ', proof_sent: 'ثبوت ولېږل شو. اډمین به یې وګوري.', proof_email_help: 'په fainet.org کې اکاونټ جوړ کړئ، بیا خپل ایمیل ولیکئ یا سکرین شاټ ولګوئ.', proof_fb_help: 'په فیسبوک کې پوسټ وکړئ او @Faisal Hadawal منشن کړئ، بیا سکرین شاټ یا د پوسټ لینک ولېږئ.', proof_link_ph: 'د پوسټ لینک (اختیاري)', add_screenshot: 'سکرین شاټ ولګوئ',
+  payout_range: 'مقدار باید د {min} او {max} افغانیو تر منځ وي', payout_sent: 'غوښتنه ولېږل شوه. اډمین به یې درته ولېږي.', amount_afs: 'مقدار (افغانۍ)', payout_account_ph: 'د حساب / ګرځنده شمېره', send_request: 'غوښتنه ولېږئ',
+  proofs_to_check: 'ثبوتونه چې باید وکتل شي', nothing_pending: 'هیڅ نشته', approve: 'منل', reject: 'ردول', mark_paid: 'ورکړل شوې',
+  ch_fainet_account: 'په fainet.org کې اکاونټ جوړ کړئ', ch_facebook_mention: 'په فیسبوک کې پوسټ وکړئ او @Faisal Hadawal منشن کړئ', ch_profile_ready: 'پروفایل عکس او Bio ولیکئ', ch_reels_count: '{n} ریل پوسټ کړئ', ch_followers: '{n} فالوورز ترلاسه کړئ',
+  ch_post_views: 'یو پوسټ چې {n} لیدونه ولري', ch_reel_plays: 'یو ریل چې {n} ځله ولیدل شي', ch_likes_total: 'ټول {n} لایکونه', ch_posts_count: '{n} پوسټونه وکړئ', ch_comments_received: 'ستاسو پوسټونو ته {n} کمنټونه', ch_shares_total: '{n} ځله شریک شي',
+  messages_off: 'پیغامونه بند', message_request_btn: 'د پیغام غوښتنه', message_request_info: '{name} یوازې د ملګرو پیغامونه مستقیم اخلي. ستاسو پیغام به د هغه «د پیغام غوښتنو» ته ولاړ شي، چې ومني یې.', continue_btn: 'مخته',
+  repost: 'Repost', reposted: 'Repost شو',
 };
 
 export type StringKey = keyof typeof ps;
@@ -262,6 +274,17 @@ export const en: Dict = {
   mutual_friends_n: '{n} mutual friends', followed_by_n: 'Followed by {n}', hold_follow_hint: 'Hold the Follow button for 5 seconds to send a friend request', cancel_request: 'Cancel request', add_friend: 'Add friend',
   n_friend_request: 'sent you a friend request', n_friend_accept: 'accepted your friend request — you are friends now 👥', msg_friends: 'Friends only', msg_friends_sub: 'People who accepted your friend request (you follow each other)',
   now_friends: 'You are friends now 👥', request_sent_to: 'Friend request sent to {name} ✓', you_are_friends: 'You are friends', unfriend: 'Unfriend', wants_friend: 'wants to be your friend', friends_btn: 'Friends', request_sent: 'Request sent', confirm_request: 'Confirm request',
+  your_balance: 'Your balance', earned_total: 'Total earned: {n}', reward_rule: 'every {n} challenges = {afs} AFS', min_payout: 'You need at least {n} AFS', withdraw: 'Withdraw', admin_panel: 'Admin panel',
+  stage_qualify: 'Stage 1: Get monetized', qualify_text: 'Finish these 5 challenges to monetize your account.', qualified_text: 'Congratulations! Your account is monetized 🎉',
+  stage_earn: 'Stage 2: Earn money', earn_text: 'Every {n} finished challenges = {afs} AFS. Only real views and likes count.', earn_locked: 'Finish stage 1 first.', next_reward: '{n} more challenges to your next {afs} AFS', show_all_challenges: 'See all {n} challenges',
+  payouts: 'Withdrawals', pay_pending: 'Pending ⏳', pay_paid: 'Paid ✓', pay_rejected: 'Rejected', ch_pending: 'Admin is checking', ch_rejected: 'Not accepted', ch_rejected_note: 'Proof was not right, please send again',
+  send_proof: 'Send proof', proof_sent: 'Proof sent. An admin will check it.', proof_email_help: 'Create an account on fainet.org, then write your email or add a screenshot.', proof_fb_help: 'Post on Facebook mentioning @Faisal Hadawal, then send a screenshot or the post link.', proof_link_ph: 'Post link (optional)', add_screenshot: 'Add screenshot',
+  payout_range: 'Amount must be between {min} and {max} AFS', payout_sent: 'Request sent. An admin will send it to you.', amount_afs: 'Amount (AFS)', payout_account_ph: 'Account / phone number', send_request: 'Send request',
+  proofs_to_check: 'Proofs to check', nothing_pending: 'Nothing pending', approve: 'Approve', reject: 'Reject', mark_paid: 'Mark paid',
+  ch_fainet_account: 'Create a fainet.org account', ch_facebook_mention: 'Post on Facebook and mention @Faisal Hadawal', ch_profile_ready: 'Add a profile photo and bio', ch_reels_count: 'Post {n} reel(s)', ch_followers: 'Get {n} followers',
+  ch_post_views: 'A post with {n} views', ch_reel_plays: 'A reel with {n} plays', ch_likes_total: '{n} likes in total', ch_posts_count: 'Make {n} posts', ch_comments_received: '{n} comments on your posts', ch_shares_total: 'Shared {n} times',
+  messages_off: 'Messages off', message_request_btn: 'Message request', message_request_info: '{name} only takes messages from friends. Your message goes to their Message requests until they accept.', continue_btn: 'Continue',
+  repost: 'Repost', reposted: 'Reposted',
 };
 
 export const fa: Dict = {
@@ -384,4 +407,15 @@ export const fa: Dict = {
   mutual_friends_n: '{n} دوست مشترک', followed_by_n: '{n} دنبال‌کننده', hold_follow_hint: 'دکمه Follow را ۵ ثانیه نگه دارید — درخواست دوستی فرستاده می‌شود', cancel_request: 'لغو درخواست', add_friend: 'افزودن دوست',
   n_friend_request: 'به شما درخواست دوستی فرستاد', n_friend_accept: 'درخواست دوستی شما را قبول کرد — حالا دوست هستید 👥', msg_friends: 'فقط دوستان', msg_friends_sub: 'کسانی که درخواست دوستی را قبول کرده‌اند (همدیگر را دنبال می‌کنید)',
   now_friends: 'حالا دوست هستید 👥', request_sent_to: 'درخواست دوستی به {name} فرستاده شد ✓', you_are_friends: 'شما دوست هستید', unfriend: 'حذف از دوستان', wants_friend: 'می‌خواهد دوست شما شود', friends_btn: 'دوستان', request_sent: 'درخواست فرستاده شد', confirm_request: 'قبول درخواست',
+  your_balance: 'پول شما', earned_total: 'مجموع درآمد: {n}', reward_rule: 'هر {n} چالش = {afs} افغانی', min_payout: 'حداقل {n} افغانی لازم است', withdraw: 'برداشت پول', admin_panel: 'صفحه مدیر',
+  stage_qualify: 'مرحله ۱: کسب درآمد', qualify_text: 'این ۵ چالش را تمام کنید تا حساب شما کسب درآمد شود.', qualified_text: 'تبریک! حساب شما کسب درآمد شد 🎉',
+  stage_earn: 'مرحله ۲: پول درآوردن', earn_text: 'هر {n} چالش تمام شده = {afs} افغانی. فقط بازدید و لایک واقعی حساب می‌شود.', earn_locked: 'اول مرحله ۱ را تمام کنید.', next_reward: '{n} چالش دیگر تا {afs} افغانی بعدی', show_all_challenges: 'دیدن همه {n} چالش',
+  payouts: 'برداشت‌ها', pay_pending: 'در انتظار ⏳', pay_paid: 'پرداخت شد ✓', pay_rejected: 'رد شد', ch_pending: 'مدیر بررسی می‌کند', ch_rejected: 'قبول نشد', ch_rejected_note: 'مدرک درست نبود، دوباره بفرستید',
+  send_proof: 'فرستادن مدرک', proof_sent: 'مدرک فرستاده شد. مدیر بررسی می‌کند.', proof_email_help: 'در fainet.org حساب بسازید، بعد ایمیل خود را بنویسید یا اسکرین‌شات بگذارید.', proof_fb_help: 'در فیسبوک پست بگذارید و @Faisal Hadawal را منشن کنید، بعد اسکرین‌شات یا لینک پست را بفرستید.', proof_link_ph: 'لینک پست (اختیاری)', add_screenshot: 'افزودن اسکرین‌شات',
+  payout_range: 'مقدار باید بین {min} و {max} افغانی باشد', payout_sent: 'درخواست فرستاده شد. مدیر برایتان می‌فرستد.', amount_afs: 'مقدار (افغانی)', payout_account_ph: 'شماره حساب / موبایل', send_request: 'فرستادن درخواست',
+  proofs_to_check: 'مدارک برای بررسی', nothing_pending: 'چیزی نیست', approve: 'قبول', reject: 'رد', mark_paid: 'پرداخت شد',
+  ch_fainet_account: 'در fainet.org حساب بسازید', ch_facebook_mention: 'در فیسبوک پست بگذارید و @Faisal Hadawal را منشن کنید', ch_profile_ready: 'عکس پروفایل و بیو بگذارید', ch_reels_count: '{n} ریل پست کنید', ch_followers: '{n} دنبال‌کننده بگیرید',
+  ch_post_views: 'پستی با {n} بازدید', ch_reel_plays: 'ریلی با {n} پخش', ch_likes_total: 'مجموعاً {n} لایک', ch_posts_count: '{n} پست بگذارید', ch_comments_received: '{n} نظر روی پست‌های شما', ch_shares_total: '{n} بار اشتراک‌گذاری',
+  messages_off: 'پیام‌ها بسته', message_request_btn: 'درخواست پیام', message_request_info: '{name} فقط پیام دوستان را مستقیم می‌گیرد. پیام شما به «درخواست‌های پیام» او می‌رود تا قبول کند.', continue_btn: 'ادامه',
+  repost: 'Repost', reposted: 'Repost شد',
 };

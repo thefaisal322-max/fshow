@@ -34,7 +34,7 @@ import { authorName, feelingLabel, formatCount, Post, social, videoUrl } from '@
 import { avatarUrl } from '@/lib/supabase';
 
 type Mode = 'foryou' | 'following';
-const QUICK = ['🥰', '😁', '😂', '😳'];
+const QUICK = ['🥰', '😂', '😏', '😁'];
 
 /**
  * Full-screen vertical video feed (like TikTok), swipe up for the next reel.
@@ -283,6 +283,9 @@ function Reel({
   const [expanded, setExpanded] = useState(false);
   const [quick, setQuick] = useState(false);
   const [quickUsed, setQuickUsed] = useState(false);
+  const [flying, setFlying] = useState<string | null>(null);
+  const [commentEmoji, setCommentEmoji] = useState<string | null>(null);
+  const [repostPill, setRepostPill] = useState<'hidden' | 'show' | 'done'>('hidden');
   const heart = useRef<HeartBurstHandle>(null);
   const uri = videoUrl(post.video_path)!;
   const feeling = feelingLabel(post.feeling);
@@ -293,17 +296,27 @@ function Reel({
       setQuick(false);
       return;
     }
-    // the quick emoji bar shows up after a few seconds of watching (like TikTok)
-    if (quickUsed) return;
-    const timer = setTimeout(() => setQuick(true), 3500);
+    // the quick emoji bar shows up next to 💬 after a few seconds of watching (like TikTok)
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    if (!quickUsed) timers.push(setTimeout(() => setQuick(true), 3500));
+    // "Repost" shows up next to ❤️ after watching a while
+    if (!mine) timers.push(setTimeout(() => setRepostPill((r) => (r === 'hidden' ? 'show' : r)), 8000));
+    return () => timers.forEach(clearTimeout);
+  }, [active, quickUsed, mine]);
+
+  // the emoji sits on the 💬 button for a moment, then the icon comes back
+  useEffect(() => {
+    if (!commentEmoji) return;
+    const timer = setTimeout(() => setCommentEmoji(null), 2600);
     return () => clearTimeout(timer);
-  }, [active, quickUsed]);
+  }, [commentEmoji]);
 
   async function like(forceOn?: boolean) {
     const on = forceOn ?? !post.liked;
     if (on === post.liked) return;
     onChange({ ...post, liked: on, likes_count: Math.max(0, post.likes_count + (on ? 1 : -1)) });
     if (on) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (on && !mine) setRepostPill((r) => (r === 'hidden' ? 'show' : r));
     try {
       await social.like(post.id, on);
     } catch (e) {
@@ -339,18 +352,36 @@ function Reel({
   async function quickComment(emoji: string) {
     setQuick(false);
     setQuickUsed(true);
+    setFlying(emoji); // 3 emojis fly into the 💬 button
+    setTimeout(() => setCommentEmoji(emoji), 450);
     onChange({ ...post, comments_count: post.comments_count + 1 });
     Haptics.selectionAsync().catch(() => {});
     try {
       await social.comment(post.id, emoji);
-      toast(`${emoji}  ${t('comment_sent')}`);
     } catch (e) {
       onChange(post);
       Alert.alert('', errorMessage(e));
     }
   }
 
+  async function repost() {
+    setRepostPill('done');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    onChange({ ...post, shares_count: post.shares_count + 1 });
+    try {
+      await social.repost(post.id);
+      toast(`🔁 ${t('reposted')}`);
+    } catch (e) {
+      setRepostPill('show');
+      onChange(post);
+      Alert.alert('', errorMessage(e));
+    }
+    setTimeout(() => setRepostPill('hidden'), 1800);
+  }
+
   const side = d.rtl ? { left: 8 } : { right: 8 };
+  // things that pop out next to a side button: to its left (to its right in Pashto / Dari)
+  const beside = d.rtl ? { left: '100%' as const, marginLeft: 8 } : { right: '100%' as const, marginRight: 8 };
   const longCaption = post.body.length > 90 || post.body.split('\n').length > 2;
 
   return (
@@ -386,27 +417,44 @@ function Reel({
             </Pressable>
           ) : null}
         </View>
-        <SideBtn icon="heart" color={post.liked ? '#FE2C55' : '#fff'} label={formatCount(post.likes_count)} onPress={() => like()} />
-        <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
+        <View>
+          <SideBtn icon="heart" color={post.liked ? '#FE2C55' : '#fff'} label={formatCount(post.likes_count)} onPress={() => like()} />
+          {repostPill !== 'hidden' ? (
+            <Pressable
+              onPress={repostPill === 'show' ? repost : undefined}
+              style={[st.repost, beside, { flexDirection: d.row }, repostPill === 'done' && { backgroundColor: '#FE2C55' }]}
+            >
+              <Ionicons name={repostPill === 'done' ? 'checkmark' : 'repeat'} size={16} color="#fff" />
+              <Text style={st.repostText}>{repostPill === 'done' ? t('reposted') : t('repost')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <View>
+          {commentEmoji ? (
+            <Pressable onPress={() => setSheet(true)} style={{ alignItems: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: 32 }}>{commentEmoji}</Text>
+              <Text style={[st.sideText, st.shadow]}>{formatCount(post.comments_count)}</Text>
+            </Pressable>
+          ) : (
+            <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
+          )}
+          {/* TikTok-style quick emoji comments, right next to 💬 */}
+          {quick ? (
+            <View style={[st.quick, beside, { flexDirection: d.row }]}>
+              {QUICK.map((e) => (
+                <Pressable key={e} onPress={() => quickComment(e)} hitSlop={4} style={({ pressed }) => [pressed && { transform: [{ scale: 1.3 }] }]}>
+                  <Text style={{ fontSize: 28 }}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          {flying ? <FlyingEmojis emoji={flying} rtl={d.rtl} onDone={() => setFlying(null)} /> : null}
+        </View>
         <SideBtn icon="bookmark" color={post.saved ? '#FACE15' : '#fff'} label={formatCount(post.saves_count)} onPress={save} />
         <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => setShareOpen(true)} />
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => setMenu(true)} />
         <Disc uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} spinning={active && !paused} />
       </View>
-
-      {/* TikTok-style quick emoji comments */}
-      {quick ? (
-        <View style={[st.quick, { flexDirection: d.row }, d.rtl ? { right: 12 } : { left: 12 }]}>
-          {QUICK.map((e) => (
-            <Pressable key={e} onPress={() => quickComment(e)} hitSlop={4} style={({ pressed }) => [pressed && { transform: [{ scale: 1.25 }] }]}>
-              <Text style={{ fontSize: 30 }}>{e}</Text>
-            </Pressable>
-          ))}
-          <Pressable onPress={() => { setQuick(false); setQuickUsed(true); }} hitSlop={8}>
-            <Ionicons name="close" size={16} color="#bbb" />
-          </Pressable>
-        </View>
-      ) : null}
 
       <View style={[st.info, d.rtl ? { right: 12, left: 80 } : { left: 12, right: 80 }]}>
         <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: post.author.id } })} style={{ flexDirection: d.row, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -459,6 +507,39 @@ function Reel({
   );
 }
 
+/** Three copies of the emoji fly from the emoji bar into the 💬 button. */
+function FlyingEmojis({ emoji, rtl, onDone }: { emoji: string; rtl: boolean; onDone: () => void }) {
+  const a = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    Animated.stagger(
+      90,
+      a.map((v) => Animated.timing(v, { toValue: 1, duration: 520, easing: Easing.out(Easing.quad), useNativeDriver: true })),
+    ).start(() => onDone());
+  }, [a, onDone]);
+  const from = rtl ? 120 : -120;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }}>
+      {a.map((v, i) => (
+        <Animated.Text
+          key={i}
+          style={{
+            position: 'absolute',
+            fontSize: 26,
+            opacity: v.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
+            transform: [
+              { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [from + i * (rtl ? 26 : -26), 0] }) },
+              { translateY: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -18 - i * 6, 0] }) },
+              { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.6] }) },
+            ],
+          }}
+        >
+          {emoji}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+}
+
 /** Spinning record with the author's photo (like TikTok's sound disc). */
 function Disc({ uri, name, spinning }: { uri: string | null; name: string; spinning: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
@@ -503,7 +584,9 @@ const st = StyleSheet.create({
   plus: { position: 'absolute', bottom: -10, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FE2C55', alignItems: 'center', justifyContent: 'center' },
   sideText: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222', borderWidth: 7, borderColor: '#333', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  quick: { position: 'absolute', bottom: 150, alignItems: 'center', gap: 14, backgroundColor: 'rgba(30,30,30,0.85)', borderRadius: 30, paddingHorizontal: 16, paddingVertical: 8 },
+  quick: { position: 'absolute', top: 0, alignItems: 'center', gap: 10, backgroundColor: 'rgba(30,30,30,0.8)', borderRadius: 30, paddingHorizontal: 12, paddingVertical: 6 },
+  repost: { position: 'absolute', top: 4, alignItems: 'center', gap: 5, backgroundColor: 'rgba(254,44,85,0.85)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
+  repostText: { color: '#fff', fontWeight: '800', fontSize: 14, fontStyle: 'italic' },
   info: { position: 'absolute', bottom: 18 },
   name: { color: '#fff', fontSize: 16, fontWeight: '800' },
   user: { color: '#eee', fontSize: 13 },

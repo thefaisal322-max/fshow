@@ -67,7 +67,14 @@ SELECT pg_temp.must_fail($q$SELECT public.start_direct_chat('dddddddd-0000-0000-
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
 UPDATE public.profiles SET who_can_message = 'followers' WHERE id = auth.uid();
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
-SELECT pg_temp.must_fail($q$SELECT public.start_direct_chat('dddddddd-0000-0000-0000-000000000004')$q$, 'only people D follows');
+-- not allowed directly → it becomes a message request (D does not follow C)
+CREATE TEMP TABLE mr AS SELECT public.start_direct_chat('dddddddd-0000-0000-0000-000000000004') AS id;
+SELECT pg_temp.check((SELECT NOT m.accepted FROM public.conversation_members m
+                      WHERE m.conversation_id = (SELECT id FROM mr) AND m.user_id = 'dddddddd-0000-0000-0000-000000000004'), 'followers-only → message request');
+DROP TABLE mr;
+RESET ROLE;
+DELETE FROM public.conversations WHERE direct_key = 'cccccccc-0000-0000-0000-000000000003:dddddddd-0000-0000-0000-000000000004';
+SET ROLE authenticated;
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
 UPDATE public.profiles SET who_can_message = 'everyone' WHERE id = auth.uid();
 

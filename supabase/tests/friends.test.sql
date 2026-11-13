@@ -28,7 +28,14 @@ UPDATE public.profiles SET who_can_message = 'friends' WHERE id = auth.uid();
 -- A follows C (one way) → still cannot message
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 INSERT INTO public.follows (followee_id) VALUES ('cccccccc-0000-0000-0000-000000000003');
-SELECT pg_temp.must_fail($q$SELECT public.start_direct_chat('cccccccc-0000-0000-0000-000000000003')$q$, 'follower is not a friend');
+CREATE TEMP TABLE mr AS SELECT public.start_direct_chat('cccccccc-0000-0000-0000-000000000003') AS id;
+SELECT pg_temp.check((SELECT NOT m.accepted FROM public.conversation_members m
+                      WHERE m.conversation_id = (SELECT id FROM mr) AND m.user_id = 'cccccccc-0000-0000-0000-000000000003'), 'follower (not friend) → message request');
+DROP TABLE mr;
+RESET ROLE;
+DELETE FROM public.conversations WHERE direct_key = 'aaaaaaaa-0000-0000-0000-000000000001:cccccccc-0000-0000-0000-000000000003';
+SET ROLE authenticated;
+SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 
 -- A sends a friend request
 SELECT pg_temp.check(public.send_friend_request('cccccccc-0000-0000-0000-000000000003') = 'sent', 'request sent');

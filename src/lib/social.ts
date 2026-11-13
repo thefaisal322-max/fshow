@@ -86,6 +86,7 @@ export type UserProfile = {
   blocked_by_me: boolean;
   blocked_me: boolean;
   friends_count?: number;
+  who_can_message?: 'everyone' | 'followers' | 'friends' | 'nobody';
   friend_status?: 'friends' | 'sent' | 'received' | 'none';
   city?: string;
   hometown?: string;

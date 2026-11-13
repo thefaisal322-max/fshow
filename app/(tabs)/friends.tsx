@@ -10,9 +10,10 @@ import { useI18n } from '@/i18n';
 import { account, FriendRequest } from '@/lib/account';
 import { errorMessage } from '@/lib/api';
 import { Friend, FriendCounts, friends, SentRequest, shortAge } from '@/lib/friends';
+import { useAuth } from '@/lib/auth-context';
 import { useUnread } from '@/lib/notifications';
 import { presenceText } from '@/lib/presence';
-import { authorName, formatCount } from '@/lib/social';
+import { authorName, formatCount, social } from '@/lib/social';
 import { stories, SuggestedPerson } from '@/lib/stories';
 import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
@@ -33,6 +34,9 @@ export default function FriendsTab() {
   const [list, setList] = useState<Friend[]>([]);
   const [sent, setSent] = useState<SentRequest[]>([]);
   const [asked, setAsked] = useState<Record<string, boolean>>({});
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
+  const { session } = useAuth();
+  const me = session?.user.id ?? '';
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -81,6 +85,19 @@ export default function FriendsTab() {
       else await friends.cancel(id);
     } catch (e) {
       setAsked((a) => ({ ...a, [id]: !on }));
+      Alert.alert('', errorMessage(e));
+    }
+  }
+
+  /** Suggestions use Follow (not "Add friend"). Friends = people who follow each other. */
+  async function follow(id: string) {
+    const on = !followed[id];
+    setFollowed((f) => ({ ...f, [id]: on }));
+    if (on) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      await social.follow(id, on, me);
+    } catch (e) {
+      setFollowed((f) => ({ ...f, [id]: !on }));
       Alert.alert('', errorMessage(e));
     }
   }
@@ -172,9 +189,10 @@ export default function FriendsTab() {
           <PersonCard
             u={item}
             meta={'mutual' in item && item.mutual > 0 ? t('mutual_friends_n', { n: item.mutual }) : 'requested_at' in item ? shortAge(item.requested_at) : ''}
-            asked={!!asked[item.id]}
+            label={view === 'sent' ? t('cancel_request') : followed[item.id] ? t('following_btn') : t('follow')}
+            active={view === 'sent' ? true : !!followed[item.id]}
             onOpen={() => openUser(item.id)}
-            onAdd={() => addFriend(item.id)}
+            onAdd={() => (view === 'sent' ? addFriend(item.id) : follow(item.id))}
             onRemove={view === 'suggestions' ? () => setPeople((old) => old.filter((x) => x.id !== item.id)) : undefined}
           />
         )}
@@ -240,9 +258,10 @@ export default function FriendsTab() {
           key={u.id}
           u={u}
           meta={u.mutual > 0 ? t('mutual_friends_n', { n: u.mutual }) : u.follows_me ? t('follows_you') : u.is_new ? t('new_to_app') : ''}
-          asked={!!asked[u.id]}
+          label={followed[u.id] ? t('following_btn') : t('follow')}
+          active={!!followed[u.id]}
           onOpen={() => openUser(u.id)}
-          onAdd={() => addFriend(u.id)}
+          onAdd={() => follow(u.id)}
           onRemove={() => setPeople((old) => old.filter((x) => x.id !== u.id))}
         />
       ))}
@@ -266,14 +285,16 @@ function NameLine({ u }: { u: { first_name: string; last_name: string; is_fainet
 function PersonCard({
   u,
   meta,
-  asked,
+  label,
+  active,
   onOpen,
   onAdd,
   onRemove,
 }: {
   u: { id: string; first_name: string; last_name: string; photo_path: string | null; is_fainet: boolean };
   meta: string;
-  asked: boolean;
+  label: string;
+  active: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onRemove?: () => void;
@@ -288,8 +309,8 @@ function PersonCard({
         <NameLine u={u} />
         {meta ? <Text style={[st.meta, { textAlign: d.align }]}>{meta}</Text> : null}
         <View style={{ flexDirection: d.row, gap: 8 }}>
-          <Pressable onPress={onAdd} style={[st.btn, asked ? st.btnGrey : st.btnSoft]}>
-            <Text style={[st.btnText, !asked && { color: colors.primary }]}>{asked ? t('cancel_request') : t('add_friend')}</Text>
+          <Pressable onPress={onAdd} style={[st.btn, active ? st.btnGrey : st.btnBlue]}>
+            <Text style={[st.btnText, !active && { color: '#fff' }]}>{label}</Text>
           </Pressable>
           {onRemove ? (
             <Pressable onPress={onRemove} style={[st.btn, st.btnGrey]}>

@@ -120,7 +120,28 @@ export function ProfileView({ userId }: { userId: string }) {
       ]);
   }
 
+  // Their "Who can message you" setting decides: normal chat, message request, or no messages.
+  const rule = user?.who_can_message ?? 'everyone';
+  const direct =
+    rule === 'everyone' ||
+    (rule === 'friends' && user?.friend_status === 'friends') ||
+    (rule === 'followers' && !!user?.follows_me);
+  const msgLabel = rule === 'nobody' ? t('messages_off') : direct ? t('message_btn') : t('message_request_btn');
+
   async function message() {
+    if (rule === 'nobody') {
+      Alert.alert('', t('e_no_messages'));
+      return;
+    }
+    if (!direct) {
+      const go = await new Promise<boolean>((resolve) =>
+        Alert.alert(t('message_request_btn'), t('message_request_info', { name: user ? authorName(user) : '' }), [
+          { text: t('cancel'), style: 'cancel', onPress: () => resolve(false) },
+          { text: t('continue_btn'), onPress: () => resolve(true) },
+        ]),
+      );
+      if (!go) return;
+    }
     setBusy(true);
     try {
       const id = await chat.startDirect(userId);
@@ -232,7 +253,9 @@ export function ProfileView({ userId }: { userId: string }) {
             </HoldButton>
           )}
           <Pressable onPress={message} disabled={busy} style={[st.btn, st.btnLight, { flex: 1 }]}>
-            <Text style={[st.btnText, { color: colors.primary }]}>{t('message_btn')}</Text>
+            <Text style={[st.btnText, { color: colors.primary }]} numberOfLines={1}>
+              {msgLabel}
+            </Text>
           </Pressable>
         </View>
       ) : null}
