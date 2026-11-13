@@ -158,6 +158,7 @@ export const ps = {
   banned_title: 'ستاسو اکاونټ بند شوی', banned_text: 'د Faisal Show اډمین ستاسو اکاونټ بند کړی. که فکر کوئ چې دا تېروتنه ده، له fainet.org سره اړیکه ونیسئ.',
   ch_hesabpay_account: 'د دې لینک له لارې HesabPay حساب جوړ کړئ', open_hesabpay: 'HesabPay خلاصول', proof_hesab_help: 'لاندې لینک خلاص کړئ، HesabPay حساب جوړ کړئ، بیا یې سکرین شاټ ولېږئ.',
   rules_done: 'ټول ۵ قانونونه بشپړ شول!', phone_needed: 'خپله HesabPay شمېره ولیکئ. پیسې به همدې شمېرې ته لېږل کېږي. اډمین به یې تایید کړي.', send_for_approval: 'د تایید لپاره ولېږئ', phone_sent: 'ولېږل شو. اډمین به ستاسو اکاونټ تایید کړي.', monetize_waiting: 'اډمین ستاسو غوښتنه ګوري', monetize_rejected: 'ستاسو غوښتنه ونه منل شوه. شمېره وګورئ او بیا یې ولېږئ.',
+  report_why: 'ولې یې ریپورټ کوئ؟', r_spam: 'سپام / تکراري', r_nudity: 'ناوړه یا لوڅ انځورونه', r_violence: 'تاوتریخوالی یا کرکه', r_fake: 'جعلي یا دوکه',
 };
 
 export type StringKey = keyof typeof ps;
@@ -302,6 +303,7 @@ export const en: Dict = {
   banned_title: 'Your account is suspended', banned_text: 'A Faisal Show admin suspended your account. If you think this is a mistake, contact fainet.org.',
   ch_hesabpay_account: 'Create a HesabPay account with this link', open_hesabpay: 'Open HesabPay', proof_hesab_help: 'Open the link below, create a HesabPay account, then send a screenshot.',
   rules_done: 'All 5 rules done!', phone_needed: 'Enter your HesabPay number. Money will be sent to it. An admin will approve it.', send_for_approval: 'Send for approval', phone_sent: 'Sent. An admin will approve your account.', monetize_waiting: 'An admin is checking your request', monetize_rejected: 'Your request was not approved. Check the number and send again.',
+  report_why: 'Why are you reporting this?', r_spam: 'Spam', r_nudity: 'Nudity or sexual content', r_violence: 'Violence or hate', r_fake: 'Fake or scam',
 };
 
 export const fa: Dict = {
@@ -443,4 +445,5 @@ export const fa: Dict = {
   banned_title: 'حساب شما مسدود شده', banned_text: 'مدیر Faisal Show حساب شما را مسدود کرده. اگر فکر می‌کنید اشتباه است، با fainet.org تماس بگیرید.',
   ch_hesabpay_account: 'با این لینک حساب HesabPay بسازید', open_hesabpay: 'باز کردن HesabPay', proof_hesab_help: 'لینک زیر را باز کنید، حساب HesabPay بسازید، بعد اسکرین‌شات بفرستید.',
   rules_done: 'هر ۵ قانون تمام شد!', phone_needed: 'شماره HesabPay خود را بنویسید. پول به همین شماره فرستاده می‌شود. مدیر تأیید می‌کند.', send_for_approval: 'فرستادن برای تأیید', phone_sent: 'فرستاده شد. مدیر حساب شما را تأیید می‌کند.', monetize_waiting: 'مدیر درخواست شما را بررسی می‌کند', monetize_rejected: 'درخواست شما قبول نشد. شماره را ببینید و دوباره بفرستید.',
+  report_why: 'چرا گزارش می‌دهید؟', r_spam: 'هرزنامه', r_nudity: 'برهنگی یا محتوای جنسی', r_violence: 'خشونت یا نفرت', r_fake: 'جعلی یا کلاهبرداری',
 };

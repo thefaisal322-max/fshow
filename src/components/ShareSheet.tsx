@@ -18,7 +18,8 @@ import { Avatar } from './Avatar';
 /** Facebook-style share: share now (to my feed), with text, send in chat, copy link, other apps. */
 export function ShareSheet({ post, onClose, onShared }: { post: Post; onClose: () => void; onShared?: () => void }) {
   const { t, d } = useI18n();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const mine = post.author.id === session?.user.id;
   const bottom = useBottomSpace();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -53,6 +54,39 @@ export function ShareSheet({ post, onClose, onShared }: { post: Post; onClose: (
     } catch (e) {
       Alert.alert('', errorMessage(e));
     }
+  }
+
+  /** Quick repost (TikTok style): no text, straight to my followers. */
+  async function quickRepost() {
+    try {
+      await social.repost(original);
+      feedSignal.dirty = true;
+      profileSignal.dirty = true;
+      onShared?.();
+      onClose();
+      Alert.alert('🔁', t('reposted'));
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    }
+  }
+
+  function report() {
+    const send = async (reason: string) => {
+      try {
+        await social.report({ postId: post.id }, reason);
+        onClose();
+        Alert.alert('', t('report_thanks'));
+      } catch (e) {
+        Alert.alert('', errorMessage(e));
+      }
+    };
+    Alert.alert(t('report_why'), '', [
+      { text: t('r_spam'), onPress: () => send('spam') },
+      { text: t('r_nudity'), onPress: () => send('nudity') },
+      { text: t('r_violence'), onPress: () => send('violence / hate') },
+      { text: t('r_fake'), onPress: () => send('fake / scam') },
+      { text: t('cancel'), style: 'cancel' },
+    ]);
   }
 
   async function copy() {
@@ -126,19 +160,21 @@ export function ShareSheet({ post, onClose, onShared }: { post: Post; onClose: (
         )}
 
         <View style={[st.actions, { flexDirection: d.row }]}>
+          {!mine ? <Action icon="repeat" label={t('repost')} onPress={quickRepost} color="#FE2C55" /> : null}
           <Action icon="link" label={t('copy_link')} onPress={copy} />
           <Action icon="share-social" label={t('share_more')} onPress={more} />
+          {!mine ? <Action icon="flag-outline" label={t('report_short')} onPress={report} color={colors.error} /> : null}
         </View>
       </View>
     </Modal>
   );
 }
 
-function Action({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+function Action({ icon, label, onPress, color }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; color?: string }) {
   return (
     <Pressable onPress={onPress} style={st.action}>
-      <View style={st.actionIcon}>
-        <Ionicons name={icon} size={22} color={colors.text} />
+      <View style={[st.actionIcon, color ? { backgroundColor: color } : null]}>
+        <Ionicons name={icon} size={22} color={color ? '#fff' : colors.text} />
       </View>
       <Text style={st.actionText}>{label}</Text>
     </Pressable>
