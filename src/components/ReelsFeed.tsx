@@ -418,7 +418,14 @@ function Reel({
           ) : null}
         </View>
         <View>
-          <SideBtn icon="heart" color={post.liked ? '#FE2C55' : '#fff'} label={formatCount(post.likes_count)} onPress={() => like()} />
+          {/* tap = like · hold 5 s = repost */}
+          <SideBtn
+            icon="heart"
+            color={post.liked ? '#FE2C55' : '#fff'}
+            label={formatCount(post.likes_count)}
+            onPress={() => like()}
+            onHold={mine ? undefined : repost}
+          />
           {repostPill !== 'hidden' ? (
             <Pressable
               onPress={repostPill === 'show' ? repost : undefined}
@@ -561,10 +568,53 @@ function Disc({ uri, name, spinning }: { uri: string | null; name: string; spinn
   );
 }
 
-function SideBtn({ icon, label, onPress, color = '#fff' }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress?: () => void; color?: string }) {
+/** Side button. With onHold: keep pressing 5 s → onHold (the icon grows while you hold, the phone ticks each second). */
+function SideBtn({
+  icon,
+  label,
+  onPress,
+  onHold,
+  color = '#fff',
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+  onHold?: () => void;
+  color?: string;
+}) {
+  const grow = useRef(new Animated.Value(1)).current;
+  const ticks = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const stop = () => {
+    ticks.current.forEach(clearTimeout);
+    ticks.current = [];
+    grow.stopAnimation();
+    Animated.spring(grow, { toValue: 1, useNativeDriver: true }).start();
+  };
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ alignItems: 'center', marginBottom: 16 }, pressed && { transform: [{ scale: 0.9 }] }]} hitSlop={6}>
-      <Ionicons name={icon} size={34} color={color} style={st.shadow} />
+    <Pressable
+      onPress={onPress}
+      onLongPress={
+        onHold
+          ? () => {
+              stop();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              onHold();
+            }
+          : undefined
+      }
+      delayLongPress={onHold ? 5000 : undefined}
+      onPressIn={() => {
+        if (!onHold) return;
+        ticks.current = [1, 2, 3, 4].map((n) => setTimeout(() => Haptics.selectionAsync().catch(() => {}), n * 1000));
+        Animated.timing(grow, { toValue: 1.5, duration: 5000, easing: Easing.linear, useNativeDriver: true }).start();
+      }}
+      onPressOut={onHold ? stop : undefined}
+      style={({ pressed }) => [{ alignItems: 'center', marginBottom: 16 }, pressed && !onHold && { transform: [{ scale: 0.9 }] }]}
+      hitSlop={6}
+    >
+      <Animated.View style={{ transform: [{ scale: grow }] }}>
+        <Ionicons name={icon} size={34} color={color} style={st.shadow} />
+      </Animated.View>
       {label ? <Text style={[st.sideText, st.shadow]}>{label}</Text> : null}
     </Pressable>
   );

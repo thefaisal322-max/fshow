@@ -64,6 +64,18 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
 
   const share = () => setShareOpen(true);
 
+  /** Hold ❤️ for 5 seconds → repost to my followers. */
+  async function holdRepost() {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    try {
+      await social.repost(post.id);
+      onChange?.({ ...post, shares_count: post.shares_count + 1 });
+      Alert.alert('🔁', t('reposted'));
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    }
+  }
+
   /** Double tap: like (never unlike) + big heart. */
   function doubleTapLike(x?: number, y?: number) {
     heart.current?.burst(x, y);
@@ -156,6 +168,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
           color={post.liked ? colors.error : colors.muted}
           label={formatCount(post.likes_count)}
           onPress={() => toggle('like')}
+          onHold={post.author.id === me ? undefined : holdRepost}
         />
         <Action icon="chatbubble-outline" label={t('comment')} onPress={inComments ? undefined : openComments} />
         <Action icon="arrow-redo-outline" label={t('share')} onPress={share} />
@@ -210,10 +223,27 @@ function SharedPreview({ p }: { p: PostPreview }) {
   );
 }
 
-function Action({ icon, label, color = colors.muted, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; color?: string; onPress?: () => void }) {
+function Action({
+  icon,
+  label,
+  color = colors.muted,
+  onPress,
+  onHold,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  color?: string;
+  onPress?: () => void;
+  /** keep pressing 5 s */
+  onHold?: () => void;
+}) {
   const { d } = useI18n();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [st.action, { flexDirection: d.row }, pressed && { opacity: 0.6 }]} hitSlop={6}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onHold}
+      delayLongPress={onHold ? 5000 : undefined}
+      style={({ pressed }) => [st.action, { flexDirection: d.row }, pressed && { opacity: 0.6 }]} hitSlop={6}>
       <Ionicons name={icon} size={21} color={color} />
       <Text style={[st.actionText, { color }]} numberOfLines={1}>
         {label}
