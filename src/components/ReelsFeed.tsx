@@ -411,11 +411,7 @@ function Reel({
           <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: post.author.id } })} style={st.avatarRing}>
             <Avatar uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} size={48} />
           </Pressable>
-          {!mine && !post.following ? (
-            <Pressable onPress={follow} style={st.plus} hitSlop={8}>
-              <Ionicons name="add" size={16} color="#fff" />
-            </Pressable>
-          ) : null}
+          {!mine ? <FollowBadge following={!!post.following} onFollow={follow} /> : null}
         </View>
         <View>
           {/* tap = like · hold 5 s = repost */}
@@ -511,6 +507,55 @@ function Reel({
         />
       ) : null}
     </View>
+  );
+}
+
+/**
+ * TikTok-style follow shortcut on the avatar: red ➕ → tap → it spins into a white ✓,
+ * stays a moment, then shrinks away.
+ */
+function FollowBadge({ following, onFollow }: { following: boolean; onFollow: () => void }) {
+  const [state, setState] = useState<'plus' | 'check' | 'gone'>(following ? 'gone' : 'plus');
+  const spin = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // followed somewhere else (or the same person's other reel) → no ➕
+    if (following && state === 'plus') setState('gone');
+    if (!following && state === 'gone') {
+      spin.setValue(0);
+      scale.setValue(1);
+      setState('plus');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [following]);
+
+  function tap() {
+    if (state !== 'plus') return;
+    setState('check');
+    onFollow();
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(spin, { toValue: 1, duration: 350, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.35, duration: 170, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
+        ]),
+      ]),
+      Animated.delay(900),
+      Animated.timing(scale, { toValue: 0, duration: 220, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+    ]).start(() => setState('gone'));
+  }
+
+  if (state === 'gone') return null;
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const check = state === 'check';
+  return (
+    <Pressable onPress={tap} hitSlop={10} style={st.plusWrap}>
+      <Animated.View style={[st.plus, check && st.plusDone, { transform: [{ rotate }, { scale }] }]}>
+        <Ionicons name={check ? 'checkmark' : 'add'} size={check ? 15 : 16} color={check ? '#FE2C55' : '#fff'} />
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -631,7 +676,9 @@ const st = StyleSheet.create({
   tabLine: { width: 26, height: 3, borderRadius: 2, backgroundColor: '#fff', marginTop: 4 },
   side: { position: 'absolute', bottom: 18, alignItems: 'center' },
   avatarRing: { borderWidth: 2, borderColor: '#fff', borderRadius: 30, padding: 1 },
-  plus: { position: 'absolute', bottom: -10, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FE2C55', alignItems: 'center', justifyContent: 'center' },
+  plusWrap: { position: 'absolute', bottom: -10 },
+  plus: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FE2C55', alignItems: 'center', justifyContent: 'center' },
+  plusDone: { backgroundColor: '#fff' },
   sideText: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222', borderWidth: 7, borderColor: '#333', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   quick: { position: 'absolute', top: 0, alignItems: 'center', gap: 10, backgroundColor: 'rgba(30,30,30,0.8)', borderRadius: 30, paddingHorizontal: 12, paddingVertical: 6 },
