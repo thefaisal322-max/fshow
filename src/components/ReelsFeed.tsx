@@ -8,11 +8,16 @@ import {
   Animated,
   Easing,
   FlatList,
+  KeyboardAvoidingView,
   LayoutChangeEvent,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
+  useWindowDimensions,
   View,
   ViewToken,
 } from 'react-native';
@@ -273,7 +278,8 @@ function Reel({
 }) {
   const router = useRouter();
   const { t, d } = useI18n();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
+  const { width } = useWindowDimensions();
   const me = session?.user.id ?? '';
   const mine = post.author.id === me;
   const [paused, setPaused] = useState(false);
@@ -283,9 +289,14 @@ function Reel({
   const [expanded, setExpanded] = useState(false);
   const [quick, setQuick] = useState(false);
   const [quickUsed, setQuickUsed] = useState(false);
-  const [flying, setFlying] = useState<string | null>(null);
   const [commentEmoji, setCommentEmoji] = useState<string | null>(null);
-  const [repostPill, setRepostPill] = useState<'hidden' | 'show' | 'done'>('hidden');
+  const [repostPill, setRepostPill] = useState(false);
+  const [repostedId, setRepostedId] = useState<string | null>(null);
+  const [saying, setSaying] = useState(false);
+  const [savedBar, setSavedBar] = useState(0);
+  const [sideY, setSideY] = useState(0);
+  const [commentY, setCommentY] = useState(0);
+  const dim = useRef(new Animated.Value(0)).current;
   const heart = useRef<HeartBurstHandle>(null);
   const uri = videoUrl(post.video_path)!;
   const feeling = feelingLabel(post.feeling);
@@ -296,27 +307,32 @@ function Reel({
       setQuick(false);
       return;
     }
-    // the quick emoji bar shows up next to 💬 after a few seconds of watching (like TikTok)
     const timers: ReturnType<typeof setTimeout>[] = [];
-    if (!quickUsed) timers.push(setTimeout(() => setQuick(true), 3500));
-    // "Repost" shows up next to ❤️ after watching a while
-    if (!mine) timers.push(setTimeout(() => setRepostPill((r) => (r === 'hidden' ? 'show' : r)), 8000));
+    // after a few seconds the video dims for a moment and the emoji bar pops up at 💬 (like TikTok)
+    if (!quickUsed && !commentEmoji) timers.push(setTimeout(() => setQuick(true), 4000));
     return () => timers.forEach(clearTimeout);
-  }, [active, quickUsed, mine]);
+  }, [active, quickUsed, commentEmoji]);
 
-  // the emoji sits on the 💬 button for a moment, then the icon comes back
   useEffect(() => {
-    if (!commentEmoji) return;
-    const timer = setTimeout(() => setCommentEmoji(null), 2600);
+    if (!quick) return;
+    Animated.sequence([
+      Animated.timing(dim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(900),
+      Animated.timing(dim, { toValue: 0, duration: 450, useNativeDriver: true }),
+    ]).start();
+    // nobody tapped → it goes away on its own
+    const timer = setTimeout(() => setQuick(false), 7000);
     return () => clearTimeout(timer);
-  }, [commentEmoji]);
+  }, [quick, dim]);
 
   async function like(forceOn?: boolean) {
     const on = forceOn ?? !post.liked;
     if (on === post.liked) return;
     onChange({ ...post, liked: on, likes_count: Math.max(0, post.likes_count + (on ? 1 : -1)) });
     if (on) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (on && !mine) setRepostPill((r) => (r === 'hidden' ? 'show' : r));
+    // like → the pink "Repost" slides out of the ❤️
+    if (on && !mine && !repostedId) setRepostPill(true);
+    if (!on) setRepostPill(false);
     try {
       await social.like(post.id, on);
     } catch (e) {
@@ -329,10 +345,12 @@ function Reel({
     const on = !post.saved;
     onChange({ ...post, saved: on, saves_count: Math.max(0, post.saves_count + (on ? 1 : -1)) });
     Haptics.selectionAsync().catch(() => {});
+    if (on) setSavedBar((n) => n + 1);
+    else setSavedBar(0);
     try {
       await social.save(post.id, on, me);
-      if (on) toast(t('saved_toast'));
     } catch (e) {
+      setSavedBar(0);
       onChange(post);
       Alert.alert('', errorMessage(e));
     }
@@ -352,36 +370,47 @@ function Reel({
   async function quickComment(emoji: string) {
     setQuick(false);
     setQuickUsed(true);
-    setFlying(emoji); // 3 emojis fly into the 💬 button
-    setTimeout(() => setCommentEmoji(emoji), 450);
+    setCommentEmoji(emoji); // the 💬 icon becomes this emoji
     onChange({ ...post, comments_count: post.comments_count + 1 });
     Haptics.selectionAsync().catch(() => {});
     try {
       await social.comment(post.id, emoji);
     } catch (e) {
+      setCommentEmoji(null);
       onChange(post);
       Alert.alert('', errorMessage(e));
     }
   }
 
   async function repost() {
-    setRepostPill('done');
+    if (repostedId) return;
+    setRepostPill(false);
+    setRepostedId('…');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onChange({ ...post, shares_count: post.shares_count + 1 });
     try {
-      await social.repost(post.id);
-      toast(`🔁 ${t('reposted')}`);
+      setRepostedId(await social.repost(post.id));
     } catch (e) {
-      setRepostPill('show');
+      setRepostedId(null);
       onChange(post);
       Alert.alert('', errorMessage(e));
     }
-    setTimeout(() => setRepostPill('hidden'), 1800);
+  }
+
+  async function saySomething(text: string) {
+    setSaying(false);
+    if (!text.trim() || !repostedId || repostedId === '…') return;
+    try {
+      await social.updatePost(repostedId, { body: text });
+      toast(`✓ ${t('reposted')}`);
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    }
   }
 
   const side = d.rtl ? { left: 8 } : { right: 8 };
-  // things that pop out next to a side button: to its left (to its right in Pashto / Dari)
-  const beside = d.rtl ? { left: '100%' as const, marginLeft: 8 } : { right: '100%' as const, marginRight: 8 };
+  // side column is ~54 wide, so its middle is 35 from the edge
+  const sideCenterX = d.rtl ? 35 : width - 35;
   const longCaption = post.body.length > 90 || post.body.split('\n').length > 2;
 
   return (
@@ -405,8 +434,11 @@ function Reel({
         <HeartBurst ref={heart} size={110} />
       </DoubleTap>
 
+      {/* the whole video dims for a moment when the emoji bar shows up */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: dim }]} />
+
       {/* right side buttons (left side in Pashto / Dari) */}
-      <View style={[st.side, side]}>
+      <View style={[st.side, side]} onLayout={(e) => setSideY(e.nativeEvent.layout.y)}>
         <View style={{ marginBottom: 22, alignItems: 'center' }}>
           <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: post.author.id } })} style={st.avatarRing}>
             <Avatar uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} size={48} />
@@ -422,44 +454,58 @@ function Reel({
             onPress={() => like()}
             onHold={mine ? undefined : repost}
           />
-          {repostPill !== 'hidden' ? (
-            <Pressable
-              onPress={repostPill === 'show' ? repost : undefined}
-              style={[st.repost, beside, { flexDirection: d.row }, repostPill === 'done' && { backgroundColor: '#FE2C55' }]}
-            >
-              <Ionicons name={repostPill === 'done' ? 'checkmark' : 'repeat'} size={16} color="#fff" />
-              <Text style={st.repostText}>{repostPill === 'done' ? t('reposted') : t('repost')}</Text>
-            </Pressable>
-          ) : null}
+          <RepostPill show={repostPill} rtl={d.rtl} label={t('repost')} onPress={repost} />
         </View>
-        <View>
+        <View onLayout={(e) => setCommentY(e.nativeEvent.layout.y)}>
           {commentEmoji ? (
-            <Pressable onPress={() => setSheet(true)} style={{ alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 32 }}>{commentEmoji}</Text>
-              <Text style={[st.sideText, st.shadow]}>{formatCount(post.comments_count)}</Text>
-            </Pressable>
+            <CommentEmojiBtn emoji={commentEmoji} label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
           ) : (
             <SideBtn icon="chatbubble-ellipses" label={formatCount(post.comments_count)} onPress={() => setSheet(true)} />
           )}
-          {/* TikTok-style quick emoji comments, right next to 💬 */}
-          {quick ? (
-            <View style={[st.quick, beside, { flexDirection: d.row }]}>
-              {QUICK.map((e) => (
-                <Pressable key={e} onPress={() => quickComment(e)} hitSlop={4} style={({ pressed }) => [pressed && { transform: [{ scale: 1.3 }] }]}>
-                  <Text style={{ fontSize: 28 }}>{e}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          {flying ? <FlyingEmojis emoji={flying} rtl={d.rtl} onDone={() => setFlying(null)} /> : null}
         </View>
-        <SideBtn icon="bookmark" color={post.saved ? '#FACE15' : '#fff'} label={formatCount(post.saves_count)} onPress={save} />
+        <SideBtn icon="bookmark" color={post.saved ? '#FACE15' : '#fff'} pop={!!post.saved} label={formatCount(post.saves_count)} onPress={save} />
         <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => setShareOpen(true)} />
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => setMenu(true)} />
         <Disc uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} spinning={active && !paused} />
       </View>
 
+      {/* TikTok quick emoji comments: a pill in the middle at the 💬 height */}
+      {quick && sideY > 0 ? (
+        <QuickEmojiBar
+          top={sideY + commentY + 17 - 26}
+          width={width}
+          targetX={sideCenterX}
+          onPick={quickComment}
+        />
+      ) : null}
+
       <View style={[st.info, d.rtl ? { right: 12, left: 80 } : { left: 12, right: 80 }]}>
+        {savedBar ? (
+          <SavedBar
+            key={savedBar}
+            rtl={d.rtl}
+            onView={() => {
+              setSavedBar(0);
+              router.navigate({ pathname: '/profile', params: { tab: 'saved', at: String(Date.now()) } });
+            }}
+            onDone={() => setSavedBar(0)}
+          />
+        ) : null}
+        {/* Repost to followers → after reposting: "Say something" */}
+        {!mine ? (
+          repostedId ? (
+            <Pressable onPress={() => setSaying(true)} style={[st.chip, { flexDirection: d.row }]}>
+              <Avatar uri={profile?.photoURL ?? null} name={profile?.firstName ?? ''} size={18} />
+              <Text style={st.chipText}>{t('say_chip')}</Text>
+              <Ionicons name="pencil" size={13} color="#fff" />
+            </Pressable>
+          ) : (
+            <Pressable onPress={repost} style={[st.chip, { flexDirection: d.row }]}>
+              <Ionicons name="repeat" size={15} color="#fff" />
+              <Text style={st.chipText}>{t('repost_to_followers')}</Text>
+            </Pressable>
+          )
+        ) : null}
         <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: post.author.id } })} style={{ flexDirection: d.row, alignItems: 'center', flexWrap: 'wrap' }}>
           <Text style={[st.name, st.shadow]}>{authorName(post.author)}</Text>
           {post.author.is_fainet ? <VerifiedBadge size={15} /> : null}
@@ -495,6 +541,7 @@ function Reel({
         </View>
       </View>
 
+      {saying ? <SaySheet onClose={() => setSaying(false)} onPost={saySomething} /> : null}
       {menu ? <PostMenuSheet post={post} onClose={() => setMenu(false)} onChange={onChange} onRemoved={onRemoved} /> : null}
       {shareOpen ? (
         <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange({ ...post, shares_count: post.shares_count + 1 })} />
@@ -507,6 +554,184 @@ function Reel({
         />
       ) : null}
     </View>
+  );
+}
+
+const CELL = 48;
+
+/**
+ * Dark pill with 🥰😂😏😁 in the middle of the screen. Tap one → it pops bigger, the others fade,
+ * and it flies into the 💬 button.
+ */
+function QuickEmojiBar({ top, width, targetX, onPick }: { top: number; width: number; targetX: number; onPick: (e: string) => void }) {
+  const show = useRef(new Animated.Value(0)).current;
+  const rest = useRef(new Animated.Value(1)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+  const fly = useRef(new Animated.Value(0)).current;
+  const [picked, setPicked] = useState<number | null>(null);
+
+  useEffect(() => {
+    Animated.spring(show, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }).start();
+  }, [show]);
+
+  function pick(i: number) {
+    if (picked !== null) return;
+    setPicked(i);
+    Haptics.selectionAsync().catch(() => {});
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(rest, { toValue: 0, duration: 160, useNativeDriver: true }),
+        Animated.spring(pop, { toValue: 1.6, friction: 4, tension: 160, useNativeDriver: true }),
+      ]),
+      Animated.delay(120),
+      Animated.timing(fly, { toValue: 1, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+    ]).start(() => onPick(QUICK[i]));
+  }
+
+  const scale = show.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  return (
+    <View pointerEvents="box-none" style={{ position: 'absolute', top, left: 0, right: 0, alignItems: 'center' }}>
+      <Animated.View style={[st.quickBg, { opacity: Animated.multiply(show, rest), transform: [{ scale }] }]} />
+      <Animated.View style={{ flexDirection: 'row', opacity: show, transform: [{ scale }] }}>
+        {QUICK.map((e, i) => {
+          const isPicked = picked === i;
+          const dx = targetX - (width / 2 + (i - 1.5) * CELL);
+          return (
+            <Pressable key={e} onPress={() => pick(i)} hitSlop={4} style={{ width: CELL, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.Text
+                style={{
+                  fontSize: 30,
+                  opacity: isPicked ? fly.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }) : picked === null ? 1 : rest,
+                  transform: isPicked
+                    ? [
+                        { translateX: fly.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
+                        { translateY: fly.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -40, 0] }) },
+                        { scale: Animated.multiply(pop, fly.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] })) },
+                      ]
+                    : [],
+                }}
+              >
+                {e}
+              </Animated.Text>
+            </Pressable>
+          );
+        })}
+      </Animated.View>
+    </View>
+  );
+}
+
+/** 💬 replaced by the emoji you sent — it lands with a little bounce. */
+function CommentEmojiBtn({ emoji, label, onPress }: { emoji: string; label: string; onPress: () => void }) {
+  const s = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    Animated.spring(s, { toValue: 1, friction: 3, tension: 140, useNativeDriver: true }).start();
+  }, [s, emoji]);
+  return (
+    <Pressable onPress={onPress} style={{ alignItems: 'center', marginBottom: 16 }} hitSlop={6}>
+      <Animated.Text style={{ fontSize: 31, transform: [{ scale: s }] }}>{emoji}</Animated.Text>
+      <Text style={[st.sideText, st.shadow]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Pink "🔁 Repost" that slides out from behind the ❤️ (and back in when done). */
+function RepostPill({ show, rtl, label, onPress }: { show: boolean; rtl: boolean; label: string; onPress: () => void }) {
+  const a = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(show);
+  useEffect(() => {
+    if (show) setMounted(true);
+    Animated.spring(a, { toValue: show ? 1 : 0, friction: 7, tension: 80, useNativeDriver: true }).start(() => {
+      if (!show) setMounted(false);
+    });
+  }, [show, a]);
+  if (!mounted) return null;
+  const from = rtl ? -50 : 50;
+  return (
+    <Animated.View
+      style={[
+        st.repost,
+        rtl ? { left: '100%', marginLeft: 6 } : { right: '100%', marginRight: 6 },
+        {
+          opacity: a,
+          transform: [{ translateX: a.interpolate({ inputRange: [0, 1], outputRange: [from, 0] }) }, { scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
+        },
+      ]}
+    >
+      <Pressable onPress={onPress} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <Ionicons name="repeat" size={17} color="#fff" />
+        <Text style={st.repostText}>{label}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** Dark bar above the name: (✓) Saved ............ View > */
+function SavedBar({ rtl, onView, onDone }: { rtl: boolean; onView: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const a = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    const anim = Animated.sequence([
+      Animated.timing(a, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.delay(2800),
+      Animated.timing(a, { toValue: 0, duration: 220, useNativeDriver: true }),
+    ]);
+    anim.start(({ finished }) => finished && done.current());
+    return () => anim.stop();
+  }, [a]);
+  return (
+    <Animated.View
+      style={[
+        st.savedBar,
+        rtl ? { left: -68, right: 0 } : { left: 0, right: -68 },
+        { flexDirection: rtl ? 'row-reverse' : 'row', opacity: a, transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] },
+      ]}
+    >
+      <View style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 }}>
+        <Ionicons name="checkmark-circle" size={22} color="#fff" />
+        <Text style={st.savedText}>{t('saved_word')}</Text>
+      </View>
+      <Pressable onPress={onView} hitSlop={10} style={{ flexDirection: rtl ? 'row-reverse' : 'row', alignItems: 'center', gap: 2 }}>
+        <Text style={st.savedView}>{t('view_word')}</Text>
+        <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color="#4FA3FF" />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** "Say something" — add your own words to the repost. */
+function SaySheet({ onClose, onPost }: { onClose: () => void; onPost: (text: string) => void }) {
+  const { t, d } = useI18n();
+  const { profile } = useAuth();
+  const [text, setText] = useState('');
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={st.say}>
+          <View style={{ flexDirection: d.row, alignItems: 'flex-start', gap: 10 }}>
+            <Avatar uri={profile?.photoURL ?? null} name={profile?.firstName ?? ''} size={34} />
+            <TextInput
+              autoFocus
+              multiline
+              maxLength={300}
+              value={text}
+              onChangeText={setText}
+              placeholder={t('add_to_repost')}
+              placeholderTextColor="#888"
+              style={[st.sayInput, { textAlign: d.align, writingDirection: d.writing }]}
+            />
+          </View>
+          <View style={{ flexDirection: d.row, justifyContent: 'flex-end', marginTop: 10 }}>
+            <Pressable onPress={() => onPost(text)} disabled={!text.trim()} style={[st.sayBtn, !text.trim() && { opacity: 0.5 }]}>
+              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('post_btn')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 
@@ -559,39 +784,6 @@ function FollowBadge({ following, onFollow }: { following: boolean; onFollow: ()
   );
 }
 
-/** Three copies of the emoji fly from the emoji bar into the 💬 button. */
-function FlyingEmojis({ emoji, rtl, onDone }: { emoji: string; rtl: boolean; onDone: () => void }) {
-  const a = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
-  useEffect(() => {
-    Animated.stagger(
-      90,
-      a.map((v) => Animated.timing(v, { toValue: 1, duration: 520, easing: Easing.out(Easing.quad), useNativeDriver: true })),
-    ).start(() => onDone());
-  }, [a, onDone]);
-  const from = rtl ? 120 : -120;
-  return (
-    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' }}>
-      {a.map((v, i) => (
-        <Animated.Text
-          key={i}
-          style={{
-            position: 'absolute',
-            fontSize: 26,
-            opacity: v.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
-            transform: [
-              { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [from + i * (rtl ? 26 : -26), 0] }) },
-              { translateY: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -18 - i * 6, 0] }) },
-              { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0.6] }) },
-            ],
-          }}
-        >
-          {emoji}
-        </Animated.Text>
-      ))}
-    </View>
-  );
-}
-
 /** Spinning record with the author's photo (like TikTok's sound disc). */
 function Disc({ uri, name, spinning }: { uri: string | null; name: string; spinning: boolean }) {
   const spin = useRef(new Animated.Value(0)).current;
@@ -619,15 +811,29 @@ function SideBtn({
   label,
   onPress,
   onHold,
+  pop,
   color = '#fff',
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress?: () => void;
   onHold?: () => void;
+  /** turns true → the icon bounces (like TikTok's yellow bookmark) */
+  pop?: boolean;
   color?: string;
 }) {
   const grow = useRef(new Animated.Value(1)).current;
+  const bounce = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!pop) return;
+    bounce.setValue(0.6);
+    Animated.spring(bounce, { toValue: 1, friction: 3, tension: 160, useNativeDriver: true }).start();
+  }, [pop, bounce]);
   const ticks = useRef<ReturnType<typeof setTimeout>[]>([]);
   const stop = () => {
     ticks.current.forEach(clearTimeout);
@@ -657,7 +863,7 @@ function SideBtn({
       style={({ pressed }) => [{ alignItems: 'center', marginBottom: 16 }, pressed && !onHold && { transform: [{ scale: 0.9 }] }]}
       hitSlop={6}
     >
-      <Animated.View style={{ transform: [{ scale: grow }] }}>
+      <Animated.View style={{ transform: [{ scale: Animated.multiply(grow, bounce) }] }}>
         <Ionicons name={icon} size={34} color={color} style={st.shadow} />
       </Animated.View>
       {label ? <Text style={[st.sideText, st.shadow]}>{label}</Text> : null}
@@ -681,8 +887,16 @@ const st = StyleSheet.create({
   plusDone: { backgroundColor: '#fff' },
   sideText: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222', borderWidth: 7, borderColor: '#333', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  quick: { position: 'absolute', top: 0, alignItems: 'center', gap: 10, backgroundColor: 'rgba(30,30,30,0.8)', borderRadius: 30, paddingHorizontal: 12, paddingVertical: 6 },
-  repost: { position: 'absolute', top: 4, alignItems: 'center', gap: 5, backgroundColor: 'rgba(254,44,85,0.85)', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
+  quickBg: { position: 'absolute', top: 0, width: 4 * 48 + 20, height: 52, borderRadius: 26, backgroundColor: 'rgba(37,37,37,0.88)' },
+  repost: { position: 'absolute', top: 2, backgroundColor: '#FE2C55', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
+  chip: { alignSelf: 'flex-start', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 8 },
+  chipText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  savedBar: { position: 'absolute', bottom: '100%', marginBottom: 12, alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(40,40,40,0.95)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11 },
+  savedText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  savedView: { color: '#4FA3FF', fontSize: 15, fontWeight: '700' },
+  say: { backgroundColor: '#1f1f1f', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 14, paddingBottom: 24 },
+  sayInput: { flex: 1, color: '#fff', fontSize: 16, minHeight: 60, maxHeight: 140, paddingTop: 6 },
+  sayBtn: { backgroundColor: '#FE2C55', borderRadius: 8, paddingHorizontal: 22, paddingVertical: 9 },
   repostText: { color: '#fff', fontWeight: '800', fontSize: 14, fontStyle: 'italic' },
   info: { position: 'absolute', bottom: 18 },
   name: { color: '#fff', fontSize: 16, fontWeight: '800' },

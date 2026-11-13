@@ -21,14 +21,18 @@ import { PostList, PostListHandle } from './PostList';
 import { ReelGrid, ReelGridHandle } from './ReelGrid';
 
 /** Profile header + posts (and "Saved" for your own profile). Used by the Profile tab and /user/[id]. */
-export function ProfileView({ userId }: { userId: string }) {
+export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; initialTab?: Tab; tabNonce?: string }) {
   const router = useRouter();
   const { t, d } = useI18n();
   const { session, refreshProfile } = useAuth();
   const me = session?.user.id ?? '';
   const isMe = userId === me;
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [tab, setTab] = useState<Tab>('all');
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
+  // "Saved · View" from Reels opens this tab
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab, tabNonce]);
   const [busy, setBusy] = useState(false);
   const list = useRef<PostListHandle>(null);
   const grid = useRef<ReelGridHandle>(null);

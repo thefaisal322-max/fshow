@@ -215,8 +215,10 @@ export const social = {
     } else check(await supabase.from('comment_likes').delete().eq('comment_id', id).eq('user_id', uid));
   },
   /** Share to my feed (repost), optionally with my own text. */
-  repost: async (postId: string, body = '') => {
-    check(await supabase.from('posts').insert({ shared_post_id: postId, body: body.trim() }));
+  /** Returns the new post's id (so "Say something" can add text to it). */
+  repost: async (postId: string, body = ''): Promise<string> => {
+    const row = check<{ id: string }>(await supabase.from('posts').insert({ shared_post_id: postId, body: body.trim() }).select('id').single());
+    return row.id;
   },
   /** Send a post into a chat. */
   sendToChat: async (convId: string, postId: string) => {
