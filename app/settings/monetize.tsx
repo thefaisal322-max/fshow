@@ -282,7 +282,8 @@ function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void;
   );
 }
 
-const METHODS = ['HesabPay', 'M-Paisa', 'My Money', 'Bank'];
+// Money is paid out through HesabPay only.
+const METHODS = ['HesabPay'];
 
 function PayoutSheet({ max, min, onClose, onSent }: { max: number; min: number; onClose: () => void; onSent: () => void }) {
   const { t, d } = useI18n();
@@ -330,6 +331,7 @@ function PayoutSheet({ max, min, onClose, onSent }: { max: number; min: number; 
               value={account}
               onChangeText={setAccount}
               placeholder={t('payout_account_ph')}
+              keyboardType="phone-pad"
               placeholderTextColor={colors.muted}
               style={[st.input, { textAlign: d.align }]}
               maxLength={80}
