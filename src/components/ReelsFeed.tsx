@@ -8,15 +8,11 @@ import {
   Animated,
   Easing,
   FlatList,
-  KeyboardAvoidingView,
   LayoutChangeEvent,
-  Modal,
-  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
   ViewToken,
@@ -278,7 +274,7 @@ function Reel({
 }) {
   const router = useRouter();
   const { t, d } = useI18n();
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const { width } = useWindowDimensions();
   const me = session?.user.id ?? '';
   const mine = post.author.id === me;
@@ -290,9 +286,7 @@ function Reel({
   const [quick, setQuick] = useState(false);
   const [quickUsed, setQuickUsed] = useState(false);
   const [commentEmoji, setCommentEmoji] = useState<string | null>(null);
-  const [repostPill, setRepostPill] = useState(false);
   const [repostedId, setRepostedId] = useState<string | null>(null);
-  const [saying, setSaying] = useState(false);
   const [savedBar, setSavedBar] = useState(0);
   const [sideY, setSideY] = useState(0);
   const [commentY, setCommentY] = useState(0);
@@ -330,9 +324,6 @@ function Reel({
     if (on === post.liked) return;
     onChange({ ...post, liked: on, likes_count: Math.max(0, post.likes_count + (on ? 1 : -1)) });
     if (on) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // like → the pink "Repost" slides out of the ❤️
-    if (on && !mine && !repostedId) setRepostPill(true);
-    if (!on) setRepostPill(false);
     try {
       await social.like(post.id, on);
     } catch (e) {
@@ -384,26 +375,15 @@ function Reel({
 
   async function repost() {
     if (repostedId) return;
-    setRepostPill(false);
     setRepostedId('…');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onChange({ ...post, shares_count: post.shares_count + 1 });
     try {
       setRepostedId(await social.repost(post.id));
+      toast(`🔁 ${t('reposted')}`);
     } catch (e) {
       setRepostedId(null);
       onChange(post);
-      Alert.alert('', errorMessage(e));
-    }
-  }
-
-  async function saySomething(text: string) {
-    setSaying(false);
-    if (!text.trim() || !repostedId || repostedId === '…') return;
-    try {
-      await social.updatePost(repostedId, { body: text });
-      toast(`✓ ${t('reposted')}`);
-    } catch (e) {
       Alert.alert('', errorMessage(e));
     }
   }
@@ -454,7 +434,6 @@ function Reel({
             onPress={() => like()}
             onHold={mine ? undefined : repost}
           />
-          <RepostPill show={repostPill} rtl={d.rtl} label={t('repost')} onPress={repost} />
         </View>
         <View onLayout={(e) => setCommentY(e.nativeEvent.layout.y)}>
           {commentEmoji ? (
@@ -472,7 +451,7 @@ function Reel({
       {/* TikTok quick emoji comments: a pill in the middle at the 💬 height */}
       {quick && sideY > 0 ? (
         <QuickEmojiBar
-          top={sideY + commentY + 17 - 26}
+          top={sideY + commentY + 17 - 30}
           width={width}
           targetX={sideCenterX}
           onPick={quickComment}
@@ -490,21 +469,6 @@ function Reel({
             }}
             onDone={() => setSavedBar(0)}
           />
-        ) : null}
-        {/* Repost to followers → after reposting: "Say something" */}
-        {!mine ? (
-          repostedId ? (
-            <Pressable onPress={() => setSaying(true)} style={[st.chip, { flexDirection: d.row }]}>
-              <Avatar uri={profile?.photoURL ?? null} name={profile?.firstName ?? ''} size={18} />
-              <Text style={st.chipText}>{t('say_chip')}</Text>
-              <Ionicons name="pencil" size={13} color="#fff" />
-            </Pressable>
-          ) : (
-            <Pressable onPress={repost} style={[st.chip, { flexDirection: d.row }]}>
-              <Ionicons name="repeat" size={15} color="#fff" />
-              <Text style={st.chipText}>{t('repost_to_followers')}</Text>
-            </Pressable>
-          )
         ) : null}
         <Pressable onPress={() => router.push({ pathname: '/user/[id]', params: { id: post.author.id } })} style={{ flexDirection: d.row, alignItems: 'center', flexWrap: 'wrap' }}>
           <Text style={[st.name, st.shadow]}>{authorName(post.author)}</Text>
@@ -541,7 +505,6 @@ function Reel({
         </View>
       </View>
 
-      {saying ? <SaySheet onClose={() => setSaying(false)} onPost={saySomething} /> : null}
       {menu ? <PostMenuSheet post={post} onClose={() => setMenu(false)} onChange={onChange} onRemoved={onRemoved} /> : null}
       {shareOpen ? (
         <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange({ ...post, shares_count: post.shares_count + 1 })} />
@@ -557,67 +520,148 @@ function Reel({
   );
 }
 
-const CELL = 48;
+const CELL = 52;
 
 /**
- * Dark pill with 🥰😂😏😁 in the middle of the screen. Tap one → it pops bigger, the others fade,
- * and it flies into the 💬 button.
+ * Glass pill with 🥰😂😏😁 in the middle of the screen. The emojis pop in one by one and gently bob.
+ * Tap one → a ring flashes, the others fade, and it flies into the 💬 button.
  */
 function QuickEmojiBar({ top, width, targetX, onPick }: { top: number; width: number; targetX: number; onPick: (e: string) => void }) {
   const show = useRef(new Animated.Value(0)).current;
   const rest = useRef(new Animated.Value(1)).current;
-  const pop = useRef(new Animated.Value(1)).current;
-  const fly = useRef(new Animated.Value(0)).current;
   const [picked, setPicked] = useState<number | null>(null);
 
   useEffect(() => {
-    Animated.spring(show, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }).start();
+    Animated.spring(show, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }).start();
   }, [show]);
 
   function pick(i: number) {
     if (picked !== null) return;
     setPicked(i);
-    Haptics.selectionAsync().catch(() => {});
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(rest, { toValue: 0, duration: 160, useNativeDriver: true }),
-        Animated.spring(pop, { toValue: 1.6, friction: 4, tension: 160, useNativeDriver: true }),
-      ]),
-      Animated.delay(120),
-      Animated.timing(fly, { toValue: 1, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-    ]).start(() => onPick(QUICK[i]));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Animated.timing(rest, { toValue: 0, duration: 180, useNativeDriver: true }).start();
   }
 
-  const scale = show.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const scale = show.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
+  const translateY = show.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', top, left: 0, right: 0, alignItems: 'center' }}>
-      <Animated.View style={[st.quickBg, { opacity: Animated.multiply(show, rest), transform: [{ scale }] }]} />
-      <Animated.View style={{ flexDirection: 'row', opacity: show, transform: [{ scale }] }}>
-        {QUICK.map((e, i) => {
-          const isPicked = picked === i;
-          const dx = targetX - (width / 2 + (i - 1.5) * CELL);
-          return (
-            <Pressable key={e} onPress={() => pick(i)} hitSlop={4} style={{ width: CELL, height: 52, alignItems: 'center', justifyContent: 'center' }}>
-              <Animated.Text
-                style={{
-                  fontSize: 30,
-                  opacity: isPicked ? fly.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }) : picked === null ? 1 : rest,
-                  transform: isPicked
-                    ? [
-                        { translateX: fly.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
-                        { translateY: fly.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -40, 0] }) },
-                        { scale: Animated.multiply(pop, fly.interpolate({ inputRange: [0, 1], outputRange: [1, 0.45] })) },
-                      ]
-                    : [],
-                }}
-              >
-                {e}
-              </Animated.Text>
-            </Pressable>
-          );
-        })}
+      <Animated.View style={[st.quickBg, { opacity: Animated.multiply(show, rest), transform: [{ translateY }, { scaleX: scale }] }]} />
+      <Animated.View style={{ flexDirection: 'row', transform: [{ translateY }] }}>
+        {QUICK.map((e, i) => (
+          <QuickEmoji
+            key={e}
+            emoji={e}
+            index={i}
+            picked={picked}
+            rest={rest}
+            dx={targetX - (width / 2 + (i - 1.5) * CELL)}
+            onPress={() => pick(i)}
+            onLanded={() => onPick(e)}
+          />
+        ))}
       </Animated.View>
     </View>
+  );
+}
+
+function QuickEmoji({
+  emoji,
+  index,
+  picked,
+  rest,
+  dx,
+  onPress,
+  onLanded,
+}: {
+  emoji: string;
+  index: number;
+  picked: number | null;
+  rest: Animated.Value;
+  dx: number;
+  onPress: () => void;
+  onLanded: () => void;
+}) {
+  const enter = useRef(new Animated.Value(0)).current;
+  const bob = useRef(new Animated.Value(0)).current;
+  const press = useRef(new Animated.Value(1)).current;
+  const pop = useRef(new Animated.Value(1)).current;
+  const fly = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+  const one = useRef(new Animated.Value(1)).current;
+  const isPicked = picked === index;
+
+  useEffect(() => {
+    // pop in one after another, then a soft wave
+    Animated.sequence([
+      Animated.delay(80 + index * 70),
+      Animated.spring(enter, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+    ]).start();
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(index * 140),
+        Animated.timing(bob, { toValue: 1, duration: 420, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 420, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.delay((3 - index) * 140 + 900),
+      ]),
+    );
+    const t = setTimeout(() => loop.start(), 700);
+    return () => {
+      clearTimeout(t);
+      loop.stop();
+    };
+  }, [enter, bob, index]);
+
+  useEffect(() => {
+    if (!isPicked) return;
+    bob.stopAnimation();
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(pop, { toValue: 1.7, friction: 4, tension: 170, useNativeDriver: true }),
+        Animated.timing(ring, { toValue: 1, duration: 380, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]),
+      Animated.timing(fly, { toValue: 1, duration: 430, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+    ]).start(() => onLanded());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPicked]);
+
+  const enterScale = enter.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+  const bobY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -5] });
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => Animated.spring(press, { toValue: 1.3, friction: 5, useNativeDriver: true }).start()}
+      onPressOut={() => Animated.spring(press, { toValue: 1, friction: 5, useNativeDriver: true }).start()}
+      hitSlop={4}
+      style={{ width: CELL, height: 60, alignItems: 'center', justifyContent: 'center' }}
+    >
+      {isPicked ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            st.quickRing,
+            {
+              opacity: ring.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.9, 0] }),
+              transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.8] }) }],
+            },
+          ]}
+        />
+      ) : null}
+      <Animated.Text
+        style={{
+          fontSize: 32,
+          opacity: isPicked ? fly.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }) : picked === null ? enter : rest,
+          transform: [
+            { translateX: isPicked ? fly.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) : 0 },
+            { translateY: isPicked ? fly.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -46, 0] }) : bobY },
+            { scale: Animated.multiply(Animated.multiply(enterScale, press), isPicked ? Animated.multiply(pop, fly.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] })) : one) },
+            { rotate: isPicked ? fly.interpolate({ inputRange: [0, 1], outputRange: ['0deg', dx > 0 ? '25deg' : '-25deg'] }) : '0deg' },
+          ],
+        }}
+      >
+        {emoji}
+      </Animated.Text>
+    </Pressable>
   );
 }
 
@@ -632,37 +676,6 @@ function CommentEmojiBtn({ emoji, label, onPress }: { emoji: string; label: stri
       <Animated.Text style={{ fontSize: 31, transform: [{ scale: s }] }}>{emoji}</Animated.Text>
       <Text style={[st.sideText, st.shadow]}>{label}</Text>
     </Pressable>
-  );
-}
-
-/** Pink "🔁 Repost" that slides out from behind the ❤️ (and back in when done). */
-function RepostPill({ show, rtl, label, onPress }: { show: boolean; rtl: boolean; label: string; onPress: () => void }) {
-  const a = useRef(new Animated.Value(0)).current;
-  const [mounted, setMounted] = useState(show);
-  useEffect(() => {
-    if (show) setMounted(true);
-    Animated.spring(a, { toValue: show ? 1 : 0, friction: 7, tension: 80, useNativeDriver: true }).start(() => {
-      if (!show) setMounted(false);
-    });
-  }, [show, a]);
-  if (!mounted) return null;
-  const from = rtl ? -50 : 50;
-  return (
-    <Animated.View
-      style={[
-        st.repost,
-        rtl ? { left: '100%', marginLeft: 6 } : { right: '100%', marginRight: 6 },
-        {
-          opacity: a,
-          transform: [{ translateX: a.interpolate({ inputRange: [0, 1], outputRange: [from, 0] }) }, { scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
-        },
-      ]}
-    >
-      <Pressable onPress={onPress} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        <Ionicons name="repeat" size={17} color="#fff" />
-        <Text style={st.repostText}>{label}</Text>
-      </Pressable>
-    </Animated.View>
   );
 }
 
@@ -698,40 +711,6 @@ function SavedBar({ rtl, onView, onDone }: { rtl: boolean; onView: () => void; o
         <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color="#4FA3FF" />
       </Pressable>
     </Animated.View>
-  );
-}
-
-/** "Say something" — add your own words to the repost. */
-function SaySheet({ onClose, onPost }: { onClose: () => void; onPost: (text: string) => void }) {
-  const { t, d } = useI18n();
-  const { profile } = useAuth();
-  const [text, setText] = useState('');
-  return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={st.say}>
-          <View style={{ flexDirection: d.row, alignItems: 'flex-start', gap: 10 }}>
-            <Avatar uri={profile?.photoURL ?? null} name={profile?.firstName ?? ''} size={34} />
-            <TextInput
-              autoFocus
-              multiline
-              maxLength={300}
-              value={text}
-              onChangeText={setText}
-              placeholder={t('add_to_repost')}
-              placeholderTextColor="#888"
-              style={[st.sayInput, { textAlign: d.align, writingDirection: d.writing }]}
-            />
-          </View>
-          <View style={{ flexDirection: d.row, justifyContent: 'flex-end', marginTop: 10 }}>
-            <Pressable onPress={() => onPost(text)} disabled={!text.trim()} style={[st.sayBtn, !text.trim() && { opacity: 0.5 }]}>
-              <Text style={{ color: '#fff', fontWeight: '800' }}>{t('post_btn')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 }
 
@@ -887,17 +866,25 @@ const st = StyleSheet.create({
   plusDone: { backgroundColor: '#fff' },
   sideText: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 2 },
   disc: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#222', borderWidth: 7, borderColor: '#333', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  quickBg: { position: 'absolute', top: 0, width: 4 * 48 + 20, height: 52, borderRadius: 26, backgroundColor: 'rgba(37,37,37,0.88)' },
-  repost: { position: 'absolute', top: 2, backgroundColor: '#FE2C55', borderRadius: 18, paddingHorizontal: 12, paddingVertical: 7 },
-  chip: { alignSelf: 'flex-start', alignItems: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 8 },
-  chipText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  quickBg: {
+    position: 'absolute',
+    top: 0,
+    width: 4 * 52 + 22,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(28,28,30,0.82)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.22)',
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  quickRing: { position: 'absolute', width: 46, height: 46, borderRadius: 23, borderWidth: 2.5, borderColor: '#fff' },
   savedBar: { position: 'absolute', bottom: '100%', marginBottom: 12, alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(40,40,40,0.95)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11 },
   savedText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   savedView: { color: '#4FA3FF', fontSize: 15, fontWeight: '700' },
-  say: { backgroundColor: '#1f1f1f', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 14, paddingBottom: 24 },
-  sayInput: { flex: 1, color: '#fff', fontSize: 16, minHeight: 60, maxHeight: 140, paddingTop: 6 },
-  sayBtn: { backgroundColor: '#FE2C55', borderRadius: 8, paddingHorizontal: 22, paddingVertical: 9 },
-  repostText: { color: '#fff', fontWeight: '800', fontSize: 14, fontStyle: 'italic' },
   info: { position: 'absolute', bottom: 18 },
   name: { color: '#fff', fontSize: 16, fontWeight: '800' },
   user: { color: '#eee', fontSize: 13 },
