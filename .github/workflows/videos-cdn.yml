@@ -106,14 +106,21 @@ jobs:
 
           branch="b$(date -u +%Y%m%d%H%M)"
           npx -y wrangler@3 pages deploy site --project-name "$PROJECT" --branch "$branch" --commit-dirty=true 2>&1 | tee deploy.txt
-          base=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' deploy.txt | tail -1)
+          # the deployment's own address (stays forever); the branch alias is only a fallback
+          base=$(grep -i 'take a peek' deploy.txt | grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' | head -1)
+          [ -n "$base" ] || base=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' deploy.txt | head -1)
           [ -n "$base" ] || { echo "::error::deploy address not found"; exit 1; }
           echo "::notice title=deployed::$base ($(wc -l < moved.txt) videos)"
 
           # the address must really work before the app uses it
-          sleep 20
+          # (a brand-new address can need a few minutes for its HTTPS certificate)
           first=$(head -1 moved.txt)
-          code=$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$base/v/$first")
+          code=000
+          for try in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$base/v/$first" || true)
+            case "$code" in 200|206) break;; esac
+            sleep 15
+          done
           echo "::notice title=range check::$base/v/$first → HTTP $code (206 = video seeking works)"
           case "$code" in 200|206) ;; *) echo "::error::new address does not answer ($code)"; exit 1;; esac
 
