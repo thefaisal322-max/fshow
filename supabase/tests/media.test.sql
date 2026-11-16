@@ -43,3 +43,15 @@ RESET ROLE;
 DELETE FROM public.posts WHERE video_path = 'dddddddd-0000-0000-0000-000000000004/cdntest.mp4';
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.media_cdn WHERE path = 'dddddddd-0000-0000-0000-000000000004/cdntest.mp4'), 'post deleted → address gone');
 SELECT 'media tests passed';
+
+-- link preview: public posts only
+INSERT INTO public.posts (author_id, body) VALUES ('dddddddd-0000-0000-0000-000000000004', 'preview public');
+INSERT INTO public.posts (author_id, body, visibility) VALUES ('dddddddd-0000-0000-0000-000000000004', 'preview private', 'private');
+CREATE TEMP TABLE lp AS SELECT id, visibility FROM public.posts WHERE body IN ('preview public', 'preview private');
+GRANT SELECT ON lp TO anon;
+SET ROLE anon;
+SELECT pg_temp.check((SELECT public.get_link_preview(id)->>'body' FROM lp WHERE visibility = 'public') = 'preview public', 'anon sees public preview');
+SELECT pg_temp.check((SELECT public.get_link_preview(id) FROM lp WHERE visibility = 'private') IS NULL, 'private post has no preview');
+RESET ROLE;
+DELETE FROM public.posts WHERE body IN ('preview public', 'preview private');
+SELECT 'link preview tests passed';

@@ -1,0 +1,30 @@
+name: Web pages
+
+# Publishes web/ (share-link page /p/?id=…, home page) to https://fshow-media.pages.dev
+# (production of the same Cloudflare Pages project; the videos live in their own deployments and are not touched).
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web-pages.yml']
+
+concurrency:
+  group: web-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::warning::no Cloudflare secrets"; exit 0; }
+          npx -y wrangler@3 pages deploy web --project-name fshow-media --branch main --commit-dirty=true 2>&1 | tee out.txt
+          echo "::notice title=web::https://fshow-media.pages.dev"

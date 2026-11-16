@@ -203,7 +203,7 @@ export const social = {
   },
   share: async (post: Post) => {
     const name = post.author.username ? `@${post.author.username}` : `${post.author.first_name} ${post.author.last_name}`;
-    const text = [post.body, postImageUrl(post.image_path ?? post.video_path)].filter(Boolean).join('\n\n');
+    const text = [post.body, postLink(post.id)].filter(Boolean).join('\n\n');
     const res = await Share.share({ message: `${name} — Faisal Show\n\n${text}` });
     if (res.action === Share.sharedAction) await supabase.rpc('record_share', { p_post: post.id });
   },
@@ -380,7 +380,9 @@ export function videoUrl(path: string | null | undefined, cdn?: string | null): 
 
 /** Link that opens the post in the app (fshow:// is the app's own link scheme). */
 export function postLink(id: string): string {
-  return `fshow://post/${id}`;
+  // a normal web link: clickable in WhatsApp / Facebook / Telegram; opens the app if it is installed,
+  // otherwise shows the post and a download button (web/p/index.html on Cloudflare)
+  return `https://fshow-media.pages.dev/p/?id=${id}`;
 }
 
 /** True when a text is only emojis (shown big, like a sticker). Works without Unicode regex support. */

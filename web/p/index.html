@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ps" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Faisal Show</title>
+<meta name="description" content="دا پوسټ په Faisal Show کې وګورئ">
+<meta property="og:title" content="Faisal Show">
+<meta property="og:description" content="دا پوسټ په Faisal Show کې وګورئ">
+<meta property="og:image" content="https://fshow-media.pages.dev/icon.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#FE2C55">
+<link rel="icon" href="/icon.png">
+<style>
+  :root { --pink: #FE2C55; --bg: #f3f4f6; --card: #fff; --text: #111; --muted: #6b7280; --line: #e5e7eb; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0c; --card: #18181b; --text: #f4f4f5; --muted: #a1a1aa; --line: #27272a; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px 16px 40px; }
+  header { display: flex; align-items: center; gap: 10px; margin: 6px 0 16px; }
+  header img { width: 40px; height: 40px; border-radius: 10px; }
+  header b { font-size: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .who { display: flex; align-items: center; gap: 10px; padding: 14px; }
+  .who img, .who .ph { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--pink); color: #fff; display: grid; place-items: center; font-weight: 800; }
+  .who small { color: var(--muted); display: block; }
+  .body { padding: 0 14px 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .media { background: #000; display: block; width: 100%; max-height: 70vh; object-fit: contain; }
+  .stats { color: var(--muted); font-size: 14px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .btn { display: block; text-align: center; text-decoration: none; font-weight: 800; border-radius: 12px; padding: 14px; margin-top: 12px; }
+  .open { background: var(--pink); color: #fff; }
+  .get { background: var(--card); color: var(--text); border: 1px solid var(--line); }
+  .note { color: var(--muted); font-size: 13px; text-align: center; margin-top: 14px; }
+  .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="/icon.png" alt=""><b>Faisal Show</b></header>
+  <div id="post" class="card"><div class="empty">…</div></div>
+  <a id="open" class="btn open" href="#">په Faisal Show کې یې خلاص کړئ</a>
+  <a class="btn get" href="https://github.com/thefaisal322-max/fshow/releases/latest/download/fshow.apk">📥 Faisal Show ډاونلوډ کړئ (Android)</a>
+  <p class="note">که ایپ نصب وي، پوسټ پخپله په ایپ کې خلاصېږي.</p>
+</div>
+<script>
+(function () {
+  var SUPABASE = 'https://jqkyihnvidbehrapfflt.supabase.co';
+  var KEY = 'sb_publishable_rnYOePBiNVRY4Y11lr-yXg_op7Df2is'; // public key (safe to share)
+  var q = new URLSearchParams(location.search);
+  var id = (q.get('id') || '').toLowerCase();
+  var ok = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
+  var android = /android/i.test(navigator.userAgent);
+  var appUrl = 'fshow://post/' + id;
+  var back = location.origin + location.pathname + '?id=' + id + '&noapp=1';
+  var intent = 'intent://post/' + id + '#Intent;scheme=fshow;package=org.fainet.fshow;S.browser_fallback_url=' + encodeURIComponent(back) + ';end';
+  var openBtn = document.getElementById('open');
+  openBtn.href = android ? intent : appUrl;
+  if (!ok) openBtn.style.display = 'none';
+
+  // has the app? → straight into it (Android goes back to this page if it is not installed)
+  if (ok && android && !q.get('noapp')) location.replace(intent);
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function media(path) { return SUPABASE + '/storage/v1/object/public/posts/' + path.split('/').map(encodeURIComponent).join('/'); }
+  var box = document.getElementById('post');
+  function empty(t) { box.textContent = ''; box.appendChild(el('div', 'empty', t)); }
+
+  if (!ok) return empty('دا لینک سم نه دی.');
+  fetch(SUPABASE + '/rest/v1/rpc/get_link_preview', {
+    method: 'POST',
+    headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_post: id })
+  }).then(function (r) { return r.json(); }).then(function (p) {
+    if (!p || !p.id) return empty('دا پوسټ یوازې په ایپ کې لیدل کېږي.');
+    box.textContent = '';
+    var a = p.author || {};
+    var who = el('div', 'who');
+    if (a.photo_path) { var im = el('img'); im.src = SUPABASE + '/storage/v1/object/public/avatars/' + a.photo_path; who.appendChild(im); }
+    else who.appendChild(el('div', 'ph', (a.first_name || '?').slice(0, 1)));
+    var nm = el('div'); nm.appendChild(el('b', null, (a.first_name || '') + ' ' + (a.last_name || '') + (a.is_fainet ? ' ✔' : '')));
+    if (a.username) { var un = el('small', null, '@' + a.username); un.dir = 'ltr'; un.style.textAlign = 'right'; nm.appendChild(un); }
+    who.appendChild(nm); box.appendChild(who);
+    if (p.body) box.appendChild(el('div', 'body', p.body));
+    if (p.is_video && p.video_url) {
+      var v = el('video', 'media'); v.controls = true; v.playsInline = true; v.preload = 'metadata'; v.src = p.video_url;
+      if (p.thumb_path) v.poster = media(p.thumb_path);
+      box.appendChild(v);
+    } else if (p.image_path || p.thumb_path) {
+      var i = el('img', 'media'); i.src = media(p.image_path || p.thumb_path); box.appendChild(i);
+    }
+    box.appendChild(el('div', 'stats', '❤️ ' + (p.likes_count || 0) + '   💬 ' + (p.comments_count || 0)));
+  }).catch(function () { empty('انټرنېټ وګورئ او بیا هڅه وکړئ.'); });
+})();
+</script>
+</body>
+</html>
