@@ -23,6 +23,8 @@ export type Post = {
   body: string;
   image_path: string | null;
   video_path: string | null;
+  /** the video's fast address on Cloudflare (null while it is still only in Supabase Storage) */
+  video_url?: string | null;
   /** small JPG cover of a video (made on the phone when posting) */
   thumb_path?: string | null;
   location: string | null;
@@ -367,8 +369,10 @@ export function feelingLabel(code: string | null | undefined): string | null {
   return `${f.emoji} ${tr(`f_${f.code}` as StringKey)}`;
 }
 
-export function videoUrl(path: string | null | undefined): string | null {
-  return postImageUrl(path);
+/** Phone copy (offline) → Cloudflare address → Supabase Storage. */
+export function videoUrl(path: string | null | undefined, cdn?: string | null): string | null {
+  if (!path) return null;
+  return mediaUrl('posts', path, cdn);
 }
 
 /** Link that opens the post in the app (fshow:// is the app's own link scheme). */

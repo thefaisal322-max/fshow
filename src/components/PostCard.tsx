@@ -41,7 +41,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
   const [menu, setMenu] = useState(false);
   const heart = useRef<HeartBurstHandle>(null);
   const img = postImageUrl(post.image_path);
-  const vid = videoUrl(post.video_path);
+  const vid = videoUrl(post.video_path, post.video_url);
   const feeling = feelingLabel(post.feeling);
 
   // Optimistic update: change the screen at once, undo if the server says no.

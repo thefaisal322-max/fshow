@@ -96,7 +96,7 @@ export function ReelCell({ post, size, onPress }: { post: Post; size: number; on
       {thumb ? (
         <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : post.video_path ? (
-        <FirstFrame uri={videoUrl(post.video_path)!} />
+        <FirstFrame uri={videoUrl(post.video_path, post.video_url)!} />
       ) : null}
       <View style={st.shade} />
       {post.visibility && post.visibility !== 'public' ? (

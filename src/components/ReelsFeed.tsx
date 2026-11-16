@@ -292,7 +292,7 @@ function Reel({
   const [commentY, setCommentY] = useState(0);
   const dim = useRef(new Animated.Value(0)).current;
   const heart = useRef<HeartBurstHandle>(null);
-  const uri = videoUrl(post.video_path)!;
+  const uri = videoUrl(post.video_path, post.video_url)!;
   const feeling = feelingLabel(post.feeling);
 
   useEffect(() => {

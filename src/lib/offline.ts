@@ -42,9 +42,10 @@ function whenReady(): Promise<void> {
 }
 
 /** Local file if it was saved for offline, else the normal internet address. */
-export function mediaUrl(bucket: Bucket, path: string): string {
+export function mediaUrl(bucket: Bucket, path: string, cdn?: string | null): string {
   const k = keyOf(bucket, path);
   if (have.has(k)) return DIR + k;
+  if (cdn) return cdn;
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path.split('/').map(encodeURIComponent).join('/')}`;
 }
 
@@ -114,13 +115,14 @@ export async function withOffline<T>(key: string, firstPage: boolean, run: () =>
 }
 
 // ───────────────────────── downloading media ─────────────────────────
-type Job = { bucket: Bucket; path: string; video?: boolean };
+type Job = { bucket: Bucket; path: string; video?: boolean; url?: string };
 const queue: Job[] = [];
 let running = false;
 
 type MediaPost = {
   image_path?: string | null;
   video_path?: string | null;
+  video_url?: string | null;
   thumb_path?: string | null;
   author?: { photo_path?: string | null } | null;
 };
@@ -133,7 +135,7 @@ export function keepForOffline(posts: MediaPost[], videos = 4) {
     if (p.image_path) queue.push({ bucket: 'posts', path: p.image_path });
     if (p.thumb_path) queue.push({ bucket: 'posts', path: p.thumb_path });
     if (p.video_path && v < videos) {
-      queue.push({ bucket: 'posts', path: p.video_path, video: true });
+      queue.push({ bucket: 'posts', path: p.video_path, video: true, url: p.video_url ?? undefined });
       v++;
     }
   }
@@ -152,7 +154,7 @@ async function run() {
       if (job.video && [...have].filter((n) => /\.(mp4|mov|3gp|webm)$/i.test(n)).length >= MAX_VIDEOS) await dropOldest(true);
       const tmp = `${DIR}${k}.part`;
       try {
-        const url = `${SUPABASE_URL}/storage/v1/object/public/${job.bucket}/${job.path}`;
+        const url = job.url ?? `${SUPABASE_URL}/storage/v1/object/public/${job.bucket}/${job.path}`;
         const r = await FileSystem.downloadAsync(url, tmp);
         const info = await FileSystem.getInfoAsync(tmp);
         if (r.status !== 200 || !info.exists || (job.video && (info.size ?? 0) > MAX_VIDEO_BYTES)) {

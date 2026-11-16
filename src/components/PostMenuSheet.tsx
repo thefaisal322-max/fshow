@@ -155,7 +155,7 @@ export function PostMenuSheet({
       return;
     }
     const path = post.video_path ?? post.image_path;
-    const url = videoUrl(path);
+    const url = post.video_path ? videoUrl(post.video_path, post.video_url) : videoUrl(path);
     if (!path || !url) return;
     setView('save');
     setProgress(0);

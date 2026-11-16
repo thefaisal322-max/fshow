@@ -282,7 +282,7 @@ export function ReelsRow() {
 
 /** Small reel preview: muted, not playing — shows the first frame of the video. */
 function ReelTile({ post, onPress }: { post: Post; onPress: () => void }) {
-  const uri = videoUrl(post.video_path)!;
+  const uri = videoUrl(post.video_path, post.video_url)!;
   const player = useVideoPlayer(uri, (p) => {
     p.muted = true;
   });
