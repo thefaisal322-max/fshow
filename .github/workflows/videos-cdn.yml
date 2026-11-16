@@ -97,6 +97,14 @@ jobs:
               ffmpeg -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -crf 30 \
                 -maxrate 900k -bufsize 1800k -pix_fmt yuv420p -c:a aac -b:a 64k -ac 2 -movflags +faststart -f mp4 out.mp4
             fi
+            # long videos (up to 3 min): pick the bitrate that fits ~22 MB
+            if [ "$(stat -c %s out.mp4)" -gt 24000000 ]; then
+              dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 in.bin | cut -d. -f1)
+              vb=$(( (22000000 * 8 / ${dur:-180}) - 80000 ))
+              [ "$vb" -lt 250000 ] && vb=250000
+              ffmpeg -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -b:v "$vb" \
+                -maxrate "$vb" -bufsize "$((vb*2))" -pix_fmt yuv420p -c:a aac -b:a 64k -ac 2 -movflags +faststart -f mp4 out.mp4
+            fi
             if [ "$(stat -c %s out.mp4)" -gt 24000000 ]; then echo "::warning title=$p::too big even small, kept in Supabase"; continue; fi
             mkdir -p "site/v/$(dirname "$p")"
             mv out.mp4 "site/v/$p"

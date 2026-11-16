@@ -72,7 +72,7 @@ export default function CreatePost() {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: [kind],
       quality: 0.8,
-      videoMaxDuration: 60,
+      videoMaxDuration: 180,
       allowsEditing: kind === 'videos',
     });
     const a = res.canceled ? null : res.assets[0];
@@ -82,8 +82,8 @@ export default function CreatePost() {
       setVideo(null);
       return;
     }
-    if (a.duration && a.duration > 61_000) return setError(t('e_video_long'));
-    if (a.fileSize && a.fileSize > 25 * 1024 * 1024) return setError(t('e_video_big'));
+    // up to 3 minutes; the size does not matter here — it is made small before uploading
+    if (a.duration && a.duration > 181_000) return setError(t('e_video_long'));
     setVideo({ uri: a.uri, duration: a.duration, size: a.fileSize, mime: a.mimeType });
     setImage(null);
   }

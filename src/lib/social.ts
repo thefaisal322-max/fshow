@@ -268,21 +268,24 @@ export const social = {
       const up = await supabase.storage.from('posts').upload(imagePath, bytes, { contentType: 'image/jpeg' });
       if (up.error) throw new ApiError('upload-failed');
     } else if (input.video) {
-      if (input.video.duration && input.video.duration > 61_000) throw new ApiError('video-too-long');
+      if (input.video.duration && input.video.duration > 181_000) throw new ApiError('video-too-long');
       // Phone videos are big (≈7 Mbps). Make them ≤ 720p ≈1.6 Mbps like TikTok, so they start fast on slow internet / VPN.
+      // Longer videos (up to 3 min) get a lower bitrate so they still fit in ~22 MB (Cloudflare takes ≤ 25 MB per file).
+      const secs = Math.max(1, (input.video.duration ?? 60_000) / 1000);
+      const bitrate = Math.round(Math.max(700_000, Math.min(1_600_000, (22 * 1024 * 1024 * 8) / secs - 96_000)));
       let videoUri = input.video.uri;
       try {
         videoUri = await VideoCompressor.compress(input.video.uri, {
           compressionMethod: 'manual',
           maxSize: 1280,
-          bitrate: 1_600_000,
+          bitrate,
           minimumFileSizeForCompress: 2,
         } as any);
       } catch {
         videoUri = input.video.uri; // could not compress → upload the original
       }
       const bytes = await (await fetch(videoUri)).arrayBuffer();
-      if (bytes.byteLength > 25 * 1024 * 1024) throw new ApiError('video-too-big');
+      if (bytes.byteLength > 50 * 1024 * 1024) throw new ApiError('video-too-big');
       const mime = videoUri !== input.video.uri ? 'video/mp4' : input.video.mime && input.video.mime.startsWith('video/') ? input.video.mime : 'video/mp4';
       videoPath = `${name()}.${mime === 'video/quicktime' ? 'mov' : mime === 'video/3gpp' ? '3gp' : mime === 'video/webm' ? 'webm' : 'mp4'}`;
       const up = await supabase.storage.from('posts').upload(videoPath, bytes, { contentType: mime });
