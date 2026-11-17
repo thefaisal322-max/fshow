@@ -17,6 +17,11 @@ jobs:
             code=$(curl -s -o out.json -w '%{http_code}' -X POST "https://rtc.live.cloudflare.com/v1/turn/keys/$KEY/credentials/$ep" \
               -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"ttl": 3600}')
             echo "$ep → HTTP $code"
-            jq -c '[.. | .urls? // empty] | flatten' out.json 2>/dev/null || head -c 300 out.json; echo
+            jq -c '[.. | .urls? // empty] | flatten' out.json 2>/dev/null; echo
+            # error text only (no passwords): first 300 chars when not OK
+            [ "$code" = 200 ] || { head -c 300 out.json; echo; }
             jq -r 'if (.. | .username? // empty) then "has username: yes" else empty end' out.json 2>/dev/null | head -1
           done
+          # is it maybe a Realtime SFU app id (not a TURN key)?
+          code=$(curl -s -o sfu.json -w '%{http_code}' -X POST "https://rtc.live.cloudflare.com/v1/apps/$KEY/sessions/new" -H "Authorization: Bearer $TOKEN")
+          echo "SFU app check → HTTP $code"
