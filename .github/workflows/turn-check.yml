@@ -1,0 +1,22 @@
+name: TURN check
+
+# Checks that the Cloudflare TURN keys work (prints only status codes and server addresses, never passwords).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      KEY: ${{ secrets.CF_TURN_KEY_ID }}
+      TOKEN: ${{ secrets.CF_TURN_API_TOKEN }}
+    steps:
+      - run: |
+          echo "key id length: ${#KEY}, token length: ${#TOKEN}"
+          for ep in generate-ice-servers generate; do
+            code=$(curl -s -o out.json -w '%{http_code}' -X POST "https://rtc.live.cloudflare.com/v1/turn/keys/$KEY/credentials/$ep" \
+              -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"ttl": 3600}')
+            echo "$ep → HTTP $code"
+            jq -c '[.. | .urls? // empty] | flatten' out.json 2>/dev/null || head -c 300 out.json; echo
+            jq -r 'if (.. | .username? // empty) then "has username: yes" else empty end' out.json 2>/dev/null | head -1
+          done
