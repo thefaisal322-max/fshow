@@ -61,6 +61,43 @@ jobs:
             echo 'android.enableShrinkResourcesInReleaseBuilds=true'
           } >> android/gradle.properties
 
+      # Faisal Show's own signing key (made once by "Make signing key"). Without it the
+      # build falls back to the public debug key — anyone could then sign a fake "update".
+      - name: Sign with our own key
+        env:
+          PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        run: |
+          if [ -z "$PASS" ] || [ ! -f android-signing/fshow.p12.enc ]; then
+            echo "::warning title=Signing::APK is signed with the public debug key — run 'Make signing key (once)'"
+            exit 0
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 300000 -in android-signing/fshow.p12.enc -out android/app/fshow-release.p12 -pass env:PASS
+          {
+            echo "FSHOW_STORE_FILE=fshow-release.p12"
+            echo "FSHOW_STORE_PASSWORD=$PASS"
+            echo "FSHOW_KEY_ALIAS=fshow"
+            echo "FSHOW_KEY_PASSWORD=$PASS"
+          } >> android/gradle.properties
+          python3 - <<'PY'
+          import re
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          s = s.replace("signingConfigs {", '''signingConfigs {
+                  release {
+                      storeFile file(FSHOW_STORE_FILE)
+                      storePassword FSHOW_STORE_PASSWORD
+                      keyAlias FSHOW_KEY_ALIAS
+                      keyPassword FSHOW_KEY_PASSWORD
+                  }''', 1)
+          # the release build type uses it
+          i = s.index("release {", s.index("buildTypes"))
+          j = s.index("signingConfig signingConfigs.debug", i)
+          s = s[:j] + "signingConfig signingConfigs.release" + s[j + len("signingConfig signingConfigs.debug"):]
+          open(p, 'w').write(s)
+          PY
+          grep -n "signingConfig" android/app/build.gradle
+          echo "::notice title=Signing::signed with Faisal Show's own key"
+
       - name: Build APK (64-bit phones — almost all phones)
         working-directory: android
         run: |
