@@ -98,8 +98,30 @@ export default function Chats() {
             },
           ]
         : []),
-      { text: t('close'), style: 'cancel' as const },
-    ]);
+      {
+        // like Messenger: the chat and its messages go away for me only (it comes back if a new message arrives)
+        text: t('delete_chat'),
+        style: 'destructive' as const,
+        onPress: () =>
+          Alert.alert(t('delete_chat_q'), t('delete_chat_note'), [
+            { text: t('cancel'), style: 'cancel' },
+            {
+              text: t('delete'),
+              style: 'destructive',
+              onPress: async () => {
+                setItems((old) => old.filter((x) => x.id !== c.id));
+                try {
+                  await chat.deleteForMe(c.id);
+                  refreshChats();
+                } catch (e) {
+                  Alert.alert('', errorMessage(e));
+                  load();
+                }
+              },
+            },
+          ]),
+      },
+    ], { cancelable: true });
   }
 
   return (
