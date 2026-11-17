@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { IncomingCall } from '@/components/IncomingCall';
 import { Loading } from '@/components/ui';
 import { LanguageProvider, useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
@@ -56,6 +57,7 @@ function Gate() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack screenOptions={{ headerShown: false, headerBackTitle: t('back') }} />
+      {!loading && session && profile?.profileComplete && !profile.banned ? <IncomingCall me={session.user.id} /> : null}
       {loading ? <Loading /> : null}
       {!loading && profile?.banned ? (
         // account suspended by an admin

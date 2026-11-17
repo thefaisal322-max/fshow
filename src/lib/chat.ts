@@ -41,6 +41,8 @@ export type Message = {
   post: PostPreview | null;
   post_id?: string | null;
   forwarded?: boolean;
+  /** a finished call shown as a line in the chat */
+  call?: { video: boolean; status: 'ringing' | 'accepted' | 'declined' | 'missed' | 'ended' | 'busy'; caller_id: string; seconds: number } | null;
 };
 
 export type Attachment = { uri: string; type: 'image' | 'video' | 'audio'; mime?: string | null; size?: number | null };

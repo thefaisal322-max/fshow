@@ -29,6 +29,7 @@ import { VoiceMessage, VoiceRecorder } from '@/components/Voice';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { calls } from '@/lib/calls';
 import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, ChatMember, Message, REACTIONS, Reaction } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
 import { isOnline, presenceText, usePresence } from '@/lib/presence';
@@ -174,6 +175,21 @@ export default function ChatScreen() {
     }
   }
 
+  /** 📞 / 🎥 — start a call (direct chats) */
+  async function startCall(video: boolean) {
+    try {
+      const c = await calls.start(id, video);
+      if (c.status === 'busy') {
+        Alert.alert('', t('user_busy', { name: others[0]?.first_name ?? '' }));
+        refreshLatest();
+        return;
+      }
+      router.push({ pathname: '/call/[id]', params: { id: c.id, role: 'caller' } });
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    }
+  }
+
   /** 👍 button (when nothing is typed) — sends a big thumbs-up like Messenger */
   async function sendLike() {
     if (sending) return;
@@ -302,9 +318,21 @@ export default function ChatScreen() {
         options={{
           headerTitle,
           headerRight: () => (
-            <Pressable onPress={() => router.push({ pathname: '/chats/info/[id]', params: { id } })} hitSlop={10} style={{ paddingHorizontal: 8 }}>
-              <Ionicons name="information-circle" size={26} color={colors.primary} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 6 }}>
+              {info && !info.is_group && !blocked ? (
+                <>
+                  <Pressable onPress={() => startCall(false)} hitSlop={8}>
+                    <Ionicons name="call" size={23} color={colors.primary} />
+                  </Pressable>
+                  <Pressable onPress={() => startCall(true)} hitSlop={8}>
+                    <Ionicons name="videocam" size={25} color={colors.primary} />
+                  </Pressable>
+                </>
+              ) : null}
+              <Pressable onPress={() => router.push({ pathname: '/chats/info/[id]', params: { id } })} hitSlop={10}>
+                <Ionicons name="information-circle" size={26} color={colors.primary} />
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -329,6 +357,7 @@ export default function ChatScreen() {
                 onLongPress={() => setAction(item)}
                 onOpenOnce={() => openOnce(item)}
                 onOpenMedia={(v) => setViewer(v)}
+                onCallBack={(video) => startCall(video)}
               />
               {item.id === lastMineId ? <SeenBy message={item} members={others} isGroup={!!info?.is_group} /> : null}
             </>
@@ -550,6 +579,7 @@ function Bubble({
   onLongPress,
   onOpenOnce,
   onOpenMedia,
+  onCallBack,
 }: {
   m: Message;
   mine: boolean;
@@ -557,6 +587,7 @@ function Bubble({
   onLongPress: () => void;
   onOpenOnce: () => void;
   onOpenMedia: (v: Viewer) => void;
+  onCallBack: (video: boolean) => void;
 }) {
   const { t, d } = useI18n();
   // My messages sit on the reading-end side (right in English, left in Pashto/Dari).
@@ -564,6 +595,8 @@ function Bubble({
   const bg = mine ? colors.primary : colors.surface;
   const fg = mine ? '#fff' : colors.text;
   const reactions = Object.entries(m.reactions ?? {});
+
+  if (m.call) return <CallLine m={m} onLongPress={onLongPress} onCallBack={onCallBack} />;
 
   let content: ReactNode;
   if (m.deleted) {
@@ -642,6 +675,41 @@ function Bubble({
   );
 }
 
+/** "📞 Video call · 2:31" / "Missed call — Call back" in the middle of the chat. */
+function CallLine({ m, onLongPress, onCallBack }: { m: Message; onLongPress: () => void; onCallBack: (video: boolean) => void }) {
+  const { t, d } = useI18n();
+  const { session } = useAuth();
+  const c = m.call!;
+  const iCalled = c.caller_id === session?.user.id;
+  const failed = c.status === 'missed' || c.status === 'declined' || c.status === 'busy';
+  const mm = Math.floor(c.seconds / 60);
+  const ss = String(c.seconds % 60).padStart(2, '0');
+  const title = failed
+    ? iCalled
+      ? c.status === 'declined'
+        ? t('call_declined')
+        : c.status === 'busy'
+          ? t('busy_word')
+          : t('no_answer')
+      : t('missed_call')
+    : c.video
+      ? t('video_call')
+      : t('audio_call');
+  return (
+    <Pressable onLongPress={onLongPress} delayLongPress={250} onPress={() => onCallBack(c.video)} style={st.callLine}>
+      <View style={[st.callIcon, failed && { backgroundColor: '#E5383B' }]}>
+        <Ionicons name={c.video ? 'videocam' : 'call'} size={16} color="#fff" />
+      </View>
+      <View style={{ alignItems: d.items }}>
+        <Text style={st.callTitle}>{title}</Text>
+        <Text style={st.callSub}>
+          {failed ? t('call_back') : `${mm}:${ss}`}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function ChatMedia({ path, type, onOpen }: { path: string; type: 'image' | 'video'; onOpen: (v: Viewer) => void }) {
   const { t } = useI18n();
   const [url, setUrl] = useState<string | null>(null);
@@ -691,6 +759,10 @@ const st = StyleSheet.create({
   barItem: { alignItems: 'center', gap: 4, minWidth: 64 },
   barText: { fontSize: 12, fontWeight: '600' },
   fwd: { alignItems: 'center', gap: 3, marginBottom: 2 },
+  callLine: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8, marginVertical: 6 },
+  callIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  callTitle: { fontWeight: '700', color: colors.text, fontSize: 14 },
+  callSub: { color: colors.muted, fontSize: 12 },
   fwdText: { fontSize: 11, color: colors.muted },
   menu: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 10 },
   emojis: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6, marginBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },

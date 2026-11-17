@@ -46,5 +46,16 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
         run: supabase secrets set "RESEND_API_KEY=$RESEND_API_KEY" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
 
+      - name: Call (TURN) keys
+        env:
+          CF_TURN_KEY_ID: ${{ secrets.CF_TURN_KEY_ID }}
+          CF_TURN_API_TOKEN: ${{ secrets.CF_TURN_API_TOKEN }}
+        run: |
+          if [ -n "$CF_TURN_KEY_ID" ] && [ -n "$CF_TURN_API_TOKEN" ]; then
+            supabase secrets set "CF_TURN_KEY_ID=$CF_TURN_KEY_ID" "CF_TURN_API_TOKEN=$CF_TURN_API_TOKEN" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
+          else
+            echo "::warning title=Calls::add CF_TURN_KEY_ID and CF_TURN_API_TOKEN (Cloudflare Realtime → TURN) so calls connect on every network"
+          fi
+
       - name: Edge Functions
         run: supabase functions deploy --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes

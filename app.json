@@ -3,7 +3,7 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
         "backgroundImage": "./assets/adaptive-bg.png",
         "backgroundColor": "#D63AF9"
       },
-      "versionCode": 26
+      "versionCode": 27
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
@@ -55,6 +55,13 @@
           "photosPermission": "Faisal Show saves videos and photos you download to your gallery.",
           "savePhotosPermission": "Faisal Show saves videos and photos you download to your gallery.",
           "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Faisal Show uses the camera for video calls.",
+          "microphonePermission": "Faisal Show uses the microphone for calls and voice messages."
         }
       ]
     ],
