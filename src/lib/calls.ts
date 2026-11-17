@@ -353,28 +353,40 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
         }
       }
 
-      const ch = supabase.channel(`call:${call.id}`, { config: { broadcast: { self: false, ack: false } } });
-      chan.current = ch;
-      ch.on('broadcast', { event: 'sig' }, ({ payload }) => {
-        onSignalRef.current(payload as Signal).catch(() => {});
-      });
-      ch.subscribe((st) => {
-        if (st !== 'SUBSCRIBED') return;
-        if (role === 'callee') {
-          setPhase('connecting');
-          // say "I'm here" until the offer arrives
-          let n = 0;
-          const tick = () => {
-            if (gotOffer.current || closed.current || n++ > 25) return;
-            send({ t: 'ready' });
-            setTimeout(tick, 1200);
-          };
-          tick();
-        } else {
-          setPhase('ringing');
-          if (peerReady.current) makeOffer().catch(() => {});
-        }
-      });
+      // private channel: only the caller and callee may join (Realtime Authorization, see migration "hardening").
+      // If the server refuses private channels, both phones fall back to an open one so calls still work.
+      const join = (priv: boolean) => {
+        const ch = supabase.channel(priv ? `call:${call.id}` : `call-open:${call.id}`, {
+          config: { private: priv, broadcast: { self: false, ack: false } },
+        });
+        chan.current = ch;
+        ch.on('broadcast', { event: 'sig' }, ({ payload }) => {
+          onSignalRef.current(payload as Signal).catch(() => {});
+        });
+        ch.subscribe((st) => {
+          if ((st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') && priv && !closed.current) {
+            supabase.removeChannel(ch);
+            join(false);
+            return;
+          }
+          if (st !== 'SUBSCRIBED') return;
+          if (role === 'callee') {
+            setPhase('connecting');
+            // say "I'm here" until the offer arrives
+            let n = 0;
+            const tick = () => {
+              if (gotOffer.current || closed.current || n++ > 25) return;
+              send({ t: 'ready' });
+              setTimeout(tick, 1200);
+            };
+            tick();
+          } else {
+            setPhase('ringing');
+            if (peerReady.current) makeOffer().catch(() => {});
+          }
+        });
+      };
+      join(true);
     })();
     return () => {
       alive = false;
