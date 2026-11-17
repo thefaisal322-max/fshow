@@ -99,7 +99,14 @@ export default function CallScreen() {
       {showRemote || (showLocal && s.phase !== 'connected') ? <View style={st.shade} pointerEvents="none" /> : null}
 
       {/* name + status */}
-      <View style={[st.top, { paddingTop: insets.top + 24 }]}>
+      <View
+        style={[
+          st.top,
+          { paddingTop: insets.top + 24 },
+          // when the video fills the screen: name + time at the left, clear of my small camera
+          showRemote ? { alignItems: 'flex-start', paddingRight: 140, paddingTop: insets.top + 18 } : null,
+        ]}
+      >
         {!showRemote ? <Avatar uri={avatarUrl(other?.photo_path)} name={other?.first_name} size={showLocal && s.phase !== 'connected' ? 72 : 118} /> : null}
         <Text style={st.name} numberOfLines={1}>
           {other ? authorName(other) : ''}
