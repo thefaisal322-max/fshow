@@ -19,7 +19,7 @@ jobs:
             echo "$ep → HTTP $code"
             jq -c '[.. | .urls? // empty] | flatten' out.json 2>/dev/null; echo
             # error text only (no passwords): first 300 chars when not OK
-            [ "$code" = 200 ] || { head -c 300 out.json; echo; }
+            case "$code" in 2*) ;; *) jq -r ".error // empty" out.json 2>/dev/null;; esac
             jq -r 'if (.. | .username? // empty) then "has username: yes" else empty end' out.json 2>/dev/null | head -1
           done
           # is it maybe a Realtime SFU app id (not a TURN key)?
