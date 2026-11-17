@@ -90,6 +90,8 @@ type Signal =
   | { t: 'answer'; sdp: string }
   | { t: 'ice'; c: { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null } }
   | { t: 'cam'; on: boolean }
+  /** callee → caller: "the line dropped, please make a fresh connection" */
+  | { t: 'restart' }
   | { t: 'bye' };
 
 export type Phase = 'starting' | 'ringing' | 'connecting' | 'connected' | 'reconnecting' | 'ended';
@@ -118,6 +120,9 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
   const pendingIce = useRef<RTCIceCandidate[]>([]);
   const offered = useRef(false);
   const gotOffer = useRef(false);
+  /** when the connection dropped (weak internet) — we try to reconnect instead of hanging up */
+  const lostSince = useRef<number | null>(null);
+  const lastRestart = useRef(0);
   const peerReady = useRef(false);
   const closed = useRef(false);
 
@@ -178,6 +183,25 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
     send({ t: 'offer', sdp: offer.sdp ?? '' });
   }
 
+  /** Weak internet: make a new connection path without ending the call (ICE restart). */
+  async function restartIce() {
+    const p = pc.current;
+    if (!p || closed.current) return;
+    lastRestart.current = Date.now();
+    if (role === 'callee') {
+      send({ t: 'restart' });
+      return;
+    }
+    if (p.signalingState !== 'stable') return;
+    try {
+      const offer = await p.createOffer({ iceRestart: true } as never);
+      await p.setLocalDescription(offer);
+      send({ t: 'offer', sdp: offer.sdp ?? '' });
+    } catch {
+      /* try again on the next tick */
+    }
+  }
+
   async function flushIce() {
     const list = pendingIce.current;
     pendingIce.current = [];
@@ -196,6 +220,15 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
         /* ignore */
       }
       await makeOffer();
+    } else if (s.t === 'offer' && role === 'callee' && gotOffer.current) {
+      // a fresh offer while talking = reconnecting after the line dropped
+      await p.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: s.sdp }));
+      const answer = await p.createAnswer();
+      await p.setLocalDescription(answer);
+      send({ t: 'answer', sdp: answer.sdp ?? '' });
+      await flushIce();
+    } else if (s.t === 'restart' && role === 'caller') {
+      await restartIce();
     } else if (s.t === 'offer' && role === 'callee' && !gotOffer.current) {
       gotOffer.current = true;
       await p.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: s.sdp }));
@@ -292,6 +325,7 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
       on('connectionstatechange', () => {
         const s = p.connectionState;
         if (s === 'connected') {
+          lostSince.current = null;
           setPhase('connected');
           setConnectedAt((x) => x ?? Date.now());
           try {
@@ -299,8 +333,12 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
           } catch {
             /* ignore */
           }
-        } else if (s === 'disconnected') setPhase((x) => (x === 'ended' ? x : 'reconnecting'));
-        else if (s === 'failed') hangUp();
+        } else if (s === 'disconnected' || s === 'failed') {
+          // weak internet: keep the call, show "Reconnecting…" and try again (see the watchdog below)
+          if (lostSince.current === null) lostSince.current = Date.now();
+          setPhase((x) => (x === 'ended' ? x : x === 'connected' || x === 'reconnecting' ? 'reconnecting' : x));
+          if (s === 'failed') restartIce().catch(() => {});
+        }
       });
 
       if (role === 'caller') {
@@ -366,6 +404,20 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
     const t = setTimeout(() => hangUp(), 45_000);
     return () => clearTimeout(t);
   }, [call, role, phase, hangUp]);
+
+  // ───────── line dropped: try a fresh connection every 8 s; give up after 60 s ─────────
+  useEffect(() => {
+    if (phase !== 'reconnecting') return;
+    const t = setInterval(() => {
+      const since = lostSince.current;
+      if (since === null) return;
+      const gone = Date.now() - since;
+      if (gone > 60_000) hangUp();
+      else if (gone > 4000 && Date.now() - lastRestart.current > 8000) restartIce().catch(() => {});
+    }, 2000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, hangUp]);
 
   // leaving the screen ends the call
   useEffect(() => () => cleanup(), [cleanup]);
