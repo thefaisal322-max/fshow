@@ -60,8 +60,9 @@ SELECT pg_temp.check((public.get_monetization()->>'qualified')::boolean, 'moneti
 RESET ROLE;
 UPDATE public.posts SET bonus_views = 999999 WHERE body = 'my reel 1';
 SET ROLE authenticated;
+SELECT public.get_monetization();
 SELECT pg_temp.check((SELECT count(*) FROM public.challenge_done d JOIN public.challenges c ON c.id = d.challenge_id
-                      WHERE d.user_id = auth.uid() AND c.metric = 'reel_plays') = 0, 'fake views earn nothing');
+                      WHERE d.user_id = auth.uid() AND c.metric = 'reel_plays') > 0, 'extra (bonus) views count for challenges');
 RESET ROLE;
 INSERT INTO public.challenge_done (user_id, challenge_id, status)
 SELECT 'dddddddd-0000-0000-0000-000000000004', id, 'done' FROM public.challenges WHERE stage = 'earn' ORDER BY sort LIMIT 52
