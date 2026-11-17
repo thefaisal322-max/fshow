@@ -385,6 +385,11 @@ export function postLink(id: string): string {
   return `https://fshow-media.pages.dev/p/?id=${id}`;
 }
 
+/** Profile link: opens the profile in the app, or shows it with a download button (web/u/index.html). */
+export function profileLink(userId: string): string {
+  return `https://fshow-media.pages.dev/u/?id=${userId}`;
+}
+
 /** True when a text is only emojis (shown big, like a sticker). Works without Unicode regex support. */
 export function isEmojiOnly(text: string): boolean {
   const chars = Array.from(text.replace(/\s/g, ''));

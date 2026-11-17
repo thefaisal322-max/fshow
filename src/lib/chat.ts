@@ -4,8 +4,9 @@ import { ApiError } from './api';
 import type { Author, PostPreview } from './social';
 import { supabase } from './supabase';
 
-export const REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍'] as const;
-export type Reaction = (typeof REACTIONS)[number];
+/** The quick ones on long-press (like Messenger); "+" opens every emoji. */
+export const REACTIONS = ['❤️', '😆', '😮', '😢', '😡', '👍'] as const;
+export type Reaction = string;
 
 export type Conversation = {
   id: string;
@@ -38,6 +39,8 @@ export type Message = {
   my_reaction: Reaction | null;
   sender: Author;
   post: PostPreview | null;
+  post_id?: string | null;
+  forwarded?: boolean;
 };
 
 export type Attachment = { uri: string; type: 'image' | 'video' | 'audio'; mime?: string | null; size?: number | null };
@@ -173,6 +176,37 @@ export const chat = {
     if (ins.error?.code === '23505') {
       check(await supabase.from('message_reactions').update({ emoji }).eq('message_id', messageId).eq('user_id', me));
     } else if (ins.error) check(ins);
+  },
+
+  /** Delete for me: only I stop seeing it. */
+  hide: async (messageId: string) => {
+    check(await supabase.rpc('hide_message', { p_message: messageId }));
+  },
+
+  /** Forward to other chats: the file is copied (each chat keeps its own), the new message says "Forwarded". */
+  forward: async (m: Message, convIds: string[]) => {
+    for (const convId of convIds) {
+      let media: string | null = null;
+      if (m.media_path && m.media_type) {
+        const ext = m.media_path.split('.').pop() || 'bin';
+        const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+        media = `${convId}/${id}.${ext}`;
+        const cp = await supabase.storage.from('chats').copy(m.media_path, media);
+        if (cp.error) throw new ApiError('upload-failed');
+      }
+      const r = await supabase.from('messages').insert({
+        conversation_id: convId,
+        body: m.body ?? '',
+        media_path: media,
+        media_type: media ? m.media_type : null,
+        post_id: m.post_id ?? m.post?.id ?? null,
+        forwarded: true,
+      });
+      if (r.error) {
+        if (media) await supabase.storage.from('chats').remove([media]);
+        check(r);
+      }
+    }
   },
 
   /** Opens a view-once message (only once) and returns its content. */

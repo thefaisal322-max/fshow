@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
+import * as ScreenCapture from 'expo-screen-capture';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -19,6 +21,8 @@ import {
 } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
+import { EmojiPicker } from '@/components/EmojiPicker';
+import { ForwardSheet } from '@/components/ForwardSheet';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { FeedVideo } from '@/components/Video';
 import { VoiceMessage, VoiceRecorder } from '@/components/Voice';
@@ -56,6 +60,8 @@ export default function ChatScreen() {
   const [action, setAction] = useState<Message | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [recording, setRecording] = useState(false);
+  const [picker, setPicker] = useState<Message | null>(null);
+  const [forwarding, setForwarding] = useState<Message | null>(null);
   const loadingOlder = useRef(false);
   const lastMineId = msgs.find((m) => m.sender_id === me && !m.deleted)?.id;
 
@@ -168,6 +174,21 @@ export default function ChatScreen() {
     }
   }
 
+  /** 👍 button (when nothing is typed) — sends a big thumbs-up like Messenger */
+  async function sendLike() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await chat.send(id, { body: '👍', replyTo: replyTo?.id });
+      setReplyTo(null);
+      await refreshLatest();
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function sendVoice(uri: string) {
     setRecording(false);
     setSending(true);
@@ -184,30 +205,52 @@ export default function ChatScreen() {
 
   async function react(m: Message, emoji: Reaction) {
     setAction(null);
+    setPicker(null);
+    const off = m.my_reaction === emoji;
+    // show it right away
+    setMsgs((old) =>
+      old.map((x) => {
+        if (x.id !== m.id) return x;
+        const r = { ...(x.reactions ?? {}) };
+        if (x.my_reaction) r[x.my_reaction] = Math.max(0, (r[x.my_reaction] ?? 1) - 1);
+        if (!off) r[emoji] = (r[emoji] ?? 0) + 1;
+        for (const k of Object.keys(r)) if (!r[k]) delete r[k];
+        return { ...x, reactions: r, my_reaction: off ? null : emoji };
+      }),
+    );
     try {
-      await chat.react(m.id, m.my_reaction === emoji ? null : emoji, me);
+      await chat.react(m.id, off ? null : emoji, me);
       await refreshLatest();
     } catch (e) {
       Alert.alert('', errorMessage(e));
+      refreshLatest();
     }
   }
 
+  /** Delete for you (only you stop seeing it) · Delete for everyone (your own messages) */
   function remove(m: Message) {
     setAction(null);
-    Alert.alert(t('delete_for_everyone'), '', [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await chat.remove(m.id);
-            await refreshLatest();
-          } catch (e) {
-            Alert.alert('', errorMessage(e));
-          }
-        },
-      },
+    const forMe = async () => {
+      setMsgs((old) => old.filter((x) => x.id !== m.id));
+      try {
+        await chat.hide(m.id);
+      } catch (e) {
+        Alert.alert('', errorMessage(e));
+        refreshLatest();
+      }
+    };
+    const forAll = async () => {
+      try {
+        await chat.remove(m.id);
+        await refreshLatest();
+      } catch (e) {
+        Alert.alert('', errorMessage(e));
+      }
+    };
+    Alert.alert(t('delete_msg_q'), '', [
+      ...(m.sender_id === me && !m.deleted ? [{ text: t('delete_for_everyone'), style: 'destructive' as const, onPress: forAll }] : []),
+      { text: t('delete_for_me'), style: 'destructive' as const, onPress: forMe },
+      { text: t('cancel'), style: 'cancel' as const },
     ]);
   }
 
@@ -283,7 +326,7 @@ export default function ChatScreen() {
                 m={item}
                 mine={item.sender_id === me}
                 showName={!!info?.is_group && item.sender_id !== me && msgs[index + 1]?.sender_id !== item.sender_id}
-                onLongPress={() => !item.deleted && setAction(item)}
+                onLongPress={() => setAction(item)}
                 onOpenOnce={() => openOnce(item)}
                 onOpenMedia={(v) => setViewer(v)}
               />
@@ -368,9 +411,14 @@ export default function ChatScreen() {
           style={[st.input, { textAlign: d.align, writingDirection: d.writing }]}
         />
         {!text.trim() && !attachment && !sending ? (
-          <Pressable onPress={() => setRecording(true)} hitSlop={6} style={st.iconBtn}>
-            <Ionicons name="mic" size={24} color={colors.primary} />
-          </Pressable>
+          <>
+            <Pressable onPress={() => setRecording(true)} hitSlop={6} style={st.iconBtn}>
+              <Ionicons name="mic" size={24} color={colors.primary} />
+            </Pressable>
+            <Pressable onPress={sendLike} hitSlop={6} style={st.iconBtn}>
+              <Ionicons name="thumbs-up" size={25} color={colors.primary} />
+            </Pressable>
+          </>
         ) : (
         <Pressable onPress={send} disabled={sending || (!text.trim() && !attachment)} style={[st.iconBtn, { opacity: text.trim() || attachment ? 1 : 0.4 }]}>
           {sending ? (
@@ -383,53 +431,115 @@ export default function ChatScreen() {
       </View>
       )}
 
-      {/* long-press menu */}
+      {/* long-press: quick reactions on top, actions at the bottom (like Messenger) */}
       <Modal visible={!!action} transparent animationType="fade" onRequestClose={() => setAction(null)}>
-        <Pressable style={st.backdrop} onPress={() => setAction(null)}>
-          {action ? (
-            <View style={st.menu}>
-              <View style={st.emojis}>
+        <Pressable style={st.backdrop} onPress={() => setAction(null)} />
+        {action ? (
+          <View style={[st.sheetWrap, { paddingBottom: bottom }]} pointerEvents="box-none">
+            {!action.deleted ? (
+              <View style={[st.reactBar, { flexDirection: d.row }]}>
                 {REACTIONS.map((e) => (
                   <Pressable key={e} onPress={() => react(action, e)} style={[st.emoji, action.my_reaction === e && { backgroundColor: colors.soft }]}>
-                    <Text style={{ fontSize: 28 }}>{e}</Text>
+                    <Text style={{ fontSize: 30 }}>{e}</Text>
                   </Pressable>
                 ))}
+                <Pressable
+                  onPress={() => {
+                    setPicker(action);
+                    setAction(null);
+                  }}
+                  style={[st.emoji, st.plus, action.my_reaction && !(REACTIONS as readonly string[]).includes(action.my_reaction) && { backgroundColor: colors.soft }]}
+                >
+                  {action.my_reaction && !(REACTIONS as readonly string[]).includes(action.my_reaction) ? (
+                    <Text style={{ fontSize: 24 }}>{action.my_reaction}</Text>
+                  ) : (
+                    <Ionicons name="add" size={24} color={colors.text} />
+                  )}
+                </Pressable>
               </View>
-              <MenuItem icon="arrow-undo" label={t('reply')} onPress={() => { setReplyTo(action); setAction(null); }} />
-              {action.body && !action.view_once ? (
-                <MenuItem icon="copy-outline" label={t('copy')} onPress={() => { Clipboard.setStringAsync(action.body); setAction(null); }} />
+            ) : null}
+            <View style={[st.actionBar, { flexDirection: d.row }]}>
+              {!action.deleted ? (
+                <BarItem icon="arrow-undo" label={t('reply')} onPress={() => { setReplyTo(action); setAction(null); }} />
               ) : null}
-              {action.sender_id === me ? (
-                <MenuItem icon="trash-outline" label={t('delete_for_everyone')} color={colors.error} onPress={() => remove(action)} />
+              {action.body && !action.view_once && !action.deleted ? (
+                <BarItem icon="copy" label={t('copy')} onPress={() => { Clipboard.setStringAsync(action.body); setAction(null); }} />
               ) : null}
+              {!action.deleted && !action.view_once ? (
+                <BarItem icon="arrow-redo" label={t('forward')} onPress={() => { setForwarding(action); setAction(null); }} />
+              ) : null}
+              <BarItem icon="trash" label={t('delete')} color={colors.error} onPress={() => remove(action)} />
             </View>
-          ) : null}
-        </Pressable>
+          </View>
+        ) : null}
       </Modal>
 
-      {/* photo / video / view-once viewer */}
-      <Modal visible={!!viewer} transparent={false} animationType="fade" onRequestClose={() => setViewer(null)}>
+      <EmojiPicker
+        visible={!!picker}
+        quick={REACTIONS}
+        selected={picker?.my_reaction}
+        onClose={() => setPicker(null)}
+        onPick={(e) => picker && react(picker, e)}
+      />
+      {forwarding ? <ForwardSheet message={forwarding} currentChat={id} onClose={() => setForwarding(null)} /> : null}
+
+      {/* photo / video viewer */}
+      <Modal visible={!!viewer && !viewer.once} transparent={false} animationType="fade" onRequestClose={() => setViewer(null)}>
         <View style={st.viewer}>
           {viewer?.kind === 'image' ? <Image source={{ uri: viewer.url }} style={{ flex: 1 }} resizeMode="contain" /> : null}
           {viewer?.kind === 'video' ? <FeedVideo uri={viewer.url} style={{ flex: 1 }} /> : null}
           {viewer && viewer.body ? <Text style={st.viewerText}>{viewer.body}</Text> : null}
-          {viewer?.once ? <Text style={st.viewerNote}>🔒 {t('once_closes')}</Text> : null}
           <Pressable style={st.viewerClose} onPress={() => setViewer(null)} hitSlop={10}>
             <Ionicons name="close" size={30} color="#fff" />
           </Pressable>
         </View>
       </Modal>
+      {/* view once: drawn inside this screen (not a Modal window) so screenshots and screen recording are blocked */}
+      {viewer?.once ? <OnceViewer viewer={viewer} onClose={() => setViewer(null)} /> : null}
     </KeyboardAvoidingView>
   );
 }
 
-function MenuItem({ icon, label, onPress, color = colors.text }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; color?: string }) {
-  const { d } = useI18n();
+function BarItem({ icon, label, onPress, color = colors.primary }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; color?: string }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [st.menuItem, { flexDirection: d.row }, pressed && { backgroundColor: colors.bg }]}>
-      <Ionicons name={icon} size={20} color={color} />
-      <Text style={{ fontSize: 16, color, flex: 1, textAlign: d.align }}>{label}</Text>
+    <Pressable onPress={onPress} style={st.barItem} hitSlop={4}>
+      <Ionicons name={icon} size={24} color={color} />
+      <Text style={[st.barText, { color: color === colors.primary ? colors.text : color }]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
+  );
+}
+
+/** View-once content. While it is open the phone blocks screenshots and screen recording (black image). */
+function OnceViewer({ viewer, onClose }: { viewer: Viewer; onClose: () => void }) {
+  const { t } = useI18n();
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    ScreenCapture.preventScreenCaptureAsync('view-once').catch(() => {});
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {
+      close.current();
+      return true;
+    });
+    // iPhone cannot block a screenshot fully — close it if one is taken
+    const shot = ScreenCapture.addScreenshotListener(() => close.current());
+    return () => {
+      back.remove();
+      shot.remove();
+      ScreenCapture.allowScreenCaptureAsync('view-once').catch(() => {});
+    };
+  }, []);
+  return (
+    <View style={[StyleSheet.absoluteFill, st.viewer, { zIndex: 50, elevation: 50 }]}>
+      {viewer.kind === 'image' ? <Image source={{ uri: viewer.url }} style={{ flex: 1 }} resizeMode="contain" /> : null}
+      {viewer.kind === 'video' ? <FeedVideo uri={viewer.url} style={{ flex: 1 }} /> : null}
+      {viewer.body ? <Text style={st.viewerText}>{viewer.body}</Text> : null}
+      <Text style={st.viewerNote}>🔒 {t('once_closes')} · {t('no_screenshots')}</Text>
+      <Pressable style={st.viewerClose} onPress={onClose} hitSlop={10}>
+        <Ionicons name="close" size={30} color="#fff" />
+      </Pressable>
+    </View>
   );
 }
 
@@ -457,7 +567,11 @@ function Bubble({
 
   let content: ReactNode;
   if (m.deleted) {
-    content = <Text style={[st.body, { color: mine ? '#dfe9fb' : colors.muted, fontStyle: 'italic' }]}>{t('deleted_msg')}</Text>;
+    content = (
+      <Text style={[st.body, { color: colors.muted, fontStyle: 'italic' }]}>
+        {mine ? t('you_deleted_msg') : t('x_deleted_msg', { name: m.sender.first_name })}
+      </Text>
+    );
   } else if (m.view_once) {
     if (mine) content = <Text style={[st.body, { color: fg }]}>{t('view_once_sent')}{m.opened ? ` · ${t('opened')}` : ''}</Text>;
     else if (m.opened) content = <Text style={[st.body, { color: colors.muted, fontStyle: 'italic' }]}>🔒 {t('opened')}</Text>;
@@ -483,6 +597,12 @@ function Bubble({
   return (
     <View style={{ alignItems: end ? 'flex-end' : 'flex-start', marginVertical: 2 }}>
       {showName ? <Text style={st.sender}>{m.sender.first_name}</Text> : null}
+      {m.forwarded && !m.deleted ? (
+        <View style={[st.fwd, { flexDirection: d.row }, mine ? null : { marginHorizontal: 40 }]}>
+          <Ionicons name="arrow-redo" size={11} color={colors.muted} />
+          <Text style={st.fwdText}>{mine ? t('you_forwarded') : t('forwarded')}</Text>
+        </View>
+      ) : null}
       <View style={{ flexDirection: end ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 6, maxWidth: '82%' }}>
         {!mine ? <Avatar uri={avatarUrl(m.sender.photo_path)} name={m.sender.first_name} size={26} /> : null}
         <Pressable
@@ -493,7 +613,9 @@ function Bubble({
             // a voice message alone is its own pill (no bubble around it)
             m.media_type === 'audio' && !m.body && !m.reply && !m.post && !m.deleted
               ? { backgroundColor: 'transparent', paddingHorizontal: 0, paddingVertical: 0 }
-              : { backgroundColor: bg },
+              : m.deleted
+                ? { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border }
+                : { backgroundColor: bg },
           ]}
         >
           {m.reply ? (
@@ -561,7 +683,15 @@ const st = StyleSheet.create({
   composer: { alignItems: 'flex-end', gap: 4, padding: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   iconBtn: { padding: 6, paddingBottom: 9 },
   input: { flex: 1, backgroundColor: colors.bg, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 9, fontSize: 16, maxHeight: 120, color: colors.text },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', padding: 24 },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+  reactBar: { alignSelf: 'center', alignItems: 'center', gap: 2, backgroundColor: colors.card, borderRadius: 30, paddingHorizontal: 8, paddingVertical: 6, marginBottom: 14, elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  plus: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginHorizontal: 2 },
+  actionBar: { backgroundColor: colors.card, justifyContent: 'space-around', paddingTop: 12, paddingBottom: 10, borderTopLeftRadius: 14, borderTopRightRadius: 14 },
+  barItem: { alignItems: 'center', gap: 4, minWidth: 64 },
+  barText: { fontSize: 12, fontWeight: '600' },
+  fwd: { alignItems: 'center', gap: 3, marginBottom: 2 },
+  fwdText: { fontSize: 11, color: colors.muted },
   menu: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 10 },
   emojis: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 6, marginBottom: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   emoji: { padding: 4, borderRadius: 20 },

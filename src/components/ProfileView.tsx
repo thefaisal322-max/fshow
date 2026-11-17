@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
 import { friends } from '@/lib/friends';
 import { profileSignal } from '@/lib/signals';
-import { authorName, formatCount, social, UserProfile } from '@/lib/social';
+import { authorName, formatCount, profileLink, social, UserProfile } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
@@ -157,9 +158,20 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
     }
   }
 
+  async function copyProfileLink() {
+    await Clipboard.setStringAsync(profileLink(userId));
+    Alert.alert('', t('link_copied'));
+  }
+
   function menu() {
     if (!user) return;
+    if (isMe) {
+      copyProfileLink();
+      return;
+    }
+    // (Android shows at most 3 buttons; tap outside to close)
     Alert.alert('', '', [
+      { text: t('copy_profile_link'), onPress: copyProfileLink },
       {
         text: user.blocked_by_me ? t('unblock') : t('block'),
         style: 'destructive',
@@ -191,19 +203,20 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
           }
         },
       },
-      { text: t('close'), style: 'cancel' },
-    ]);
+    ], { cancelable: true });
   }
 
   const header = user ? (
     <View>
       <OfflineBanner />
       <View style={st.cover}>
-        {!isMe ? (
-          <Pressable onPress={menu} style={[st.menuBtn, d.rtl ? { left: 12 } : { right: 12 }]} hitSlop={10}>
+        <Pressable onPress={menu} style={[st.menuBtn, d.rtl ? { left: 12 } : { right: 12 }]} hitSlop={10}>
+          {isMe ? (
+            <Ionicons name="link" size={24} color="#fff" />
+          ) : (
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>⋯</Text>
-          </Pressable>
-        ) : null}
+          )}
+        </Pressable>
       </View>
       <View style={st.avatarWrap}>
         <View style={st.avatarRing}>

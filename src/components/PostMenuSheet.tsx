@@ -220,7 +220,7 @@ export function PostMenuSheet({
                   <>
                     <Item icon={vis.icon} label={t('privacy')} value={t(vis.label)} onPress={() => setView('privacy')} />
                     <Item icon="create-outline" label={t('edit_post')} onPress={() => setView('edit')} />
-                    <Item icon="trash-outline" label={t('delete_post')} onPress={remove} danger />
+                    <Item icon="trash-outline" label={post.video_path ? t('delete_video') : t('delete_post')} onPress={remove} danger />
                   </>
                 ) : (
                   <>

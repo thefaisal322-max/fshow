@@ -3,6 +3,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { forwardRef, ReactElement, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { PostMenuSheet } from '@/components/PostMenuSheet';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { formatCount, Post, postImageUrl, videoUrl } from '@/lib/social';
@@ -24,6 +25,8 @@ export const ReelGrid = forwardRef<
   const [refreshing, setRefreshing] = useState(false);
   const [more, setMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // long-press a video → its menu (privacy, edit, delete video…)
+  const [menu, setMenu] = useState<Post | null>(null);
 
   const fetchPage = useCallback(
     async (reset: boolean) => {
@@ -54,6 +57,7 @@ export const ReelGrid = forwardRef<
   const cell = Math.floor((width - 16 - 4) / 3);
 
   return (
+    <>
     <FlatList
       data={items}
       keyExtractor={(p) => p.id}
@@ -74,7 +78,7 @@ export const ReelGrid = forwardRef<
           tintColor={colors.primary}
         />
       }
-      renderItem={({ item }) => <ReelCell post={item} size={cell} onPress={() => onOpen(item)} />}
+      renderItem={({ item }) => <ReelCell post={item} size={cell} onPress={() => onOpen(item)} onLongPress={() => setMenu(item)} />}
       ListEmptyComponent={
         loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
@@ -86,13 +90,22 @@ export const ReelGrid = forwardRef<
         )
       }
     />
+    {menu ? (
+      <PostMenuSheet
+        post={menu}
+        onClose={() => setMenu(null)}
+        onChange={(p) => setItems((old) => old.map((x) => (x.id === p.id ? p : x)))}
+        onRemoved={(id) => setItems((old) => old.filter((x) => x.id !== id))}
+      />
+    ) : null}
+    </>
   );
 });
 
-export function ReelCell({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
+export function ReelCell({ post, size, onPress, onLongPress }: { post: Post; size: number; onPress: () => void; onLongPress?: () => void }) {
   const thumb = postImageUrl(post.thumb_path ?? null);
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [st.cell, { width: size, height: Math.round(size * 1.6) }, pressed && { opacity: 0.8 }]}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} style={({ pressed }) => [st.cell, { width: size, height: Math.round(size * 1.6) }, pressed && { opacity: 0.8 }]}>
       {thumb ? (
         <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : post.video_path ? (

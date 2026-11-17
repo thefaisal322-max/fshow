@@ -44,7 +44,7 @@ export const ps = {
   e_username_invalid: 'ID Name سم نه دی', e_invalid_credentials: 'ایمیل یا پاسورډ غلط دی', e_disabled: 'دا حساب بند شوی',
   e_image_big: 'فایل ډېر لوی دی', e_upload: 'فایل پورته نه شو. بیا هڅه وکړئ', e_email_send: 'ایمیل ونه لېږل شو. بیا هڅه وکړئ',
   e_invalid_input: 'معلومات سم نه دي', e_relogin: 'بیا Login وکړئ', e_network: 'سرور ته نه رسېږو. انټرنېټ وګورئ او بیا هڅه وکړئ',
-  e_generic: 'یوه ستونزه پېښه شوه. بیا هڅه وکړئ', e_video_long: 'ویډیو باید تر ۳ دقیقو لنډه وي', e_video_big: 'ویډیو باید تر 50MB کمه وي',
+  e_generic: 'یوه ستونزه پېښه شوه. بیا هڅه وکړئ', emoji_search: 'لټون', delete_video: 'ویډیو ړنګه کړئ', your_reactions: 'ستاسو غبرګونونه', recent_emojis: 'وروستي', delete_msg_q: 'پیغام ړنګ کړئ؟', delete_for_me: 'یوازې زما لپاره ړنګ کړئ', forward: 'مخ ته واستوئ', you_deleted_msg: 'تاسو یو پیغام ړنګ کړ', x_deleted_msg: '{name} یو پیغام ړنګ کړ', forwarded: 'مخ ته لېږل شوی', you_forwarded: 'تاسو مخ ته ولېږه', no_screenshots: 'سکرین شاټ نه شي اخیستل کېدی', group_word: 'ګروپ', sent_word: 'ولېږل شو', copy_profile_link: 'د پروفایل لینک کاپي کړئ', e_video_long: 'ویډیو باید تر ۳ دقیقو لنډه وي', e_video_big: 'ویډیو باید تر 50MB کمه وي',
   e_already_opened: 'دا پیغام مخکې خلاص شوی', e_forbidden: 'اجازه نشته',
 
   // tabs
@@ -201,7 +201,7 @@ export const en: Dict = {
   e_username_invalid: 'ID Name is not valid', e_invalid_credentials: 'Wrong email or password', e_disabled: 'This account is disabled',
   e_image_big: 'File is too large', e_upload: 'Upload failed. Try again', e_email_send: 'Email could not be sent. Try again',
   e_invalid_input: 'Invalid information', e_relogin: 'Please log in again', e_network: 'Cannot reach the server. Check your internet',
-  e_generic: 'Something went wrong. Try again', e_video_long: 'Video must be shorter than 3 minutes', e_video_big: 'Video must be under 50 MB',
+  e_generic: 'Something went wrong. Try again', emoji_search: 'Search', delete_video: 'Delete video', your_reactions: 'Your reactions', recent_emojis: 'Recent', delete_msg_q: 'Delete message?', delete_for_me: 'Delete for you', forward: 'Forward', you_deleted_msg: 'You deleted a message', x_deleted_msg: '{name} deleted a message', forwarded: 'Forwarded', you_forwarded: 'You forwarded a message', no_screenshots: 'Screenshots are blocked', group_word: 'Group', sent_word: 'Sent', copy_profile_link: 'Copy profile link', e_video_long: 'Video must be shorter than 3 minutes', e_video_big: 'Video must be under 50 MB',
   e_already_opened: 'This message was already opened', e_forbidden: 'Not allowed',
 
   tab_home: 'Home', tab_reels: 'Reels', tab_noti: 'Notifications', tab_profile: 'Profile',
@@ -343,7 +343,7 @@ export const fa: Dict = {
   e_username_invalid: 'ID Name درست نیست', e_invalid_credentials: 'ایمیل یا رمز اشتباه است', e_disabled: 'این حساب مسدود شده',
   e_image_big: 'فایل خیلی بزرگ است', e_upload: 'فایل بالا نشد. دوباره کوشش کنید', e_email_send: 'ایمیل فرستاده نشد. دوباره کوشش کنید',
   e_invalid_input: 'معلومات درست نیست', e_relogin: 'دوباره Login کنید', e_network: 'به سرور وصل نمی‌شویم. انترنت را ببینید',
-  e_generic: 'مشکلی پیش آمد. دوباره کوشش کنید', e_video_long: 'ویدیو باید کمتر از ۳ دقیقه باشد', e_video_big: 'ویدیو باید کمتر از 50MB باشد',
+  e_generic: 'مشکلی پیش آمد. دوباره کوشش کنید', emoji_search: 'جستجو', delete_video: 'حذف ویدیو', your_reactions: 'واکنش‌های شما', recent_emojis: 'اخیر', delete_msg_q: 'پیام حذف شود؟', delete_for_me: 'حذف فقط برای من', forward: 'ارسال به دیگران', you_deleted_msg: 'شما یک پیام را حذف کردید', x_deleted_msg: '{name} یک پیام را حذف کرد', forwarded: 'ارسال‌شده', you_forwarded: 'شما یک پیام ارسال کردید', no_screenshots: 'اسکرین‌شات ممکن نیست', group_word: 'گروه', sent_word: 'ارسال شد', copy_profile_link: 'کپی لینک پروفایل', e_video_long: 'ویدیو باید کمتر از ۳ دقیقه باشد', e_video_big: 'ویدیو باید کمتر از 50MB باشد',
   e_already_opened: 'این پیام قبلاً باز شده', e_forbidden: 'اجازه نیست',
 
   tab_home: 'Home', tab_reels: 'Reels', tab_noti: 'Notifications', tab_profile: 'Profile',
