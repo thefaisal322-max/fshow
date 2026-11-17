@@ -20,10 +20,10 @@ SELECT pg_temp.check((SELECT count(*) FROM public.challenges WHERE stage = 'qual
 SELECT pg_temp.check((SELECT count(*) FROM public.challenges WHERE stage = 'earn') = 100, '100 earn challenges');
 SELECT pg_temp.check((SELECT metric FROM public.challenges WHERE id = 2) = 'hesabpay_account', 'rule 2 = HesabPay');
 
--- D: 3 reels + 30 followers
-UPDATE public.profiles SET followers_count = 31, bonus_followers = 0, banned = false WHERE id = 'dddddddd-0000-0000-0000-000000000004';
+-- D: 5 reels + 100 followers
+UPDATE public.profiles SET followers_count = 101, bonus_followers = 0, banned = false WHERE id = 'dddddddd-0000-0000-0000-000000000004';
 INSERT INTO public.posts (author_id, body, video_path)
-SELECT 'dddddddd-0000-0000-0000-000000000004', 'my reel ' || g, 'dddddddd-0000-0000-0000-000000000004/r' || g || '.mp4' FROM generate_series(1, 3) g;
+SELECT 'dddddddd-0000-0000-0000-000000000004', 'my reel ' || g, 'dddddddd-0000-0000-0000-000000000004/r' || g || '.mp4' FROM generate_series(1, 5) g;
 
 SET ROLE authenticated;
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
