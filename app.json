@@ -3,7 +3,7 @@
     "name": "Faisal Show",
     "slug": "fshow",
     "scheme": "fshow",
-    "version": "0.13.1",
+    "version": "0.14.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -14,7 +14,8 @@
         "backgroundImage": "./assets/adaptive-bg.png",
         "backgroundColor": "#D63AF9"
       },
-      "versionCode": 28
+      "versionCode": 29,
+      "googleServicesFile": "./google-services.json"
     },
     "ios": {
       "bundleIdentifier": "org.fainet.fshow"
@@ -62,6 +63,16 @@
         {
           "cameraPermission": "Faisal Show uses the camera for video calls.",
           "microphonePermission": "Faisal Show uses the microphone for calls and voice messages."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FE2C55",
+          "sounds": [
+            "./assets/sounds/ringtone.wav"
+          ]
         }
       ]
     ],

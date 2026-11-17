@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { IncomingCall } from '@/components/IncomingCall';
+import { registerPush, usePushTaps } from '@/lib/push';
 import { Loading } from '@/components/ui';
 import { LanguageProvider, useI18n } from '@/i18n';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
@@ -35,12 +36,19 @@ const navTheme = {
  */
 function Gate() {
   const { session, profile, loading: authLoading, signOut } = useAuth();
-  const { ready: langReady, t } = useI18n();
+  const { ready: langReady, t, lang } = useI18n();
   const loading = authLoading || !langReady;
   const segments = useSegments();
   const router = useRouter();
   const group = segments[0];
   usePresenceHeartbeat(profile?.profileComplete ? session?.user.id : undefined);
+
+  // push notifications (works when the app is closed): save this phone for my account
+  const pushReady = !loading && !!session && !!profile?.profileComplete && !profile?.banned;
+  useEffect(() => {
+    if (pushReady) registerPush(lang);
+  }, [pushReady, session?.user.id, lang]);
+  usePushTaps(pushReady);
 
   useEffect(() => {
     if (loading) return;

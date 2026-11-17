@@ -1,3 +1,4 @@
+import { unregisterPush } from './push';
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import * as ImageManipulator from 'expo-image-manipulator';
 
@@ -89,6 +90,7 @@ export const api = {
   },
 
   async logout() {
+    await unregisterPush();
     await supabase.auth.signOut();
   },
 

@@ -8,6 +8,7 @@ import { Avatar } from '@/components/Avatar';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { Call, calls, ring } from '@/lib/calls';
+import { dismissCallNotification } from '@/lib/push';
 import { authorName } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
 
@@ -33,6 +34,7 @@ export function IncomingCall({ me }: { me: string }) {
 
   const hide = useCallback(() => {
     ring.stop();
+    if (current.current) dismissCallNotification(current.current);
     current.current = null;
     setCall(null);
     setBusy(false);

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "775585657675",
+    "project_id": "fshow-cf0a0",
+    "storage_bucket": "fshow-cf0a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:775585657675:android:9f747290e0e40dff81eece",
+        "android_client_info": {
+          "package_name": "org.fainet.fshow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATot7ZKwtiRVi-A5jlNkf-eHjTBWYHWh4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -57,5 +57,31 @@ jobs:
             echo "::warning title=Calls::add CF_TURN_KEY_ID and CF_TURN_API_TOKEN (Cloudflare Realtime → TURN) so calls connect on every network"
           fi
 
+      - name: Push (Firebase) keys
+        env:
+          FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}
+        run: |
+          if [ -n "$FCM_SERVICE_ACCOUNT" ]; then
+            # the hook secret is derived from the Firebase key, so it never has to be typed in anywhere
+            HOOK=$(printf '%s fshow-push-hook' "$FCM_SERVICE_ACCOUNT" | sha256sum | cut -c1-48)
+            echo "::add-mask::$HOOK"
+            echo "PUSH_HOOK_SECRET=$HOOK" >> "$GITHUB_ENV"
+            printf '%s' "$FCM_SERVICE_ACCOUNT" > fcm.json
+            supabase secrets set "PUSH_HOOK_SECRET=$HOOK" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
+            supabase secrets set "FCM_SERVICE_ACCOUNT=$(jq -c . fcm.json)" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
+            rm -f fcm.json
+          else
+            echo "::warning title=Push::add FCM_SERVICE_ACCOUNT (Firebase → Project settings → Service accounts) for notifications when the app is closed"
+          fi
+
       - name: Edge Functions
         run: supabase functions deploy --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
+
+      - name: Connect database → push function
+        if: env.PUSH_HOOK_SECRET != ''
+        run: |
+          sleep 10
+          code=$(curl -s -o out.json -w '%{http_code}' -X POST "https://${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}.supabase.co/functions/v1/push" \
+            -H "Content-Type: application/json" -H "x-hook-secret: $PUSH_HOOK_SECRET" -d '{"kind":"setup"}')
+          echo "push setup → HTTP $code $(jq -c '{ok, setup, error}' out.json 2>/dev/null)"
+          jq -e '.setup == true' out.json >/dev/null || echo "::warning title=Push::setup did not finish (check the FCM_SERVICE_ACCOUNT secret)"
