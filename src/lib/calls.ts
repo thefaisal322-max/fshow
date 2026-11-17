@@ -274,20 +274,22 @@ export function useCallSession(call: Call | null, role: 'caller' | 'callee') {
       pc.current = p;
       const remoteStream = new MediaStream();
       setRemote(remoteStream);
-      p.addEventListener('track', (e) => {
+      // (react-native-webrtc's types miss addEventListener; it is there at runtime)
+      const on = (p as unknown as { addEventListener: (type: string, fn: (e: unknown) => void) => void }).addEventListener.bind(p);
+      on('track', (e) => {
         const tr = (e as unknown as { track?: unknown }).track;
         if (tr) {
           remoteStream.addTrack(tr as never);
           bump((n) => n + 1);
         }
       });
-      p.addEventListener('icecandidate', (e) => {
+      on('icecandidate', (e) => {
         const cand = (e as unknown as { candidate?: unknown }).candidate;
         if (!cand) return;
         const c = cand as { candidate: string; sdpMid: string | null; sdpMLineIndex: number | null };
         send({ t: 'ice', c: { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex } });
       });
-      p.addEventListener('connectionstatechange', () => {
+      on('connectionstatechange', () => {
         const s = p.connectionState;
         if (s === 'connected') {
           setPhase('connected');
