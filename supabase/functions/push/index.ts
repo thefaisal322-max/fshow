@@ -14,18 +14,30 @@ const T: Record<Lang, Record<string, string>> = {
     friend_request: 'د ملګرتیا غوښتنه یې درولېږه', friend_accept: 'ستاسو د ملګرتیا غوښتنه یې ومنله',
     photo: '📷 عکس', video: '🎬 ویډیو', audio: '🎤 غږیز پیغام', once: '🔒 یو ځل کتل', post: '📰 پوسټ', request: 'د پیغام غوښتنه',
     audio_call: '📞 آډیو زنګ راځي…', video_call: '🎥 ویډیو زنګ راځي…', missed: 'ورک شوی زنګ',
+    coins: '🪙 ستاسو حساب ته {coins} FC ورزیات شول', coins_rejected: 'ستاسو د {coins} FC غوښتنه ونه منل شوه',
+    gift: '🎁 تاسو ته یې ډالۍ درولېږله (+{coins} FC)', payout: '💵 {afs} AFS ستاسو HesabPay ته ولېږل شول',
+    payout_rejected: 'ستاسو د {afs} AFS غوښتنه ونه منل شوه (سکې بېرته درکړل شوې)', promo: '📣 ستاسو پوسټ یې پروموټ کړ (+{coins} FC)',
+    monetize: '✅ ستاسو اکاونټ مونیټایز شو!', monetize_rejected: 'د مونیټایز غوښتنه ونه منل شوه', warning: '⚠️ خبرداری', notice: '📢', live: '🔴 لایف ته راغی',
   },
   en: {
     like: 'liked your post', comment: 'commented on your post', follow: 'started following you', mention: 'mentioned you',
     friend_request: 'sent you a friend request', friend_accept: 'accepted your friend request',
     photo: '📷 Photo', video: '🎬 Video', audio: '🎤 Voice message', once: '🔒 View once', post: '📰 Post', request: 'Message request',
     audio_call: '📞 Incoming audio call…', video_call: '🎥 Incoming video call…', missed: 'Missed call',
+    coins: '🪙 {coins} FC were added to your wallet', coins_rejected: 'Your request for {coins} FC was not approved',
+    gift: '🎁 sent you a gift (+{coins} FC)', payout: '💵 {afs} AFS were sent to your HesabPay',
+    payout_rejected: 'Your {afs} AFS cash-out was not approved (coins returned)', promo: '📣 promoted your post (+{coins} FC)',
+    monetize: '✅ Your account is monetized!', monetize_rejected: 'Your monetization request was not approved', warning: '⚠️ Warning', notice: '📢', live: '🔴 is live now',
   },
   fa: {
     like: 'پست شما را پسندید', comment: 'روی پست شما نظر داد', follow: 'شما را دنبال کرد', mention: 'از شما نام برد',
     friend_request: 'درخواست دوستی فرستاد', friend_accept: 'درخواست دوستی شما را پذیرفت',
     photo: '📷 عکس', video: '🎬 ویدیو', audio: '🎤 پیام صوتی', once: '🔒 یک‌بار دیدن', post: '📰 پست', request: 'درخواست پیام',
     audio_call: '📞 تماس صوتی ورودی…', video_call: '🎥 تماس تصویری ورودی…', missed: 'تماس از دست رفته',
+    coins: '🪙 {coins} FC به حساب شما اضافه شد', coins_rejected: 'درخواست {coins} FC شما پذیرفته نشد',
+    gift: '🎁 برای شما هدیه فرستاد (+{coins} FC)', payout: '💵 {afs} AFS به HesabPay شما فرستاده شد',
+    payout_rejected: 'برداشت {afs} AFS پذیرفته نشد (سکه‌ها برگشت)', promo: '📣 پست شما را تبلیغ کرد (+{coins} FC)',
+    monetize: '✅ حساب شما درآمدزا شد!', monetize_rejected: 'درخواست درآمدزایی پذیرفته نشد', warning: '⚠️ هشدار', notice: '📢', live: '🔴 زنده است',
   },
 };
 
@@ -132,19 +144,36 @@ async function sendTo(userId: string, make: (lang: Lang) => Push, kind?: string)
 
 const name = (r: { first_name: string | null; last_name: string | null }) => `${r.first_name ?? ''} ${r.last_name ?? ''}`.trim() || 'Faisal Show';
 
+const SYSTEM = new Set(['coins', 'coins_rejected', 'payout', 'payout_rejected', 'monetize', 'monetize_rejected', 'warning', 'notice']);
+
+function fill(text: string, data: Record<string, unknown>): string {
+  return text.replace(/\{(\w+)\}/g, (_, k) => String(data?.[k] ?? ''));
+}
+
 async function notification(id: string) {
-  const [n] = await sql<{ user_id: string; type: string; post_id: string | null; actor_id: string; first_name: string; last_name: string }[]>`
-    SELECT n.user_id, n.type, n.post_id, n.actor_id, a.first_name, a.last_name
+  const [n] = await sql<{ user_id: string; type: string; post_id: string | null; actor_id: string; first_name: string; last_name: string; data: Record<string, unknown> }[]>`
+    SELECT n.user_id, n.type, n.post_id, n.actor_id, a.first_name, a.last_name, n.data
     FROM public.notifications n JOIN public.profiles a ON a.id = n.actor_id WHERE n.id = ${id}`;
   if (!n) return 0;
-  const url = n.post_id ? `/post/${n.post_id}` : n.type === 'friend_request' ? '/settings/friend-requests' : `/user/${n.actor_id}`;
-  return sendTo(n.user_id, (lang) => ({
-    title: name(n),
-    body: T[lang][n.type] ?? T[lang].like,
-    data: { type: 'notification', url },
-    channel: 'social',
-    tag: `n-${n.type}-${n.post_id ?? n.actor_id}`,
-  }), n.type === 'friend_request' || n.type === 'friend_accept' ? 'friends' : n.type);
+  const sys = SYSTEM.has(n.type);
+  const url = n.type === 'live' && n.data?.live_id ? `/live/${n.data.live_id}`
+    : n.type.startsWith('monetize') ? '/settings/monetize'
+    : sys && n.type !== 'notice' && n.type !== 'warning' ? '/settings/fc'
+    : n.type === 'notice' || n.type === 'warning' ? '/profile'
+    : n.post_id ? `/post/${n.post_id}` : n.type === 'friend_request' ? '/settings/friend-requests' : `/user/${n.actor_id}`;
+  // which switch in "Notification settings" turns it off (money / admin messages always come)
+  const pref = n.type === 'friend_request' || n.type === 'friend_accept' ? 'friends' : ['like', 'comment', 'follow', 'mention'].includes(n.type) ? n.type : undefined;
+  return sendTo(n.user_id, (lang) => {
+    const base = T[lang][n.type] ?? T[lang].like;
+    const text = (n.type === 'notice' || n.type === 'warning') && n.data?.text ? `${base} ${String(n.data.text).slice(0, 180)}` : fill(base, n.data ?? {});
+    return {
+      title: sys ? 'Faisal Show' : name(n),
+      body: text,
+      data: { type: 'notification', url },
+      channel: 'social',
+      tag: `n-${n.type}-${n.post_id ?? n.actor_id}-${sys ? id : ''}`,
+    };
+  }, pref);
 }
 
 async function message(id: string) {

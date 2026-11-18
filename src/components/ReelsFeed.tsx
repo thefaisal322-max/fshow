@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { CommentsSheet } from '@/components/CommentsSheet';
+import { GiftBurst, GiftSheet } from '@/components/GiftSheet';
 import { DoubleTap, HeartBurst, HeartBurstHandle } from '@/components/Heart';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { PostMenuSheet } from '@/components/PostMenuSheet';
@@ -32,6 +33,7 @@ import { ReelVideo } from '@/components/Video';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { GiftCode, giftOf } from '@/lib/coins';
 import { authorName, feelingLabel, formatCount, Post, social, soundUrl, videoUrl } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 
@@ -284,6 +286,8 @@ function Reel({
   const [paused, setPaused] = useState(false);
   const [sheet, setSheet] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [burst, setBurst] = useState<GiftCode | null>(null);
   const [menu, setMenu] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [quick, setQuick] = useState(false);
@@ -450,6 +454,7 @@ function Reel({
         </View>
         <SideBtn icon="bookmark" color={post.saved ? '#FACE15' : '#fff'} pop={!!post.saved} label={formatCount(post.saves_count)} onPress={save} />
         <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => setShareOpen(true)} />
+        {!mine ? <SideBtn icon="gift" color="#FFD54F" label={post.gifts ? formatCount(post.gifts) : ''} onPress={() => setGiftOpen(true)} /> : null}
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => setMenu(true)} />
         <Pressable onPress={() => post.sound && router.push({ pathname: '/sound/[id]', params: { id: post.sound.id } })}>
           <Disc
@@ -524,6 +529,19 @@ function Reel({
       </View>
 
       {menu ? <PostMenuSheet post={post} onClose={() => setMenu(false)} onChange={onChange} onRemoved={onRemoved} /> : null}
+      {giftOpen ? (
+        <GiftSheet
+          to={post.author.id}
+          toName={authorName(post.author)}
+          postId={post.id}
+          onClose={() => setGiftOpen(false)}
+          onSent={(g) => {
+            setBurst(g);
+            onChange({ ...post, gifts: (post.gifts ?? 0) + giftOf(g).price });
+          }}
+        />
+      ) : null}
+      {burst ? <GiftBurst gift={burst} onDone={() => setBurst(null)} /> : null}
       {shareOpen ? (
         <ShareSheet post={post} onClose={() => setShareOpen(false)} onShared={() => onChange({ ...post, shares_count: post.shares_count + 1 })} />
       ) : null}

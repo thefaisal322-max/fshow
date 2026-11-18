@@ -26,13 +26,13 @@ export type Monetization = {
   application: 'pending' | 'approved' | 'rejected' | null;
   phone: string | null;
   is_admin: boolean;
-  reward_every: number;
-  reward_afs: number;
-  min_payout: number;
+  /** FC paid to monetize without the 5 rules (0 = not paid) */
+  paid_fc: number;
+  fc_per_challenge: number;
+  monetize_price: number;
   earn_done: number;
-  earn_total: number;
-  earned_afs: number;
-  balance_afs: number;
+  /** my FC balance */
+  coins: number | null;
   metrics: Record<string, number>;
   challenges: Challenge[];
   payouts: Payout[];

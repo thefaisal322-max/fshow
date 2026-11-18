@@ -1,21 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { StringKey, useI18n } from '@/i18n';
 import { AdminUser, adminApi, CodeUse, MonetizeRequest, Overview, Report } from '@/lib/admin';
 import { errorMessage } from '@/lib/api';
+import { CoinRequest, coins } from '@/lib/coins';
 import { Author, authorName, formatCount, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
-type Section = 'overview' | 'monetize' | 'codes' | 'reports' | 'users';
+type Section = 'overview' | 'coins' | 'monetize' | 'codes' | 'reports' | 'users';
 const SECTIONS: { key: Section; icon: keyof typeof Ionicons.glyphMap; label: StringKey }[] = [
   { key: 'overview', icon: 'speedometer', label: 'adm_overview' },
+  { key: 'coins', icon: 'logo-bitcoin', label: 'adm_coins' },
   { key: 'monetize', icon: 'cash', label: 'adm_monetize' },
   { key: 'codes', icon: 'key', label: 'adm_codes' },
   { key: 'reports', icon: 'flag', label: 'adm_reports' },
@@ -40,6 +42,7 @@ export default function Main() {
         })}
       </ScrollView>
       {section === 'overview' ? <OverviewView go={setSection} /> : null}
+      {section === 'coins' ? <CoinsView /> : null}
       {section === 'monetize' ? <MonetizeView /> : null}
       {section === 'codes' ? <CodesView /> : null}
       {section === 'reports' ? <ReportsView /> : null}
@@ -123,6 +126,70 @@ function Who({ u, sub }: { u: Author | null; sub?: string }) {
           {sub ?? (u.username ? `@${u.username}` : '')}
         </Text>
       </View>
+    </Pressable>
+  );
+}
+
+/** FC: buy requests (with the HesabPay receipt) and cash-outs. */
+function CoinsView() {
+  const { t, d } = useI18n();
+  const bottom = useBottomSpace();
+  const { data, setData, load, refresh } = useLoad<CoinRequest[]>(coins.requests);
+  async function decide(r: CoinRequest, yes: boolean) {
+    setData((old) => old?.filter((x) => x.id !== r.id) ?? null);
+    try {
+      if (r.kind === 'buy') await coins.decideBuy(r.id, yes);
+      else await coins.decidePayout(r.id, yes);
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+      load();
+    }
+  }
+  if (!data) return <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />;
+  return (
+    <FlatList
+      data={data}
+      keyExtractor={(x) => x.id}
+      refreshControl={refresh}
+      contentContainerStyle={{ padding: 10, paddingBottom: 16 + bottom }}
+      ListEmptyComponent={<Text style={st.empty}>{t('nothing_pending')}</Text>}
+      renderItem={({ item }) => (
+        <View style={st.card}>
+          <View style={{ flexDirection: d.row, justifyContent: 'space-between', alignItems: 'center' }}>
+            <Who u={item.user} />
+            <Text style={[st.badge, item.kind === 'buy' ? st.ok : st.wait]}>{item.kind === 'buy' ? `🛒 ${t('adm_buy')}` : `💵 ${t('withdraw')}`}</Text>
+          </View>
+          <Text style={[st.phone, { textAlign: d.align }]}>
+            {formatCount(item.coins)} FC = {item.afs} AFS
+          </Text>
+          {item.kind === 'payout' ? <Text selectable style={[st.phone, { textAlign: d.align }]}>📱 HesabPay: {item.phone}</Text> : null}
+          {item.note ? <Text style={[st.small, { textAlign: d.align }]}>{item.note}</Text> : null}
+          {item.receipt_path ? <Receipt path={item.receipt_path} /> : null}
+          <Text style={[st.small, { textAlign: d.align }]}>{timeAgo(item.created_at)}</Text>
+          <View style={{ flexDirection: d.row, gap: 8, marginTop: 8 }}>
+            <Pressable onPress={() => decide(item, true)} style={[st.btn, { backgroundColor: colors.success }]}>
+              <Text style={st.btnText}>{item.kind === 'buy' ? t('approve') : t('adm_mark_paid')}</Text>
+            </Pressable>
+            <Pressable onPress={() => decide(item, false)} style={[st.btn, { backgroundColor: colors.error }]}>
+              <Text style={st.btnText}>{t('reject')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    />
+  );
+}
+
+function Receipt({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [big, setBig] = useState(false);
+  useEffect(() => {
+    coins.receiptUrl(path).then(setUrl).catch(() => {});
+  }, [path]);
+  if (!url) return <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />;
+  return (
+    <Pressable onPress={() => setBig((b) => !b)}>
+      <Image source={{ uri: url }} style={{ width: '100%', height: big ? 480 : 180, borderRadius: radius.sm, marginTop: 8, backgroundColor: colors.surface }} resizeMode="contain" />
     </Pressable>
   );
 }

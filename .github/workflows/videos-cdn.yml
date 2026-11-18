@@ -31,6 +31,11 @@ jobs:
       REF: jqkyihnvidbehrapfflt
       PROJECT: fshow-media
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts
+            assets
       - name: Check secrets
         id: ok
         run: |
@@ -50,7 +55,7 @@ jobs:
         with:
           node-version: 20
       - if: steps.ok.outputs.go == 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg jq >/dev/null
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg jq fonts-dejavu-core fontconfig >/dev/null
 
       - name: Service key
         if: steps.ok.outputs.go == 'true'

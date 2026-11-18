@@ -8,6 +8,7 @@ import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
+import { GiftCode } from '@/lib/coins';
 import { friends } from '@/lib/friends';
 import { profileSignal } from '@/lib/signals';
 import { Highlight, stories as storyApi, storyStore, storyUrl } from '@/lib/stories';
@@ -16,6 +17,7 @@ import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
 
 import { Avatar } from './Avatar';
+import { GiftBurstModal, GiftSheet } from './GiftSheet';
 import { HoldButton } from './HoldButton';
 import { OfflineBanner } from './OfflineBanner';
 import { VerifiedBadge } from './PostCard';
@@ -36,6 +38,8 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
     if (initialTab) setTab(initialTab);
   }, [initialTab, tabNonce]);
   const [busy, setBusy] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [burst, setBurst] = useState<GiftCode | null>(null);
   const list = useRef<PostListHandle>(null);
   const grid = useRef<ReelGridHandle>(null);
 
@@ -276,6 +280,15 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
               {msgLabel}
             </Text>
           </Pressable>
+          {!(user.blocked_by_me || user.blocked_me) ? (
+            <Pressable onPress={() => setGiftOpen(true)} style={[st.btn, st.btnLight, { paddingHorizontal: 12 }]}>
+              <Text style={{ fontSize: 17 }}>🎁</Text>
+            </Pressable>
+          ) : null}
+          {giftOpen ? (
+            <GiftSheet to={user.id} toName={authorName(user)} onClose={() => setGiftOpen(false)} onSent={(g) => setBurst(g)} />
+          ) : null}
+          {burst ? <GiftBurstModal gift={burst} onDone={() => setBurst(null)} /> : null}
         </View>
       ) : null}
       {!isMe ? (

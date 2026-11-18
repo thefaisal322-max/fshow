@@ -27,6 +27,10 @@ export type Post = {
   video_url?: string | null;
   /** download copy with the moving logo + @username + end clip (made by the server a few hours after posting) */
   dl_url?: string | null;
+  /** FC of gifts sent on this post */
+  gifts?: number;
+  /** plays (videos): views + extra plays */
+  plays_count?: number;
   /** the sound of a video (its own "original sound", or one it used) */
   sound?: Sound | null;
   /** small JPG cover of a video (made on the phone when posting) */
@@ -122,7 +126,26 @@ export type SearchResult = Author & { followers_count: number; followed_by_me: b
 
 export type Notification = {
   id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention' | 'friend_request' | 'friend_accept';
+  type:
+    | 'like'
+    | 'comment'
+    | 'follow'
+    | 'mention'
+    | 'friend_request'
+    | 'friend_accept'
+    | 'coins'
+    | 'coins_rejected'
+    | 'gift'
+    | 'payout'
+    | 'payout_rejected'
+    | 'promo'
+    | 'monetize'
+    | 'monetize_rejected'
+    | 'warning'
+    | 'notice'
+    | 'live';
+  /** details: { coins, gift, afs, kind, n, text, live_id … } */
+  data?: Record<string, any>;
   read: boolean;
   created_at: string;
   post_id: string | null;

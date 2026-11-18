@@ -21,7 +21,8 @@ import { Card, P, Page } from '@/components/ui';
 import { StringKey, tr, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { afs, Challenge, isDone, monetize, Monetization } from '@/lib/monetize';
+import { coins } from '@/lib/coins';
+import { Challenge, isDone, monetize, Monetization } from '@/lib/monetize';
 import { formatCount } from '@/lib/social';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
@@ -50,13 +51,12 @@ export function challengeTitle(c: { metric: string; target: number }): string {
   return m ? tr(m.key, { n: formatCount(c.target) }) : c.metric;
 }
 
-/** Monetize: 5 challenges to unlock, then 100 challenges — every 5 finished = 5 AFS. */
+/** Monetize: the 5 rules (or 2,500 FC) + an admin's yes; then every finished challenge = 30 FC. */
 export default function Monetize() {
   const router = useRouter();
   const { t, d } = useI18n();
   const [m, setM] = useState<Monetization | null>(null);
   const [proof, setProof] = useState<Challenge | null>(null);
-  const [payout, setPayout] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(() => {
@@ -80,28 +80,23 @@ export default function Monetize() {
   const earn = m.challenges.filter((c) => c.stage === 'earn');
   const qDone = qualify.filter(isDone).length;
   const openEarn = earn.filter((c) => !isDone(c));
-  const shownEarn = showAll ? earn : openEarn.slice(0, 8);
-  const towardNext = m.earn_done % m.reward_every;
+  // the total number of challenges is not shown — only the next few
+  const shownEarn = showAll ? openEarn.slice(0, 30) : openEarn.slice(0, 8);
 
   return (
     <Page>
       <Stack.Screen options={{ title: t('monetize') }} />
 
-      {/* wallet */}
-      <View style={st.wallet}>
-        <Text style={st.walletLabel}>{t('your_balance')}</Text>
-        <Text style={st.balance}>؋ {afs(m.balance_afs)}</Text>
-        <Text style={st.walletSub}>
-          {t('earned_total', { n: afs(m.earned_afs) })} · {t('reward_rule', { n: m.reward_every, afs: m.reward_afs })}
-        </Text>
+      {/* coins */}
+      <Pressable onPress={() => router.push('/settings/fc')} style={st.wallet}>
+        <Text style={st.walletLabel}>{t('fc_balance')}</Text>
+        <Text style={st.balance}>🪙 {m.is_admin ? '∞' : formatCount(m.coins ?? 0)} FC</Text>
+        <Text style={st.walletSub}>{t('fc_per_challenge', { n: m.fc_per_challenge })} · 1000 FC = 100 AFS</Text>
         <View style={{ flexDirection: d.row, gap: 10, marginTop: 12 }}>
-          <Pressable
-            onPress={() => (m.balance_afs >= m.min_payout ? setPayout(true) : Alert.alert('', t('min_payout', { n: m.min_payout })))}
-            style={[st.walletBtn, m.balance_afs < m.min_payout && { opacity: 0.6 }]}
-          >
-            <Ionicons name="cash-outline" size={18} color="#B5136C" />
-            <Text style={st.walletBtnText}>{t('withdraw')}</Text>
-          </Pressable>
+          <View style={st.walletBtn}>
+            <Ionicons name="wallet-outline" size={18} color="#B5136C" />
+            <Text style={st.walletBtnText}>{t('fc_open_wallet')}</Text>
+          </View>
           {m.is_admin ? (
             <Pressable onPress={() => router.push('/main')} style={st.walletBtn}>
               <Ionicons name="shield-checkmark-outline" size={18} color="#B5136C" />
@@ -109,9 +104,9 @@ export default function Monetize() {
             </Pressable>
           ) : null}
         </View>
-      </View>
+      </Pressable>
 
-      {/* stage 1 */}
+      {/* way 1: the 5 rules */}
       <Card>
         <View style={[st.head, { flexDirection: d.row }]}>
           <Text style={st.h}>
@@ -129,53 +124,95 @@ export default function Monetize() {
         {m.all_done && m.application !== 'approved' ? <PhoneStep m={m} onSent={load} /> : null}
       </Card>
 
-      {/* stage 2 */}
+      {/* way 2: pay 2500 FC */}
+      {!m.qualified && !m.all_done ? <PayStep m={m} onSent={load} /> : null}
+
+      {/* challenges: 30 FC each */}
       <Card style={!m.qualified ? { opacity: 0.55 } : undefined}>
         <View style={[st.head, { flexDirection: d.row }]}>
           <Text style={st.h}>
             {m.qualified ? '2️⃣ ' : '🔒 '}
             {t('stage_earn')}
           </Text>
-          <Text style={st.count}>
-            {m.earn_done}/{m.earn_total}
-          </Text>
+          <Text style={st.count}>✓ {m.earn_done}</Text>
         </View>
-        <P muted>{m.qualified ? t('earn_text', { n: m.reward_every, afs: m.reward_afs }) : t('earn_locked')}</P>
-        {m.qualified ? (
-          <View style={{ marginVertical: 6 }}>
-            <Text style={[st.small, { textAlign: d.align }]}>{t('next_reward', { n: m.reward_every - towardNext, afs: m.reward_afs })}</Text>
-            <View style={st.track}>
-              <View style={[st.fill, { width: `${(towardNext / m.reward_every) * 100}%` as `${number}%` }]} />
-            </View>
-          </View>
-        ) : null}
+        <P muted>{m.qualified ? t('earn_text_fc', { n: m.fc_per_challenge }) : t('earn_locked')}</P>
         {shownEarn.map((c) => (
           <ChallengeRow key={c.id} c={c} value={m.metrics[c.metric]} locked={!m.qualified} />
         ))}
-        <Pressable onPress={() => setShowAll((x) => !x)} style={st.more}>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>{showAll ? t('less') : t('show_all_challenges', { n: earn.length })}</Text>
-        </Pressable>
+        {openEarn.length > 8 ? (
+          <Pressable onPress={() => setShowAll((x) => !x)} style={st.more}>
+            <Text style={{ color: colors.primary, fontWeight: '700' }}>{showAll ? t('less') : t('more')}</Text>
+          </Pressable>
+        ) : null}
       </Card>
 
-      {m.payouts.length ? (
-        <Card>
-          <Text style={[st.h, { textAlign: d.align }]}>{t('payouts')}</Text>
-          {m.payouts.map((p) => (
-            <View key={p.id} style={[st.payRow, { flexDirection: d.row }]}>
-              <Text style={{ flex: 1, color: colors.text, textAlign: d.align }}>
-                ؋ {afs(p.amount)} · {p.method}
-              </Text>
-              <Text style={{ color: p.status === 'paid' ? colors.success : p.status === 'rejected' ? colors.error : colors.muted, fontWeight: '700' }}>
-                {t(`pay_${p.status}` as StringKey)}
-              </Text>
-            </View>
-          ))}
-        </Card>
-      ) : null}
-
       {proof ? <ProofSheet c={proof} onClose={() => setProof(null)} onSent={load} /> : null}
-      {payout ? <PayoutSheet max={m.balance_afs} min={m.min_payout} phone={m.phone ?? ''} onClose={() => setPayout(false)} onSent={load} /> : null}
     </Page>
+  );
+}
+
+/** Monetize without the 5 rules: pay 2,500 FC; an admin still approves (a "no" gives the coins back). */
+function PayStep({ m, onSent }: { m: Monetization; onSent: () => void }) {
+  const { t, d } = useI18n();
+  const router = useRouter();
+  const [phone, setPhone] = useState(m.phone ?? '');
+  const [busy, setBusy] = useState(false);
+  const clean = phone.replace(/[\s-]/g, '');
+  const valid = /^(\+93|0)7[0-9]{8}$/.test(clean);
+  const paidPending = m.application === 'pending' && m.paid_fc > 0;
+
+  async function pay() {
+    Alert.alert(t('monetize_pay_q', { n: formatCount(m.monetize_price) }), t('monetize_pay_note'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('pay_word'),
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await coins.monetizeWithCoins(clean);
+            onSent();
+            Alert.alert('✓', t('phone_sent'));
+          } catch (e) {
+            Alert.alert('', errorMessage(e));
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Card>
+      <Text style={[st.h, { textAlign: d.align }]}>⚡ {t('monetize_pay_title', { n: formatCount(m.monetize_price) })}</Text>
+      {paidPending ? (
+        <Text style={[st.chTitle, { textAlign: d.align, marginTop: 6 }]}>⏳ {t('monetize_waiting')}</Text>
+      ) : (
+        <>
+          <P muted>{t('monetize_pay_sub')}</P>
+          {m.application === 'rejected' ? <Text style={[st.small, { color: colors.error, textAlign: d.align }]}>{t('monetize_rejected')}</Text> : null}
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="HesabPay 07xxxxxxxx"
+            placeholderTextColor={colors.muted}
+            keyboardType="phone-pad"
+            maxLength={16}
+            style={[st.input, { textAlign: 'left' }]}
+          />
+          {(m.coins ?? 0) >= m.monetize_price || m.is_admin ? (
+            <Pressable onPress={pay} disabled={!valid || busy} style={[st.cta, !valid && { opacity: 0.5 }]}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.ctaText}>🪙 {formatCount(m.monetize_price)} FC</Text>}
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.push('/settings/fc')} style={[st.cta, { backgroundColor: '#F2994A' }]}>
+              <Text style={st.ctaText}>{t('fc_get_more')}</Text>
+            </Pressable>
+          )}
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -350,68 +387,6 @@ function ProofSheet({ c, onClose, onSent }: { c: Challenge; onClose: () => void;
 
 // Money is paid out through HesabPay only.
 const METHODS = ['HesabPay'];
-
-function PayoutSheet({ max, min, phone, onClose, onSent }: { max: number; min: number; phone: string; onClose: () => void; onSent: () => void }) {
-  const { t, d } = useI18n();
-  const bottom = useBottomSpace();
-  const [amount, setAmount] = useState(String(max));
-  const [method, setMethod] = useState(METHODS[0]);
-  const [account, setAccount] = useState(phone);
-  const [busy, setBusy] = useState(false);
-
-  async function send() {
-    const n = parseInt(amount, 10);
-    if (!n || n < min || n > max) {
-      Alert.alert('', t('payout_range', { min, max }));
-      return;
-    }
-    setBusy(true);
-    try {
-      await monetize.requestPayout(n, method, account);
-      onClose();
-      onSent();
-      Alert.alert('✓', t('payout_sent'));
-    } catch (e) {
-      Alert.alert('', errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={st.backdrop} onPress={busy ? undefined : onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <Pressable style={[st.sheet, { paddingBottom: 20 + bottom }]}>
-            <Text style={st.sheetTitle}>{t('withdraw')}</Text>
-            <Text style={[st.small, { textAlign: d.align }]}>{t('amount_afs')}</Text>
-            <TextInput value={amount} onChangeText={setAmount} keyboardType="number-pad" style={[st.input, { textAlign: d.align }]} />
-            <View style={{ flexDirection: d.row, flexWrap: 'wrap', gap: 8, marginVertical: 8 }}>
-              {METHODS.map((x) => (
-                <Pressable key={x} onPress={() => setMethod(x)} style={[st.method, method === x && st.methodOn]}>
-                  <Text style={{ color: method === x ? colors.primary : colors.text, fontWeight: '700' }}>{x}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <TextInput
-              value={account}
-              onChangeText={setAccount}
-              editable={false}
-              placeholder={t('payout_account_ph')}
-              keyboardType="phone-pad"
-              placeholderTextColor={colors.muted}
-              style={[st.input, { textAlign: d.align }]}
-              maxLength={80}
-            />
-            <Pressable onPress={send} disabled={busy || account.trim().length < 3} style={[st.cta, account.trim().length < 3 && { opacity: 0.5 }]}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.ctaText}>{t('send_request')}</Text>}
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
-    </Modal>
-  );
-}
 
 const st = StyleSheet.create({
   wallet: { backgroundColor: '#B5136C', borderRadius: radius.lg, padding: 20, marginBottom: 12 },

@@ -68,14 +68,18 @@ INSERT INTO public.challenge_done (user_id, challenge_id, status)
 SELECT 'dddddddd-0000-0000-0000-000000000004', id, 'done' FROM public.challenges WHERE stage = 'earn' ORDER BY sort LIMIT 52
 ON CONFLICT DO NOTHING;
 SET ROLE authenticated;
-SELECT pg_temp.check((public.get_monetization()->>'balance_afs')::int = ((public.get_monetization()->>'earn_done')::int / 5) * 5, '5 AFS per 5 challenges');
-SELECT pg_temp.must_fail($q$SELECT public.request_payout(5, 'HesabPay', '')$q$, 'payout under minimum');
-SELECT public.request_payout(50, 'X', '');
-SELECT pg_temp.check((SELECT method = 'HesabPay' AND account = '0791234567' FROM public.payout_requests WHERE user_id = auth.uid()), 'payout to HesabPay number');
-SELECT pg_temp.must_fail($q$SELECT public.request_payout(50, 'HesabPay', '')$q$, 'second pending payout');
+-- 30 FC for every finished challenge (right away)
+SELECT pg_temp.check((public.get_wallet()->>'earned')::int = 30 * (SELECT count(*) FROM public.challenge_done WHERE user_id = auth.uid() AND status IN ('done', 'approved')),
+                     '30 FC per challenge');
+SELECT pg_temp.check(public.get_monetization()->>'earn_total' IS NULL, 'total challenge count is not shown');
+SELECT pg_temp.must_fail($q$SELECT public.request_fc_payout(10, '0791234567')$q$, 'payout under 25 AFS');
+SELECT pg_temp.must_fail($q$SELECT public.request_fc_payout(10001, '0791234567')$q$, 'payout over 10000 AFS');
+SELECT public.request_fc_payout(50, '0791234567');
+SELECT pg_temp.check((SELECT (j->>'coins')::int = 500 FROM jsonb_array_elements(public.get_wallet()->'payouts') j LIMIT 1), '50 AFS = 500 FC');
+SELECT pg_temp.must_fail($q$SELECT public.request_fc_payout(25, '0791234567')$q$, 'second pending payout');
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
-SELECT public.admin_set_payout((public.admin_pending()->'payouts'->0->>'id')::uuid, true);
-SELECT pg_temp.check(jsonb_array_length(public.admin_pending()->'payouts') = 0, 'payout paid');
+SELECT public.admin_decide_payout((SELECT (j->>'id')::uuid FROM public.admin_coin_requests() j WHERE j->>'kind' = 'payout' LIMIT 1), true);
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.admin_coin_requests() j WHERE j->>'kind' = 'payout'), 'payout paid');
 
 -- admin tools
 SELECT pg_temp.check((SELECT j->>'email' FROM public.admin_users('dawood') j LIMIT 1) IS NOT NULL OR true, 'user search');

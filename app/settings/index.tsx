@@ -67,6 +67,8 @@ export default function Settings() {
         <Row icon="eye-outline" label={t('who_can_see_posts')} value={postsRule} onPress={() => router.push('/settings/privacy')} last />
       </Card>
       <Card>
+        <Row icon="logo-bitcoin" label={t('fc_title')} onPress={() => router.push('/settings/fc')} />
+        <Row icon="megaphone-outline" label={t('promote')} onPress={() => router.push('/promote')} />
         <Row icon="cash-outline" label={t('monetize')} onPress={() => router.push('/settings/monetize')} />
         <Row icon="checkmark-circle-outline" label={t('verified_sub')} onPress={() => router.push('/settings/verified')} last />
       </Card>

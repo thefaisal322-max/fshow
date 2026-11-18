@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
 import { RefObject, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -52,6 +53,7 @@ export function PostMenuSheet({
   onRemoved?: (id: string) => void;
 }) {
   const { t, d } = useI18n();
+  const router = useRouter();
   const { session } = useAuth();
   const bottom = useBottomSpace();
   const mine = post.author.id === session?.user.id;
@@ -210,6 +212,16 @@ export function PostMenuSheet({
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[st.tiles, { flexDirection: d.row }]}>
                   {canDownload ? <Tile icon="download-outline" label={t('download')} onPress={download} /> : null}
                   <Tile icon="link-outline" label={t('copy_link')} onPress={copyLink} />
+                  {(post.visibility ?? 'public') === 'public' ? (
+                    <Tile
+                      icon="megaphone-outline"
+                      label={t('promote')}
+                      onPress={() => {
+                        onClose();
+                        router.push({ pathname: '/promote', params: { post: post.id } });
+                      }}
+                    />
+                  ) : null}
                   {mine ? (
                     <>
                       <Tile icon={vis.icon} label={t('privacy')} onPress={() => setView('privacy')} />
