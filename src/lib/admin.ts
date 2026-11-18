@@ -16,8 +16,11 @@ export type Overview = {
   proofs: number;
   monetize: number;
   payouts: number;
+  coins: number;
   codes_today: number;
+  cdn_gb: number;
 };
+export type ProfileNotice = { id: string; body: string; color: string; created_at: string; expires_at: string; to?: Author | null };
 export type AdminUser = Author & {
   email: string | null;
   created_at: string;
@@ -36,7 +39,7 @@ export type Report = {
   reason: string;
   created_at: string;
   reporter: Author | null;
-  user: Author | null;
+  user: (Author & { warnings?: number; banned?: boolean }) | null;
   post: { id: string; body: string; image_path: string | null; video_path: string | null } | null;
 };
 
@@ -44,6 +47,7 @@ function check<T>(res: { data: T | null; error: { message?: string } | null }): 
   if (res.error) {
     const msg = res.error.message ?? '';
     if (msg.includes('forbidden')) throw new ApiError('forbidden');
+    if (msg.includes('invalid-input')) throw new ApiError('invalid-input');
     if (/fetch|network|abort/i.test(msg)) throw new ApiError('network');
     throw new ApiError('internal', { message: msg });
   }
@@ -64,6 +68,17 @@ export const adminApi = {
   resolveReport: async (id: string, deletePost: boolean) => {
     check(await supabase.rpc('admin_resolve_report', { p_report: id, p_delete_post: deletePost }));
   },
+  /** Warning: the person is told why, the reported post is deleted */
+  warn: async (reportId: string, text: string) => {
+    check(await supabase.rpc('admin_warn', { p_report: reportId, p_text: text }));
+  },
+  /** to: 'all' or '@username' · returns how many got a push */
+  sendNotice: async (to: string, body: string, color: string, notify: boolean) =>
+    check<number>(await supabase.rpc('admin_send_notice', { p_to: to, p_body: body, p_color: color, p_notify: notify })),
+  notices: async () => check<ProfileNotice[]>(await supabase.rpc('admin_notices')) ?? [],
+  deleteNotice: async (id: string) => {
+    check(await supabase.rpc('admin_delete_notice', { p_id: id }));
+  },
   setVerified: async (userId: string, on: boolean) => {
     check(await supabase.rpc('admin_set_verified', { p_user: userId, p_verified: on }));
   },
@@ -75,6 +90,11 @@ export const adminApi = {
     const { error } = await supabase.functions.invoke('admin-user', { body: { userId, action } });
     if (error) throw new ApiError('forbidden');
   },
+};
+
+/** the admin's message for me (my own profile, 24 hours) */
+export const adminNotice = {
+  mine: async () => check<ProfileNotice | null>(await supabase.rpc('my_notice')) ?? null,
 };
 
 let cached: { uid: string; admin: boolean } | null = null;

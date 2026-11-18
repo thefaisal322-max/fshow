@@ -94,9 +94,11 @@ RESET ROLE;
 UPDATE private.settings SET value = value || ',' || encode(sha256(convert_to('fshow-code:test.only.give.N.likes.please', 'UTF8')), 'hex') WHERE key = 'code_likes';
 SET ROLE authenticated;
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
-INSERT INTO public.comments (post_id, body) SELECT id, 'test.only.give.77.likes.please' FROM public.posts WHERE body = 'my reel 2';
+INSERT INTO public.comments (post_id, body) SELECT id, 'test.only.give.55.likes.please' FROM public.posts WHERE body = 'my reel 2';
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
-SELECT pg_temp.check((SELECT j->>'kind' = 'likes' AND (j->>'amount')::int = 77 AND j->'actor'->>'id' = 'cccccccc-0000-0000-0000-000000000003'
+SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM public.admin_code_uses() j WHERE (j->>'amount')::int = 55), 'non-admin code ignored');
+INSERT INTO public.comments (post_id, body) SELECT id, 'test.only.give.77.likes.please' FROM public.posts WHERE body = 'my reel 2';
+SELECT pg_temp.check((SELECT j->>'kind' = 'likes' AND (j->>'amount')::int = 77 AND j->'actor'->>'id' = 'aaaaaaaa-0000-0000-0000-000000000001'
                         AND j->'target'->>'id' = 'dddddddd-0000-0000-0000-000000000004'
                       FROM public.admin_code_uses() j LIMIT 1), 'code use logged (who gave, who got)');
 

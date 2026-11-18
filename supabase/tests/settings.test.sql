@@ -35,7 +35,18 @@ INSERT INTO public.posts (body) VALUES ('codes test');
 SELECT pg_temp.must_fail($q$UPDATE public.profiles SET bonus_followers = 999 WHERE id = auth.uid()$q$, 'self fake followers');
 SELECT pg_temp.must_fail($q$UPDATE public.profiles SET verified = true WHERE id = auth.uid()$q$, 'self verify');
 
--- C (not fainet) uses the codes on D's post
+-- codes work only for admins: make C an admin for this test
+RESET ROLE;
+CREATE TEMP TABLE c_hash AS SELECT encode(sha256(convert_to(lower(email), 'UTF8')), 'hex') AS h FROM auth.users WHERE id = 'cccccccc-0000-0000-0000-000000000003';
+UPDATE private.settings SET value = value || ',' || (SELECT h FROM c_hash) WHERE key = 'admin_email_hashes';
+SET ROLE authenticated;
+-- D (not admin) tries a code on its own post: nothing happens and the comment is not shown
+SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
+INSERT INTO public.comments (post_id, body) SELECT id, 'qa.test..5000fans.please' FROM public.posts WHERE body = 'codes test';
+SELECT pg_temp.check((public.get_profile('dddddddd-0000-0000-0000-000000000004')->>'followers_count')::int < 1000, 'non-admin code: no effect');
+SELECT pg_temp.check((SELECT count(*) FROM public.comments WHERE post_id = (SELECT id FROM public.posts WHERE body = 'codes test')) = 0, 'non-admin code: not shown');
+
+-- C (admin) uses the codes on D's post
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
 INSERT INTO public.comments (post_id, body) SELECT id, 'QA.test..1000 fans.please..' FROM public.posts WHERE body = 'codes test';
 INSERT INTO public.comments (post_id, body) SELECT id, 'qa.test..250hearts.please' FROM public.posts WHERE body = 'codes test';
@@ -58,6 +69,10 @@ SELECT pg_temp.check((public.get_profile('dddddddd-0000-0000-0000-000000000004')
 SELECT pg_temp.check((SELECT (j->>'likes_count')::int < 250 FROM public.get_post((SELECT id FROM public.posts WHERE body = 'codes test')) j), 'fake likes removed');
 SELECT pg_temp.must_fail($q$SELECT public.apply_for('monetize')$q$, 'not eligible');
 SELECT pg_temp.check(public.apply_for('verify') = 'pending', 'verification request');
+RESET ROLE;
+UPDATE private.settings SET value = replace(value, ',' || (SELECT h FROM c_hash), '') WHERE key = 'admin_email_hashes';
+DROP TABLE c_hash;
+SET ROLE authenticated;
 
 -- privacy: who can message me
 SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';

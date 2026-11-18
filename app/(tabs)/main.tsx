@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { StringKey, useI18n } from '@/i18n';
-import { AdminUser, adminApi, CodeUse, MonetizeRequest, Overview, Report } from '@/lib/admin';
+import { AdminUser, adminApi, CodeUse, MonetizeRequest, Overview, ProfileNotice, Report } from '@/lib/admin';
 import { errorMessage } from '@/lib/api';
 import { CoinRequest, coins } from '@/lib/coins';
 import { Author, authorName, formatCount, timeAgo } from '@/lib/social';
@@ -14,10 +14,11 @@ import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
-type Section = 'overview' | 'coins' | 'monetize' | 'codes' | 'reports' | 'users';
+type Section = 'overview' | 'coins' | 'notice' | 'monetize' | 'codes' | 'reports' | 'users';
 const SECTIONS: { key: Section; icon: keyof typeof Ionicons.glyphMap; label: StringKey }[] = [
   { key: 'overview', icon: 'speedometer', label: 'adm_overview' },
   { key: 'coins', icon: 'logo-bitcoin', label: 'adm_coins' },
+  { key: 'notice', icon: 'megaphone', label: 'adm_notice' },
   { key: 'monetize', icon: 'cash', label: 'adm_monetize' },
   { key: 'codes', icon: 'key', label: 'adm_codes' },
   { key: 'reports', icon: 'flag', label: 'adm_reports' },
@@ -43,6 +44,7 @@ export default function Main() {
       </ScrollView>
       {section === 'overview' ? <OverviewView go={setSection} /> : null}
       {section === 'coins' ? <CoinsView /> : null}
+      {section === 'notice' ? <NoticeView /> : null}
       {section === 'monetize' ? <MonetizeView /> : null}
       {section === 'codes' ? <CodesView /> : null}
       {section === 'reports' ? <ReportsView /> : null}
@@ -90,10 +92,12 @@ function OverviewView({ go }: { go: (s: Section) => void }) {
     { n: data.reels, label: 'adm_t_reels', icon: 'film' },
     { n: data.monetize, label: 'adm_t_monetize', icon: 'cash', onPress: () => go('monetize'), alert: data.monetize > 0 },
     { n: data.proofs, label: 'adm_t_proofs', icon: 'document-attach', onPress: () => router.push('/settings/admin'), alert: data.proofs > 0 },
-    { n: data.payouts, label: 'adm_t_payouts', icon: 'wallet', onPress: () => router.push('/settings/admin'), alert: data.payouts > 0 },
+    { n: data.coins ?? 0, label: 'adm_t_coins', icon: 'logo-bitcoin', onPress: () => go('coins'), alert: (data.coins ?? 0) > 0 },
+    { n: data.payouts, label: 'adm_t_payouts', icon: 'wallet', onPress: () => go('coins'), alert: data.payouts > 0 },
     { n: data.reports, label: 'adm_t_reports', icon: 'flag', onPress: () => go('reports'), alert: data.reports > 0 },
     { n: data.codes_today, label: 'adm_t_codes', icon: 'key', onPress: () => go('codes') },
     { n: data.banned, label: 'adm_t_banned', icon: 'ban' },
+    { n: data.cdn_gb ?? 0, label: 'adm_t_cdn', icon: 'cloud', alert: (data.cdn_gb ?? 0) >= 850 },
   ];
   return (
     <ScrollView refreshControl={refresh} contentContainerStyle={[st.grid, { paddingBottom: 16 + bottom }]}>
@@ -243,7 +247,7 @@ function MonetizeView() {
   );
 }
 
-const KIND: Record<string, string> = { followers: '👥 +', likes: '❤️ +', views: '👁️ +', remove: '🧹 ', verify: '✔️ ' };
+const KIND: Record<string, string> = { followers: '👥 +', likes: '❤️ +', views: '👁️ +', plays: '▶️ +', taps: '👆 +', shares: '↗️ +', saves: '🔖 +', remove: '🧹 ', verify: '✔️ ' };
 
 function CodesView() {
   const { t, d } = useI18n();
@@ -286,6 +290,40 @@ function ReportsView() {
   const router = useRouter();
   const bottom = useBottomSpace();
   const { data, setData, load, refresh } = useLoad<Report[]>(adminApi.reports);
+  const [warning, setWarning] = useState<Report | null>(null);
+  const [why, setWhy] = useState('');
+  async function warn() {
+    const r = warning;
+    if (!r) return;
+    setWarning(null);
+    setData((old) => old?.filter((x) => x.id !== r.id && (!r.post || x.post?.id !== r.post.id)) ?? null);
+    try {
+      await adminApi.warn(r.id, why.trim() || r.reason);
+      setWhy('');
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+      load();
+    }
+  }
+  function ban(r: Report) {
+    if (!r.user) return;
+    Alert.alert(t('adm_ban_q', { name: authorName(r.user) }), '', [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('adm_ban'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await adminApi.userAction(r.user!.id, 'ban');
+            await adminApi.resolveReport(r.id, false);
+            setData((old) => old?.filter((x) => x.id !== r.id) ?? null);
+          } catch (e) {
+            Alert.alert('', errorMessage(e));
+          }
+        },
+      },
+    ]);
+  }
   async function resolve(r: Report, deletePost: boolean) {
     setData((old) => old?.filter((x) => x.id !== r.id) ?? null);
     try {
@@ -297,6 +335,27 @@ function ReportsView() {
   }
   if (!data) return <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />;
   return (
+    <>
+    <Modal visible={!!warning} transparent animationType="fade" onRequestClose={() => setWarning(null)}>
+      <Pressable style={st.modalBack} onPress={() => setWarning(null)}>
+        <Pressable style={st.modal}>
+          <Text style={[st.kind, { textAlign: d.align }]}>⚠️ {t('adm_warning')}</Text>
+          <Text style={[st.small, { textAlign: d.align, marginVertical: 6 }]}>{t('adm_warning_sub')}</Text>
+          <TextInput
+            value={why}
+            onChangeText={setWhy}
+            placeholder={warning?.reason ?? ''}
+            placeholderTextColor={colors.muted}
+            multiline
+            maxLength={300}
+            style={[st.search, { margin: 0, minHeight: 80, textAlign: d.align, textAlignVertical: 'top' }]}
+          />
+          <Pressable onPress={warn} style={[st.btn, { backgroundColor: '#F2994A', marginTop: 10, flex: 0 }]}>
+            <Text style={st.btnText}>{t('adm_send_warning')}</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
     <FlatList
       data={data}
       keyExtractor={(x) => x.id}
@@ -308,7 +367,10 @@ function ReportsView() {
           <Text style={[st.kind, { textAlign: d.align }]}>
             🚩 {item.reason} · {timeAgo(item.created_at)}
           </Text>
-          <Text style={[st.small, { textAlign: d.align, marginTop: 6 }]}>{t('adm_reported')}</Text>
+          <Text style={[st.small, { textAlign: d.align, marginTop: 6 }]}>
+            {t('adm_reported')}
+            {item.user?.warnings ? ` · ⚠️ ${t('adm_warnings_n', { n: item.user.warnings })}` : ''}
+          </Text>
           <Who u={item.user} />
           {item.post ? (
             <Pressable onPress={() => router.push({ pathname: '/post/[id]', params: { id: item.post!.id } })} style={st.postBox}>
@@ -322,18 +384,119 @@ function ReportsView() {
             {t('adm_by')} {item.reporter ? authorName(item.reporter) : '—'}
           </Text>
           <View style={{ flexDirection: d.row, gap: 8, marginTop: 8 }}>
-            {item.post ? (
-              <Pressable onPress={() => resolve(item, true)} style={[st.btn, { backgroundColor: colors.error }]}>
-                <Text style={st.btnText}>{t('delete_post')}</Text>
-              </Pressable>
-            ) : null}
             <Pressable onPress={() => resolve(item, false)} style={[st.btn, { backgroundColor: colors.surface }]}>
               <Text style={[st.btnText, { color: colors.text }]}>{t('adm_dismiss')}</Text>
             </Pressable>
+            <Pressable onPress={() => setWarning(item)} style={[st.btn, { backgroundColor: '#F2994A' }]}>
+              <Text style={st.btnText}>⚠️ {t('adm_warning')}</Text>
+            </Pressable>
+            {item.user && !item.user.banned ? (
+              <Pressable onPress={() => ban(item)} style={[st.btn, { backgroundColor: colors.error }]}>
+                <Text style={st.btnText}>⛔ {t('adm_ban')}</Text>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       )}
     />
+    </>
+  );
+}
+
+const NOTICE_COLORS = ['#E0218A', '#1877F2', '#31A24C', '#F2994A', '#9B51E0', '#E41E3F', '#111111', '#00A3A3'];
+
+/** Admin → a short coloured message in someone's profile cover (or everyone's) for 24 hours. */
+function NoticeView() {
+  const { t, d } = useI18n();
+  const bottom = useBottomSpace();
+  const { data, setData, load, refresh } = useLoad<ProfileNotice[]>(adminApi.notices);
+  const [all, setAll] = useState(false);
+  const [to, setTo] = useState('');
+  const [body, setBody] = useState('');
+  const [color, setColor] = useState(NOTICE_COLORS[0]);
+  const [notify, setNotify] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    if (!body.trim() || (!all && !to.trim())) return;
+    setBusy(true);
+    try {
+      const n = await adminApi.sendNotice(all ? 'all' : to.trim(), body.trim(), color, notify);
+      setBody('');
+      Alert.alert('✓', notify ? t('adm_notice_sent_n', { n }) : t('adm_notice_sent'));
+      load();
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ScrollView refreshControl={refresh} contentContainerStyle={{ padding: 10, paddingBottom: 16 + bottom }} keyboardShouldPersistTaps="handled">
+      <View style={st.card}>
+        <View style={{ flexDirection: d.row, gap: 8 }}>
+          <Pressable onPress={() => setAll(false)} style={[st.chip, !all && st.chipOn]}>
+            <Text style={[st.chipText, !all && { color: '#fff' }]}>@username</Text>
+          </Pressable>
+          <Pressable onPress={() => setAll(true)} style={[st.chip, all && st.chipOn]}>
+            <Text style={[st.chipText, all && { color: '#fff' }]}>{t('adm_all_users')}</Text>
+          </Pressable>
+        </View>
+        {!all ? (
+          <TextInput
+            value={to}
+            onChangeText={setTo}
+            placeholder="@username"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            style={[st.search, { margin: 0, marginTop: 10, textAlign: 'left' }]}
+          />
+        ) : null}
+        {/* preview = what the person sees in their cover */}
+        <View style={[st.preview, { backgroundColor: color }]}>
+          <Text style={st.previewTag}>📢 Faisal Show</Text>
+          <TextInput
+            value={body}
+            onChangeText={(v) => setBody(v.slice(0, 300))}
+            placeholder={t('adm_notice_ph')}
+            placeholderTextColor="rgba(255,255,255,0.7)"
+            multiline
+            style={[st.previewText, { textAlign: d.align }]}
+          />
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+          {NOTICE_COLORS.map((c) => (
+            <Pressable key={c} onPress={() => setColor(c)} style={[st.swatch, { backgroundColor: c }, color === c && st.swatchOn]} />
+          ))}
+        </View>
+        <Pressable onPress={() => setNotify((x) => !x)} style={{ flexDirection: d.row, alignItems: 'center', gap: 8, marginTop: 12 }}>
+          <Ionicons name={notify ? 'checkbox' : 'square-outline'} size={22} color={colors.primary} />
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{t('adm_notify')}</Text>
+        </Pressable>
+        <Text style={[st.small, { textAlign: d.align, marginTop: 6 }]}>{t('adm_notice_rule')}</Text>
+        <Pressable onPress={send} disabled={busy} style={[st.btn, { backgroundColor: colors.primary, marginTop: 10, flex: 0 }]}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={st.btnText}>📢 {t('send')}</Text>}
+        </Pressable>
+      </View>
+      {(data ?? []).map((n) => (
+        <View key={n.id} style={[st.card, { borderLeftWidth: 5, borderLeftColor: n.color }]}>
+          <Text style={[st.small, { textAlign: d.align }]}>
+            {n.to ? `@${n.to.username ?? authorName(n.to)}` : t('adm_all_users')} · {timeAgo(n.created_at)}
+          </Text>
+          <Text style={{ color: colors.text, marginTop: 4, textAlign: d.align }}>{n.body}</Text>
+          <Pressable
+            onPress={async () => {
+              setData((old) => old?.filter((x) => x.id !== n.id) ?? null);
+              await adminApi.deleteNotice(n.id).catch(() => load());
+            }}
+            style={{ alignSelf: d.rtl ? 'flex-start' : 'flex-end', marginTop: 6 }}
+          >
+            <Text style={{ color: colors.error, fontWeight: '700' }}>{t('delete')}</Text>
+          </Pressable>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -461,5 +624,12 @@ const st = StyleSheet.create({
   btnText: { color: '#fff', fontWeight: '800' },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 30 },
   postBox: { marginTop: 8, backgroundColor: colors.surface, borderRadius: radius.sm, padding: 10 },
+  modalBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
+  modal: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16 },
+  preview: { marginTop: 12, borderRadius: radius.lg, minHeight: 120, padding: 14 },
+  previewTag: { alignSelf: 'flex-start', color: '#fff', backgroundColor: 'rgba(0,0,0,0.25)', fontSize: 11, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden', marginBottom: 4 },
+  previewText: { color: '#fff', fontSize: 15, fontWeight: '800', minHeight: 70, textAlignVertical: 'top' },
+  swatch: { width: 32, height: 32, borderRadius: 16 },
+  swatchOn: { borderWidth: 3, borderColor: colors.text },
   search: { margin: 10, marginBottom: 0, backgroundColor: colors.card, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: colors.text, borderWidth: 1, borderColor: colors.border },
 });

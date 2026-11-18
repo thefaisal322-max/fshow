@@ -140,6 +140,22 @@ export default function ChatInfoScreen() {
         </Card>
       ) : null}
 
+      {o ? (
+        <Card>
+          <Row
+            icon="people-outline"
+            label={t('create_group_with', { name: authorName(o) })}
+            onPress={() =>
+              router.push({
+                pathname: '/chats/new',
+                params: { group: '1', with: o.id, withName: authorName(o), withPhoto: o.photo_path ?? '', withUser: o.username ?? '' },
+              })
+            }
+            last
+          />
+        </Card>
+      ) : null}
+
       <Card>
         <Row icon={info.muted ? 'notifications-off-outline' : 'notifications-outline'} label={info.muted ? t('unmute') : t('mute')} onPress={toggleMute} />
         {o ? <Row icon="ban-outline" label={o.blocked_by_me ? t('unblock') : t('block')} color={colors.error} onPress={toggleBlock} /> : null}

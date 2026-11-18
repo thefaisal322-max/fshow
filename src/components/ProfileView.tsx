@@ -8,6 +8,7 @@ import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
+import { adminNotice, ProfileNotice } from '@/lib/admin';
 import { GiftCode } from '@/lib/coins';
 import { friends } from '@/lib/friends';
 import { profileSignal } from '@/lib/signals';
@@ -39,6 +40,8 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
   }, [initialTab, tabNonce]);
   const [busy, setBusy] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  // a message from the admin, shown only to me on my own profile for 24 hours
+  const [notice, setNotice] = useState<ProfileNotice | null>(null);
   const [burst, setBurst] = useState<GiftCode | null>(null);
   const list = useRef<PostListHandle>(null);
   const grid = useRef<ReelGridHandle>(null);
@@ -54,6 +57,12 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
   useEffect(() => {
     loadUser();
   }, [loadUser]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isMe) adminNotice.mine().then(setNotice).catch(() => {});
+    }, [isMe]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -214,7 +223,15 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
   const header = user ? (
     <View>
       <OfflineBanner />
-      <View style={st.cover}>
+      <View style={[st.cover, notice ? { backgroundColor: notice.color } : null]}>
+        {notice ? (
+          <View style={st.notice}>
+            <Text style={st.noticeTag}>📢 Faisal Show</Text>
+            <Text style={st.noticeText} numberOfLines={4}>
+              {notice.body}
+            </Text>
+          </View>
+        ) : null}
         <Pressable onPress={menu} style={[st.menuBtn, d.rtl ? { left: 12 } : { right: 12 }]} hitSlop={10}>
           {isMe ? (
             <Ionicons name="link" size={24} color="#fff" />
@@ -472,6 +489,9 @@ const st = StyleSheet.create({
   hlImg: { width: '100%', height: '100%', borderRadius: 30, backgroundColor: colors.surface },
   hlTitle: { fontSize: 12, color: colors.text, maxWidth: 70 },
   cover: { height: 130, borderRadius: radius.lg, backgroundColor: colors.primary },
+  notice: { position: 'absolute', left: 14, right: 50, top: 12, bottom: 12, justifyContent: 'center' },
+  noticeTag: { alignSelf: 'flex-start', color: '#fff', backgroundColor: 'rgba(0,0,0,0.25)', fontSize: 11, fontWeight: '900', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden', marginBottom: 4 },
+  noticeText: { color: '#fff', fontSize: 15, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 3 },
   menuBtn: { position: 'absolute', top: 6, padding: 6 },
   avatarWrap: { alignItems: 'center', marginTop: -56 },
   avatarRing: { padding: 4, backgroundColor: colors.card, borderRadius: 999 },

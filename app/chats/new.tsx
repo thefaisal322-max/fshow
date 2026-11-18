@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -16,9 +16,26 @@ export default function NewChat() {
   const router = useRouter();
   const { t, d } = useI18n();
   const { session } = useAuth();
-  const [group, setGroup] = useState(false);
+  // from Chat info → "Create group": that person is already picked
+  const params = useLocalSearchParams<{ group?: string; with?: string; withName?: string; withPhoto?: string; withUser?: string }>();
+  const [group, setGroup] = useState(params.group === '1');
   const [title, setTitle] = useState('');
-  const [picked, setPicked] = useState<SearchResult[]>([]);
+  const [picked, setPicked] = useState<SearchResult[]>(() => {
+    if (!params.with) return [];
+    const [first, ...rest] = String(params.withName ?? '').split(' ');
+    return [
+      {
+        id: String(params.with),
+        first_name: first ?? '',
+        last_name: rest.join(' '),
+        username: params.withUser ? String(params.withUser) : null,
+        photo_path: params.withPhoto ? String(params.withPhoto) : null,
+        is_fainet: false,
+        followers_count: 0,
+        followed_by_me: false,
+      } as SearchResult,
+    ];
+  });
   const [busy, setBusy] = useState(false);
 
   async function open(u: SearchResult) {
