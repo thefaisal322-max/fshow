@@ -1,0 +1,21 @@
+name: SFU check
+
+# Checks that the Cloudflare Realtime SFU app (live video) answers. Prints only status codes — never tokens.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['.github/workflows/sfu-check.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      APP: ${{ secrets.CF_SFU_APP_ID }}
+      TOKEN: ${{ secrets.CF_SFU_APP_TOKEN }}
+    steps:
+      - run: |
+          echo "app id length: ${#APP}, token length: ${#TOKEN}"
+          code=$(curl -s -o s.json -w '%{http_code}' -X POST "https://rtc.live.cloudflare.com/v1/apps/$APP/sessions/new" -H "Authorization: Bearer $TOKEN")
+          echo "sessions/new → HTTP $code"
+          if jq -e '.sessionId' s.json >/dev/null 2>&1; then echo "session made: yes"; else echo "session made: no"; jq -r '.errorCode // empty, .errorDescription // empty' s.json 2>/dev/null | head -2; fi
