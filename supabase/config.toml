@@ -66,3 +66,6 @@ verify_jwt = false
 
 [functions.push]
 verify_jwt = false
+
+[functions.sfu]
+verify_jwt = false

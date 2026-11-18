@@ -9,6 +9,7 @@ declare module 'react-native-incall-manager' {
     startRingtone(ringtone?: string, vibratePattern?: number[], iosCategory?: string, seconds?: number): void;
     stopRingtone(): void;
     stopRingback(): void;
+    setKeepScreenOn(on: boolean): void;
   };
   export default InCallManager;
 }

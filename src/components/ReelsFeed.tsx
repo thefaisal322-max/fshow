@@ -228,8 +228,8 @@ export function ReelsFeed({ userId, query, soundId, startId, title }: { userId?:
         </View>
       ) : (
       <View style={[st.top, { top: insets.top + 4, flexDirection: d.row }]} pointerEvents="box-none">
-        <Pressable onPress={() => router.push('/create')} hitSlop={10} style={st.topIcon}>
-          <Ionicons name="add-circle-outline" size={28} color="#fff" style={st.shadow} />
+        <Pressable onPress={() => router.push('/live')} hitSlop={10} style={st.liveBtn}>
+          <Text style={st.liveBtnText}>LIVE</Text>
         </Pressable>
         <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 18 }}>
           {tabs.map((x) => (
@@ -239,6 +239,9 @@ export function ReelsFeed({ userId, query, soundId, startId, title }: { userId?:
             </Pressable>
           ))}
         </View>
+        <Pressable onPress={() => router.push('/create')} hitSlop={10} style={st.topIcon}>
+          <Ionicons name="add-circle-outline" size={27} color="#fff" style={st.shadow} />
+        </Pressable>
         <Pressable onPress={() => router.push('/search')} hitSlop={10} style={st.topIcon}>
           <Ionicons name="search" size={26} color="#fff" style={st.shadow} />
         </Pressable>
@@ -905,6 +908,8 @@ function SideBtn({
 }
 
 const st = StyleSheet.create({
+  liveBtn: { borderWidth: 1.5, borderColor: '#fff', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1, marginHorizontal: 4 },
+  liveBtnText: { color: '#fff', fontWeight: '900', fontSize: 12, letterSpacing: 0.5 },
   empty: { color: '#ddd', textAlign: 'center', lineHeight: 24, fontSize: 15 },
   emptyBtn: { backgroundColor: '#FE2C55', borderRadius: 24, paddingHorizontal: 24, paddingVertical: 11 },
   pause: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },

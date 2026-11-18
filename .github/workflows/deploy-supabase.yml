@@ -57,6 +57,17 @@ jobs:
             echo "::warning title=Calls::add CF_TURN_KEY_ID and CF_TURN_API_TOKEN (Cloudflare Realtime → TURN) so calls connect on every network"
           fi
 
+      - name: Live (SFU) keys
+        env:
+          CF_SFU_APP_ID: ${{ secrets.CF_SFU_APP_ID }}
+          CF_SFU_APP_TOKEN: ${{ secrets.CF_SFU_APP_TOKEN }}
+        run: |
+          if [ -n "$CF_SFU_APP_ID" ] && [ -n "$CF_SFU_APP_TOKEN" ]; then
+            supabase secrets set "CF_SFU_APP_ID=$CF_SFU_APP_ID" "CF_SFU_APP_TOKEN=$CF_SFU_APP_TOKEN" --project-ref "${{ vars.SUPABASE_PROJECT_REF || 'jqkyihnvidbehrapfflt' }}" --yes
+          else
+            echo "::warning title=Live::add CF_SFU_APP_ID and CF_SFU_APP_TOKEN (Cloudflare → Realtime → SFU) for live video"
+          fi
+
       - name: Push (Firebase) keys
         env:
           FCM_SERVICE_ACCOUNT: ${{ secrets.FCM_SERVICE_ACCOUNT }}

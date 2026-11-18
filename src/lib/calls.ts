@@ -45,7 +45,7 @@ export const calls = {
 // ───────────── ICE servers (STUN + Cloudflare TURN), cached for 12 h ─────────────
 type Ice = { urls: string | string[]; username?: string; credential?: string };
 let iceCache: { list: Ice[]; until: number } | null = null;
-async function iceServers(): Promise<Ice[]> {
+export async function iceServers(): Promise<Ice[]> {
   if (iceCache && iceCache.until > Date.now()) return iceCache.list;
   try {
     const { data, error } = await supabase.functions.invoke('turn-credentials', { body: {} });
