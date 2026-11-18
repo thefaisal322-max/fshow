@@ -72,6 +72,7 @@ export default function Settings() {
       </Card>
       <Card>
         <Row icon="cloud-download-outline" label={t('offline_title')} value={off ? `${off.mb} MB` : undefined} onPress={offlineMenu} />
+        <Row icon="notifications-outline" label={t('notif_settings')} onPress={() => router.push('/settings/notifications')} />
         <Row icon="language-outline" label={t('language')} value={langName} onPress={() => router.push('/settings/language')} />
         <Row icon="color-palette-outline" label={t('theme')} value={t(`theme_${themeName}` as StringKey)} onPress={() => router.push('/settings/theme')} last />
       </Card>
@@ -80,6 +81,7 @@ export default function Settings() {
         <Row icon="information-circle-outline" label={t('about')} onPress={() => router.push('/settings/about')} last />
       </Card>
       <Card>
+        <Row icon="swap-horizontal-outline" label={t('switch_account')} onPress={() => router.push('/settings/accounts')} />
         <Row
           icon="log-out-outline"
           label={t('logout')}

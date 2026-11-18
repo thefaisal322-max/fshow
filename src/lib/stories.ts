@@ -16,6 +16,8 @@ export type Story = {
 
 export type StoryRing = { author: Author; all_seen: boolean; stories: Story[] };
 
+export type Highlight = { id: string; title: string; created_at: string; stories: Story[] };
+
 export type SuggestedPerson = Author & { followers_count: number; mutual: number; follows_me: boolean; is_new: boolean };
 
 /** Rings currently loaded on the home screen — the story viewer reads them from here. */
@@ -73,6 +75,20 @@ export const stories = {
       await supabase.storage.from('posts').remove([path]);
       check(r);
     }
+  },
+  // ───── highlights (stories kept on the profile) ─────
+  highlights: async (userId: string) => check<Highlight[]>(await supabase.rpc('get_highlights', { p_user: userId })) ?? [],
+  myHighlights: async () => check<{ id: string; title: string }[]>(await supabase.rpc('my_highlights')) ?? [],
+  addToHighlight: async (storyId: string, highlightId: string | null, title?: string) =>
+    check<string>(await supabase.rpc('add_to_highlight', { p_story: storyId, p_highlight: highlightId, p_title: title ?? null })),
+  removeFromHighlight: async (highlightId: string, storyId: string) => {
+    check(await supabase.rpc('remove_from_highlight', { p_highlight: highlightId, p_story: storyId }));
+  },
+  renameHighlight: async (highlightId: string, title: string) => {
+    check(await supabase.rpc('rename_highlight', { p_highlight: highlightId, p_title: title }));
+  },
+  deleteHighlight: async (highlightId: string) => {
+    check(await supabase.rpc('delete_highlight', { p_highlight: highlightId }));
   },
   suggestions: async () => check<SuggestedPerson[]>(await supabase.rpc('suggest_people', { p_limit: 15 })) ?? [],
 };

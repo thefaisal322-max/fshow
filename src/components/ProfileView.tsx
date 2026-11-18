@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { chat } from '@/lib/chat';
 import { friends } from '@/lib/friends';
 import { profileSignal } from '@/lib/signals';
+import { Highlight, stories as storyApi, storyStore, storyUrl } from '@/lib/stories';
 import { authorName, formatCount, profileLink, social, UserProfile } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { colors, radius } from '@/theme';
@@ -230,6 +231,7 @@ export function ProfileView({ userId, initialTab, tabNonce }: { userId: string; 
       {user.username ? <Text style={st.username}>@{user.username}</Text> : null}
       {user.bio ? <Text style={st.bio}>{user.bio}</Text> : null}
       <Intro user={user} isMe={isMe} onEdit={() => router.push('/settings/details')} />
+      <Highlights user={user} isMe={isMe} />
 
       <View style={[st.stats, { flexDirection: d.row }]}>
         <Stat n={user.following_count} label="Following" />
@@ -335,6 +337,78 @@ const TABS: { key: Tab; label: StringKey }[] = [
   { key: 'saved', label: 'saved' },
 ];
 
+/** Story highlights: circles under the bio; tap = watch, long-press (own) = delete. */
+function Highlights({ user, isMe }: { user: UserProfile; isMe: boolean }) {
+  const router = useRouter();
+  const { t, d } = useI18n();
+  const [list, setList] = useState<Highlight[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      storyApi
+        .highlights(user.id)
+        .then(setList)
+        .catch(() => {});
+    }, [user.id]),
+  );
+
+  if (!list.length) return null;
+
+  function open(h: Highlight) {
+    storyStore.rings = [
+      {
+        author: { id: user.id, first_name: user.first_name, last_name: user.last_name, username: user.username, photo_path: user.photo_path, is_fainet: user.is_fainet },
+        all_seen: true,
+        stories: h.stories.map((s) => ({ ...s })),
+      },
+    ];
+    router.push({ pathname: '/story/[id]', params: { id: user.id, hl: h.id } });
+  }
+
+  function manage(h: Highlight) {
+    if (!isMe) return;
+    Alert.alert(h.title, '', [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('hl_delete'),
+        style: 'destructive',
+        onPress: async () => {
+          setList((old) => old.filter((x) => x.id !== h.id));
+          try {
+            await storyApi.deleteHighlight(h.id);
+          } catch (e) {
+            Alert.alert('', errorMessage(e));
+          }
+        },
+      },
+    ]);
+  }
+
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[st.hlRow, { flexDirection: d.row }]}>
+      {list.map((h) => {
+        const cover = h.stories[0];
+        return (
+          <Pressable key={h.id} onPress={() => open(h)} onLongPress={() => manage(h)} style={st.hl}>
+            <View style={st.hlRing}>
+              {cover && cover.media_type === 'image' ? (
+                <Image source={{ uri: storyUrl(cover.media_path) }} style={st.hlImg} />
+              ) : (
+                <View style={[st.hlImg, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <Ionicons name="play" size={22} color={colors.muted} />
+                </View>
+              )}
+            </View>
+            <Text style={st.hlTitle} numberOfLines={1}>
+              {h.title}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
 /** Facebook-style "Intro": lives in, from, works at, studied at, website. */
 function Intro({ user, isMe, onEdit }: { user: UserProfile; isMe: boolean; onEdit: () => void }) {
   const { t, d } = useI18n();
@@ -379,6 +453,11 @@ function Stat({ n, label }: { n: number; label: string }) {
 }
 
 const st = StyleSheet.create({
+  hlRow: { gap: 14, paddingHorizontal: 16, paddingVertical: 10 },
+  hl: { alignItems: 'center', width: 70, gap: 4 },
+  hlRing: { width: 66, height: 66, borderRadius: 33, borderWidth: 2, borderColor: colors.border, padding: 3 },
+  hlImg: { width: '100%', height: '100%', borderRadius: 30, backgroundColor: colors.surface },
+  hlTitle: { fontSize: 12, color: colors.text, maxWidth: 70 },
   cover: { height: 130, borderRadius: radius.lg, backgroundColor: colors.primary },
   menuBtn: { position: 'absolute', top: 6, padding: 6 },
   avatarWrap: { alignItems: 'center', marginTop: -56 },

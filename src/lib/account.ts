@@ -13,7 +13,12 @@ export type AccountSettings = {
   work: string;
   education: string;
   website: string;
+  /** kinds of push notifications switched off (Settings → Notifications) */
+  notif_off: NotifKind[];
 };
+
+export const NOTIF_KINDS = ['message', 'call', 'like', 'comment', 'mention', 'follow', 'friends'] as const;
+export type NotifKind = (typeof NOTIF_KINDS)[number];
 
 export type FriendRequest = Author & { requested_at: string; mutual: number; followers_count?: number };
 
@@ -43,7 +48,7 @@ function check<T>(res: { data: T | null; error: { message?: string } | null }): 
   return res.data as T;
 }
 
-const FIELDS = 'who_can_message, searchable, default_visibility, city, hometown, work, education, website';
+const FIELDS = 'who_can_message, searchable, default_visibility, city, hometown, work, education, website, notif_off';
 
 export const account = {
   settings: async (uid: string) =>

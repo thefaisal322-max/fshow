@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Stack, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -25,6 +27,7 @@ import { FeedVideo } from '@/components/Video';
 import { StringKey, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { account } from '@/lib/account';
+import { Draft, drafts } from '@/lib/drafts';
 import { useAuth } from '@/lib/auth-context';
 import { feedSignal, profileSignal } from '@/lib/signals';
 import { useBottomSpace } from '@/lib/useBottomSpace';
@@ -61,6 +64,77 @@ export default function CreatePost() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canPost = !busy && (body.trim().length > 0 || !!image || !!video) && body.length <= MAX;
+
+  // ───────── drafts ─────────
+  const navigation = useNavigation();
+  const { draft: draftParam } = useLocalSearchParams<{ draft?: string }>();
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [myDrafts, setMyDrafts] = useState<Draft[]>([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const leaving = useRef(false);
+  const dirty = body.trim().length > 0 || !!image || !!video;
+
+  function loadDraft(x: Draft) {
+    setDraftId(x.id);
+    setBody(x.body);
+    setImage(x.image);
+    setVideo(x.video);
+    setLocation(x.location);
+    setFeeling(x.feeling);
+    setVisibility(x.visibility);
+    setDraftsOpen(false);
+  }
+
+  useEffect(() => {
+    if (!session) return;
+    drafts.list(session.user.id).then(setMyDrafts).catch(() => {});
+    if (draftParam) drafts.get(draftParam).then((x) => x && loadDraft(x)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, draftParam]);
+
+  async function saveDraft() {
+    if (!session) return;
+    try {
+      const id = await drafts.save({ id: draftId, uid: session.user.id, body, image, video, location, feeling, visibility });
+      setDraftId(id);
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+      throw e;
+    }
+  }
+
+  // leaving with something written → Save draft / Discard / Keep editing (like TikTok)
+  useEffect(() => {
+    const sub = navigation.addListener('beforeRemove', (e) => {
+      if (leaving.current || !dirty || busy) return;
+      e.preventDefault();
+      Alert.alert(t('draft_q'), t('draft_q_sub'), [
+        { text: t('draft_keep'), style: 'cancel' },
+        {
+          text: t('draft_discard'),
+          style: 'destructive',
+          onPress: () => {
+            leaving.current = true;
+            navigation.dispatch(e.data.action);
+          },
+        },
+        {
+          text: t('draft_save'),
+          onPress: async () => {
+            try {
+              await saveDraft();
+              leaving.current = true;
+              navigation.dispatch(e.data.action);
+            } catch {
+              /* message shown */
+            }
+          },
+        },
+      ]);
+    });
+    return sub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, dirty, busy, body, image, video, location, feeling, visibility, draftId]);
 
   async function pick(kind: 'images' | 'videos') {
     setError(null);
@@ -115,8 +189,10 @@ export default function CreatePost() {
     setError(null);
     try {
       await social.createPost(session.user.id, { body, image, video, location, feeling, visibility });
+      if (draftId) await drafts.remove(draftId).catch(() => {});
       feedSignal.dirty = true;
       profileSignal.dirty = true;
+      leaving.current = true;
       router.back();
     } catch (e) {
       setError(errorMessage(e));
@@ -139,6 +215,12 @@ export default function CreatePost() {
       <Stack.Screen options={{ headerShown: true, title: t('new_post'), headerTitleAlign: 'center', headerRight: postButton }} />
       <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled">
         <ErrorBox message={error} />
+        {myDrafts.length ? (
+          <Pressable onPress={() => setDraftsOpen(true)} style={[st.draftsBtn, { flexDirection: d.row }]}>
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+            <Text style={st.draftsText}>{t('drafts_n', { n: myDrafts.length })}</Text>
+          </Pressable>
+        ) : null}
         <View style={[st.who, { flexDirection: d.rowOpp, justifyContent: 'flex-end' }]}>
           <View style={{ flex: 1, alignItems: d.items }}>
             <Text style={st.name}>{profile?.displayName}</Text>
@@ -237,6 +319,47 @@ export default function CreatePost() {
         </Pressable>
       </Modal>
 
+      <Modal visible={draftsOpen} transparent animationType="slide" onRequestClose={() => setDraftsOpen(false)}>
+        <Pressable style={st.backdrop} onPress={() => setDraftsOpen(false)}>
+          <Pressable style={[st.sheet, { paddingBottom: 30 + bottom, maxHeight: '75%' }]}>
+            <Text style={st.sheetTitle}>{t('drafts')}</Text>
+            <FlatList
+              data={myDrafts}
+              keyExtractor={(x) => x.id}
+              renderItem={({ item }) => (
+                <View style={[st.draftRow, { flexDirection: d.row }]}>
+                  <Pressable onPress={() => loadDraft(item)} style={[{ flex: 1, alignItems: 'center', gap: 10 }, { flexDirection: d.row }]}>
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={st.draftThumb} />
+                    ) : (
+                      <View style={[st.draftThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+                        <Ionicons name={item.video ? 'videocam' : 'document-text'} size={22} color={colors.muted} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, alignItems: d.items }}>
+                      <Text numberOfLines={2} style={{ color: colors.text, fontWeight: '600', textAlign: d.align }}>
+                        {item.body.trim() || (item.video ? t('video') : t('photo'))}
+                      </Text>
+                      <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(item.saved_at).toLocaleString()}</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={async () => {
+                      await drafts.remove(item.id);
+                      setMyDrafts((old) => old.filter((x) => x.id !== item.id));
+                      if (draftId === item.id) setDraftId(null);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
+                  </Pressable>
+                </View>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={feelingOpen} transparent animationType="slide" onRequestClose={() => setFeelingOpen(false)}>
         <Pressable style={st.backdrop} onPress={() => setFeelingOpen(false)}>
           <Pressable style={[st.sheet, { paddingBottom: 30 + bottom }]}>
@@ -302,5 +425,9 @@ const st = StyleSheet.create({
   sheet: { backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 30 },
   sheetTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 12, color: colors.text },
   grid: { flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  draftsBtn: { alignSelf: 'flex-start', alignItems: 'center', gap: 6, backgroundColor: colors.soft, borderRadius: radius.full, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 10 },
+  draftsText: { color: colors.primary, fontWeight: '700' },
+  draftRow: { alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  draftThumb: { width: 56, height: 56, borderRadius: radius.sm, backgroundColor: colors.surface },
   feel: { width: '30%', alignItems: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
 });

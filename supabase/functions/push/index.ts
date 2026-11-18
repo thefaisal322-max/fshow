@@ -80,7 +80,14 @@ type Push = {
   ttl?: number;
 };
 
-async function sendTo(userId: string, make: (lang: Lang) => Push) {
+/** the person's "Notification settings": kinds they switched off */
+async function wants(userId: string, kind: string): Promise<boolean> {
+  const [p] = await sql<{ off: string[] }[]>`SELECT notif_off AS off FROM public.profiles WHERE id = ${userId}`;
+  return !p || !p.off.includes(kind);
+}
+
+async function sendTo(userId: string, make: (lang: Lang) => Push, kind?: string) {
+  if (kind && !(await wants(userId, kind))) return 0;
   const tokens = await sql<{ token: string; lang: Lang }[]>`SELECT token, lang FROM public.push_tokens WHERE user_id = ${userId}`;
   if (!tokens.length) return 0;
   const { token: bearer, project } = await accessToken();
@@ -137,7 +144,7 @@ async function notification(id: string) {
     data: { type: 'notification', url },
     channel: 'social',
     tag: `n-${n.type}-${n.post_id ?? n.actor_id}`,
-  }));
+  }), n.type === 'friend_request' || n.type === 'friend_accept' ? 'friends' : n.type);
 }
 
 async function message(id: string) {
@@ -163,7 +170,7 @@ async function message(id: string) {
         channel: 'messages',
         tag: `c-${m.conversation_id}`,
       };
-    });
+    }, 'message');
   }
   return sent;
 }
@@ -181,7 +188,7 @@ async function call(id: string, ended: boolean) {
       channel: 'calls',
       tag: `call-${id}`,
       ttl: 45, // an old call is useless
-    }));
+    }), 'call');
   }
   // stopped ringing: the same notification becomes "Missed call" (or disappears quietly if answered)
   if (c.status === 'accepted' || c.answered_at) return 0;
@@ -191,7 +198,7 @@ async function call(id: string, ended: boolean) {
     data: { type: 'missed_call', url: `/chats/${c.conversation_id}` },
     channel: 'missed',
     tag: `call-${id}`,
-  }));
+  }), 'call');
 }
 
 Deno.serve(

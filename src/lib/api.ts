@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { unregisterPush } from './push';
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -91,6 +92,18 @@ export const api = {
 
   async logout() {
     await unregisterPush();
+    // a logged-out account is also removed from "Switch account"
+    const { data } = await supabase.auth.getSession();
+    const me = data.session?.user.id;
+    if (me) {
+      try {
+        const raw = await AsyncStorage.getItem('fshow.accounts.v1');
+        const list = raw ? (JSON.parse(raw) as { id: string }[]) : [];
+        await AsyncStorage.setItem('fshow.accounts.v1', JSON.stringify(list.filter((a) => a.id !== me)));
+      } catch {
+        /* ignore */
+      }
+    }
     await supabase.auth.signOut();
   },
 
@@ -174,6 +187,7 @@ export function errorMessage(e: unknown): string {
     'upload-failed': 'e_upload',
     'email-send-failed': 'e_email_send',
     unauthenticated: 'e_relogin',
+    'session-expired': 'e_relogin',
     'no-profile': 'e_relogin',
     network: 'e_network',
     'video-too-long': 'e_video_long',

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { IncomingCall } from '@/components/IncomingCall';
+import { accounts } from '@/lib/accounts';
 import { registerPush, usePushTaps } from '@/lib/push';
 import { Loading } from '@/components/ui';
 import { LanguageProvider, useI18n } from '@/i18n';
@@ -48,6 +49,11 @@ function Gate() {
   useEffect(() => {
     if (pushReady) registerPush(lang);
   }, [pushReady, session?.user.id, lang]);
+  // keep this account in "Switch account"
+  useEffect(() => {
+    if (pushReady && profile)
+      accounts.rememberCurrent({ id: profile.id, name: profile.displayName, username: profile.username, photo_path: profile.photoPath }).catch(() => {});
+  }, [pushReady, profile]);
   usePushTaps(pushReady);
 
   useEffect(() => {

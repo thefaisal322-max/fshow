@@ -1,5 +1,11 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
+
+import { Avatar } from '@/components/Avatar';
+import { accounts, SavedAccount } from '@/lib/accounts';
+import { avatarUrl } from '@/lib/supabase';
+import { colors } from '@/theme';
 
 import { Button, ErrorBox, Field, FormScreen, Title } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -13,6 +19,24 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // accounts saved on this phone ("Switch account") — one tap to continue
+  const [saved, setSaved] = useState<SavedAccount[]>([]);
+  useEffect(() => {
+    accounts.list().then(setSaved).catch(() => {});
+  }, []);
+
+  async function continueAs(a: SavedAccount) {
+    setError(null);
+    setBusy(true);
+    try {
+      await accounts.switchTo(a.id);
+    } catch (err) {
+      setError(errorMessage(err));
+      setSaved(await accounts.list());
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit() {
     const e = normalizeEmail(email);
@@ -36,6 +60,24 @@ export default function Login() {
     <FormScreen>
       <Title>{t('login_title')}</Title>
       <ErrorBox message={error} />
+      {saved.length ? (
+        <View style={{ gap: 8, marginBottom: 16 }}>
+          {saved.map((a) => (
+            <Pressable
+              key={a.id}
+              onPress={() => continueAs(a)}
+              disabled={busy}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: 14, padding: 10 }}
+            >
+              <Avatar uri={avatarUrl(a.photo_path)} name={a.name} size={40} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: '700', color: colors.text }}>{t('acc_continue', { name: a.name })}</Text>
+                {a.username ? <Text style={{ color: colors.muted, fontSize: 12 }}>@{a.username}</Text> : null}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <Field
         label={t('email')}
         ltr

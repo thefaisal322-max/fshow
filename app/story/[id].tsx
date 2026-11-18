@@ -3,7 +3,7 @@ import { useEventListener } from 'expo';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, FlatList, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
@@ -21,7 +21,9 @@ const VIDEO_MAX_MS = 60000;
 
 /** Full-screen stories: tap sides to move, hold to pause, auto-advance; then the next person's stories. */
 export default function StoryViewer() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // hl = watching one of the highlights on a profile
+  const { id, hl } = useLocalSearchParams<{ id: string; hl?: string }>();
+  const [picking, setPicking] = useState(false);
   const router = useRouter();
   const { t, d } = useI18n();
   const { session } = useAuth();
@@ -96,7 +98,30 @@ export default function StoryViewer() {
   function menu() {
     if (!story) return;
     setPaused(true);
+    if (hl) {
+      Alert.alert('', '', [
+        {
+          text: t('hl_remove'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await stories.removeFromHighlight(hl, story.id);
+              ring.stories.splice(index, 1);
+              if (!ring.stories.length) router.back();
+              else setIndex(Math.min(index, ring.stories.length - 1));
+            } catch (e) {
+              Alert.alert('', errorMessage(e));
+            } finally {
+              setPaused(false);
+            }
+          },
+        },
+        { text: t('close'), style: 'cancel', onPress: () => setPaused(false) },
+      ]);
+      return;
+    }
     Alert.alert('', '', [
+      { text: t('hl_add'), onPress: () => setPicking(true) },
       {
         text: t('delete_story'),
         style: 'destructive',
@@ -179,11 +204,21 @@ export default function StoryViewer() {
 
       {story.caption ? <Text style={[st.caption, { bottom: insets.bottom + 70 }]}>{story.caption}</Text> : null}
 
-      {mine ? (
+      {mine && !hl ? (
         <Pressable style={[st.views, { bottom: insets.bottom + 20 }]} onPress={showViewers}>
           <Ionicons name="eye" size={18} color="#fff" />
           <Text style={{ color: '#fff', fontWeight: '700' }}>{t('story_views_n', { n: story.views_count ?? 0 })}</Text>
         </Pressable>
+      ) : null}
+
+      {picking ? (
+        <HighlightPicker
+          storyId={story.id}
+          onClose={() => {
+            setPicking(false);
+            setPaused(false);
+          }}
+        />
       ) : null}
 
       <Modal visible={!!viewers} transparent animationType="slide" onRequestClose={() => { setViewers(null); setPaused(false); }}>
@@ -207,6 +242,74 @@ export default function StoryViewer() {
         </View>
       </Modal>
     </View>
+  );
+}
+
+/** "Add to highlight": pick one of my highlights or make a new one. */
+function HighlightPicker({ storyId, onClose }: { storyId: string; onClose: () => void }) {
+  const { t, d } = useI18n();
+  const insets = useSafeAreaInsets();
+  const [list, setList] = useState<{ id: string; title: string }[] | null>(null);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    stories
+      .myHighlights()
+      .then(setList)
+      .catch(() => setList([]));
+  }, []);
+
+  async function add(highlightId: string | null) {
+    if (busy) return;
+    if (!highlightId && !title.trim()) return;
+    setBusy(true);
+    try {
+      await stories.addToHighlight(storyId, highlightId, title.trim());
+      Alert.alert('', t('hl_added'));
+      onClose();
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={st.backdrop} onPress={onClose} />
+      <View style={[st.sheet, { paddingBottom: insets.bottom + 14 }]}>
+        <Text style={st.sheetTitle}>{t('hl_add')}</Text>
+        <View style={[st.newRow, { flexDirection: d.row }]}>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            maxLength={24}
+            placeholder={t('hl_new_name')}
+            placeholderTextColor={colors.muted}
+            style={[st.newInput, { textAlign: d.align }]}
+          />
+          <Pressable onPress={() => add(null)} disabled={!title.trim() || busy} style={[st.newBtn, (!title.trim() || busy) && { opacity: 0.4 }]}>
+            <Ionicons name="add" size={22} color="#fff" />
+          </Pressable>
+        </View>
+        {!list ? (
+          <ActivityIndicator color={colors.primary} style={{ margin: 16 }} />
+        ) : (
+          <FlatList
+            data={list}
+            keyExtractor={(h) => h.id}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => add(item.id)} style={[st.viewer, { flexDirection: d.row }]}>
+                <View style={st.hlDot}>
+                  <Ionicons name="star" size={16} color={colors.primary} />
+                </View>
+                <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: colors.text, textAlign: d.align }}>{item.title}</Text>
+              </Pressable>
+            )}
+          />
+        )}
+      </View>
+    </Modal>
   );
 }
 
@@ -238,4 +341,8 @@ const st = StyleSheet.create({
   sheet: { maxHeight: '60%', backgroundColor: colors.card, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 14 },
   sheetTitle: { fontSize: 17, fontWeight: '800', textAlign: 'center', marginBottom: 8, color: colors.text },
   viewer: { alignItems: 'center', gap: 10, paddingVertical: 8 },
+  newRow: { alignItems: 'center', gap: 8, marginBottom: 6 },
+  newInput: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, color: colors.text, fontSize: 15 },
+  newBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  hlDot: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
 });
