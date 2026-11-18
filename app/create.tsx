@@ -67,7 +67,9 @@ export default function CreatePost() {
 
   // ───────── drafts ─────────
   const navigation = useNavigation();
-  const { draft: draftParam } = useLocalSearchParams<{ draft?: string }>();
+  const { draft: draftParam, sound: soundParam, soundTitle } = useLocalSearchParams<{ draft?: string; sound?: string; soundTitle?: string }>();
+  // "Use this sound" from a sound page: the new video plays with that sound
+  const [soundId, setSoundId] = useState<string | null>(soundParam ? String(soundParam) : null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [myDrafts, setMyDrafts] = useState<Draft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
@@ -188,7 +190,7 @@ export default function CreatePost() {
     setBusy(true);
     setError(null);
     try {
-      await social.createPost(session.user.id, { body, image, video, location, feeling, visibility });
+      await social.createPost(session.user.id, { body, image, video, location, feeling, visibility, soundId: video ? soundId : null });
       if (draftId) await drafts.remove(draftId).catch(() => {});
       feedSignal.dirty = true;
       profileSignal.dirty = true;
@@ -274,6 +276,18 @@ export default function CreatePost() {
             <RemoveBtn onPress={() => setImage(null)} />
           </View>
         ) : null}
+        {soundId ? (
+          <View style={[st.locRow, { flexDirection: d.row }]}>
+            <Ionicons name="musical-notes" size={18} color="#FE2C55" />
+            <Text style={{ flex: 1, color: colors.text, fontWeight: '700', textAlign: d.align }} numberOfLines={1}>
+              {soundTitle ? String(soundTitle) : t('sound')}
+            </Text>
+            <Pressable onPress={() => setSoundId(null)} hitSlop={8}>
+              <Ionicons name="close-circle" size={20} color={colors.muted} />
+            </Pressable>
+          </View>
+        ) : null}
+        {soundId && !video ? <Text style={{ color: colors.muted, fontSize: 13, textAlign: d.align }}>{t('sound_pick_video')}</Text> : null}
         {video ? (
           <View>
             <FeedVideo uri={video.uri} style={st.preview} />

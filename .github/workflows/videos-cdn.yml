@@ -13,7 +13,7 @@ on:
     - cron: '41 */3 * * *'
   push:
     branches: [main]
-    paths: ['.github/workflows/videos-cdn.yml']
+    paths: ['.github/workflows/videos-cdn.yml', 'scripts/watermark.sh']
 
 concurrency:
   group: videos-cdn
@@ -68,19 +68,31 @@ jobs:
             npx -y wrangler@3 pages project create "$PROJECT" --production-branch main
           fi
 
-      - name: Move new videos
+      - name: Move new videos (+ download copies with watermark, + sounds)
         if: steps.ok.outputs.go == 'true'
         run: |
           rpc() { curl -sf -X POST "https://$REF.supabase.co/rest/v1/rpc/$1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d "$2"; }
-          rpc media_pending '{"p_limit":150}' | jq -r '.[].path' > pending.txt || { echo "::error::media_pending failed"; exit 1; }
-          echo "::notice title=pending::$(wc -l < pending.txt) videos"
-          [ -s pending.txt ] || exit 0
+          logo="$GITHUB_WORKSPACE/assets/logo-mark.png"
+          rpc media_pending '{"p_limit":120}' > pending.json || { echo "::error::media_pending failed"; exit 1; }
+          rpc media_dl_pending '{"p_limit":40}' > dlpending.json || echo '[]' > dlpending.json
+          rpc sounds_pending '{"p_limit":100}' > sndpending.json || echo '[]' > sndpending.json
+          echo "::notice title=pending::$(jq length pending.json) new · $(jq length dlpending.json) download copies · $(jq length sndpending.json) sounds"
 
-          mkdir -p site/v
-          printf '/v/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n' > site/_headers
+          mkdir -p site/v site/d site/a
+          printf '/v/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n/d/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n/a/*\n  Cache-Control: public, max-age=31536000, immutable\n  Access-Control-Allow-Origin: *\n' > site/_headers
           echo "fshow media" > site/index.html
-          : > moved.txt
-          while read -r p; do
+          : > moved.txt; : > dl.txt; : > snd.txt
+
+          # makes the watermarked download copy (≤ 24 MB) — a failure only skips the copy
+          make_dl() { # $1 source file  $2 site path  $3 username  $4 audio url (may be empty)
+            mkdir -p "site/d/$(dirname "$2")"
+            if bash "$GITHUB_WORKSPACE/scripts/watermark.sh" "$1" "site/d/$2" "$3" "$logo" "$4" \
+               && [ "$(stat -c %s "site/d/$2")" -le 24000000 ]; then return 0; fi
+            rm -f "site/d/$2"; echo "::warning title=$2::download copy failed"; return 1
+          }
+
+          while read -r row <&3; do
+            p=$(jq -r .path <<<"$row"); u=$(jq -r .username <<<"$row"); au=$(jq -r '.audio // ""' <<<"$row")
             [ -n "$p" ] || continue
             url="https://$REF.supabase.co/storage/v1/object/public/posts/$p"
             curl -sf -o in.bin "$url" || { echo "::warning title=$p::download failed"; continue; }
@@ -89,12 +101,12 @@ jobs:
             cp in.bin out.mp4
             # big or heavy → re-encode; still too big for Pages (25 MB) → smaller again
             if [ "${br:-0}" -gt 2500000 ] 2>/dev/null || [ "$size" -gt 24000000 ]; then
-              ffmpeg -v error -y -i in.bin -vf "scale='min(720,iw)':-2" -c:v libx264 -preset veryfast -crf 26 \
+              ffmpeg -nostdin -v error -y -i in.bin -vf "scale='min(720,iw)':-2" -c:v libx264 -preset veryfast -crf 26 \
                 -maxrate 1600k -bufsize 3200k -profile:v high -pix_fmt yuv420p -c:a aac -b:a 96k -ac 2 \
                 -movflags +faststart -f mp4 out.mp4 || cp in.bin out.mp4
             fi
             if [ "$(stat -c %s out.mp4)" -gt 24000000 ]; then
-              ffmpeg -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -crf 30 \
+              ffmpeg -nostdin -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -crf 30 \
                 -maxrate 900k -bufsize 1800k -pix_fmt yuv420p -c:a aac -b:a 64k -ac 2 -movflags +faststart -f mp4 out.mp4
             fi
             # long videos (up to 3 min): pick the bitrate that fits ~22 MB
@@ -102,15 +114,30 @@ jobs:
               dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 in.bin | cut -d. -f1)
               vb=$(( (22000000 * 8 / ${dur:-180}) - 80000 ))
               [ "$vb" -lt 250000 ] && vb=250000
-              ffmpeg -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -b:v "$vb" \
+              ffmpeg -nostdin -v error -y -i in.bin -vf "scale='min(540,iw)':-2" -c:v libx264 -preset veryfast -b:v "$vb" \
                 -maxrate "$vb" -bufsize "$((vb*2))" -pix_fmt yuv420p -c:a aac -b:a 64k -ac 2 -movflags +faststart -f mp4 out.mp4
             fi
             if [ "$(stat -c %s out.mp4)" -gt 24000000 ]; then echo "::warning title=$p::too big even small, kept in Supabase"; continue; fi
             mkdir -p "site/v/$(dirname "$p")"
             mv out.mp4 "site/v/$p"
-            echo "$p" >> moved.txt
-          done < pending.txt
-          [ -s moved.txt ] || exit 0
+            if make_dl "site/v/$p" "$p" "$u" "$au"; then echo "$p 1" >> moved.txt; else echo "$p 0" >> moved.txt; fi
+          done 3< <(jq -c '.[]' pending.json)
+
+          # older videos without a download copy
+          while read -r row <&3; do
+            p=$(jq -r .path <<<"$row"); src=$(jq -r .url <<<"$row"); u=$(jq -r .username <<<"$row"); au=$(jq -r '.audio // ""' <<<"$row")
+            curl -sf -o old.mp4 "$src" || { echo "::warning title=$p::cdn download failed"; continue; }
+            make_dl old.mp4 "$p" "$u" "$au" && echo "$p" >> dl.txt
+          done 3< <(jq -c '.[]' dlpending.json)
+
+          # sounds: keep the audio on its own (the sound stays when its first reel is deleted)
+          while read -r row <&3; do
+            id=$(jq -r .id <<<"$row"); src=$(jq -r .src <<<"$row")
+            ffmpeg -nostdin -v error -y -i "$src" -vn -c:a aac -b:a 96k -ac 2 -movflags +faststart "site/a/$id.m4a" \
+              && [ -s "site/a/$id.m4a" ] && echo "$id" >> snd.txt || { rm -f "site/a/$id.m4a"; echo "::warning title=sound $id::no audio"; }
+          done 3< <(jq -c '.[]' sndpending.json)
+
+          if [ ! -s moved.txt ] && [ ! -s dl.txt ] && [ ! -s snd.txt ]; then echo "nothing to deploy"; exit 0; fi
 
           branch="b$(date -u +%Y%m%d%H%M)"
           npx -y wrangler@3 pages deploy site --project-name "$PROJECT" --branch "$branch" --commit-dirty=true 2>&1 | tee deploy.txt
@@ -118,27 +145,46 @@ jobs:
           base=$(grep -i 'take a peek' deploy.txt | grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' | head -1)
           [ -n "$base" ] || base=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev' deploy.txt | head -1)
           [ -n "$base" ] || { echo "::error::deploy address not found"; exit 1; }
-          echo "::notice title=deployed::$base ($(wc -l < moved.txt) videos)"
+          echo "::notice title=deployed::$base"
 
           # the address must really work before the app uses it
           # (a brand-new address can need a few minutes for its HTTPS certificate)
-          first=$(head -1 moved.txt)
+          first=$(find site/v site/d site/a -type f | head -1 | sed 's#^site/##')
           code=000
           for try in $(seq 1 40); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$base/v/$first" || true)
+            code=$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$base/$first" || true)
             case "$code" in 200|206) break;; esac
             sleep 15
           done
-          echo "::notice title=range check::$base/v/$first → HTTP $code (206 = video seeking works)"
+          echo "::notice title=range check::$base/$first → HTTP $code (206 = video seeking works)"
           case "$code" in 200|206) ;; *) echo "::error::new address does not answer ($code)"; exit 1;; esac
 
           n=0
-          while read -r p; do
+          while read -r p ok; do
+            [ -n "$p" ] || continue
             s=$(stat -c %s "site/v/$p")
-            rpc media_done "$(jq -nc --arg p "$p" --arg u "$base/v/$p" --argjson s "$s" '{p_path:$p,p_url:$u,p_size:$s}')" >/dev/null \
+            dl=null; [ "$ok" = 1 ] && dl=$(jq -nc --arg u "$base/d/$p" '$u')
+            rpc media_done "$(jq -nc --arg p "$p" --arg u "$base/v/$p" --argjson s "$s" --argjson d "$dl" '{p_path:$p,p_url:$u,p_size:$s,p_dl:$d}')" >/dev/null \
               && n=$((n+1)) || echo "::warning title=$p::media_done failed"
           done < moved.txt
-          echo "::notice title=moved::$n videos now play from Cloudflare"
+          while read -r p; do
+            rpc media_dl_done "$(jq -nc --arg p "$p" --arg u "$base/d/$p" '{p_path:$p,p_dl:$u}')" >/dev/null || true
+          done < dl.txt
+          while read -r id; do
+            rpc sound_audio_done "$(jq -nc --arg i "$id" --arg u "$base/a/$id.m4a" '{p_sound:$i,p_url:$u}')" >/dev/null || true
+          done < snd.txt
+          echo "::notice title=done::$n videos moved · $(wc -l < dl.txt) download copies · $(wc -l < snd.txt) sounds"
+
+      - name: Cloudflare space check
+        if: steps.ok.outputs.go == 'true'
+        run: |
+          rpc() { curl -sf -X POST "https://$REF.supabase.co/rest/v1/rpc/$1" -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d "$2"; }
+          # sizes of everything made by this workflow ≈ 2.2× the play copies (download copy + sound)
+          bytes=$(rpc media_total_bytes '{}' || echo 0)
+          gb=$(awk "BEGIN{printf \"%d\", $bytes * 2.2 / 1e9}")
+          echo "::notice title=Cloudflare space::about $gb GB of 1000 GB"
+          # near the free limit → a notice to the admins (the app keeps working)
+          if [ "$gb" -ge 850 ]; then rpc admin_space_alert "$(jq -nc --argjson g "$gb" '{p_gb:$g}')" >/dev/null || true; fi
 
       - name: Delete old Supabase copies
         if: steps.ok.outputs.go == 'true'

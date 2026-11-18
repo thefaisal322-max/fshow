@@ -148,20 +148,27 @@ export function PostMenuSheet({
     Alert.alert('', t('link_copied'));
   };
 
-  /** Videos are saved as they are; photos get the Faisal Show watermark. */
+  /**
+   * Videos: the download copy made on the server (moving logo + @username + 2 s end clip).
+   * Photos get the Faisal Show watermark here on the phone. Inside the app nothing has a watermark.
+   */
   async function download() {
+    if (post.video_path && !post.dl_url) {
+      Alert.alert('', t('dl_not_ready'));
+      return;
+    }
     if (!(await galleryPermission())) {
       Alert.alert('', t('gallery_permission'));
       return;
     }
     const path = post.video_path ?? post.image_path;
-    const url = post.video_path ? videoUrl(post.video_path, post.video_url) : videoUrl(path);
+    const url = post.video_path ? post.dl_url! : videoUrl(path);
     if (!path || !url) return;
     setView('save');
     setProgress(0);
     try {
       // already on the phone (saved for offline)? then no download is needed
-      const local = url.startsWith('file:') ? url : await downloadToCache(url, extOf(path), setProgress);
+      const local = url.startsWith('file:') ? url : await downloadToCache(url, post.video_path ? 'mp4' : extOf(path), setProgress);
       if (post.video_path) {
         await saveToGallery(local);
         onClose();
@@ -309,7 +316,7 @@ export function PostMenuSheet({
 }
 
 /** Photo with the Faisal Show logo and @username in the corner (this view is captured to a JPG). */
-function Watermarked({ uri, username, onReady, ref }: { uri: string; username: string | null; onReady: () => void; ref: RefObject<View | null> }) {
+export function Watermarked({ uri, username, onReady, ref }: { uri: string; username: string | null; onReady: () => void; ref: RefObject<View | null> }) {
   const [ratio, setRatio] = useState(1);
   const fired = useRef(false);
   return (

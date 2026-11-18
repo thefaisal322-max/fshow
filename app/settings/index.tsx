@@ -96,7 +96,7 @@ export default function Settings() {
       </Card>
       <P muted style={{ textAlign: 'center' }}>{t('verified_info')}</P>
       <Text style={{ textAlign: 'center', color: colors.muted, marginTop: 12, fontSize: 12 }}>
-        Faisal Show · {t('version', { v: Constants.expoConfig?.version ?? '' })}
+        Faisal Show · {t('version', { v: `v${Constants.expoConfig?.version ?? ''}f+` })}
       </Text>
     </Page>
   );

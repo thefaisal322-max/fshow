@@ -12,6 +12,7 @@ import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { authorName, timeAgo } from '@/lib/social';
+import { downloadToCache, extOf, galleryPermission, saveToGallery } from '@/lib/download';
 import { stories, Story, storyStore, storyUrl } from '@/lib/stories';
 import { avatarUrl } from '@/lib/supabase';
 import { colors } from '@/theme';
@@ -120,8 +121,10 @@ export default function StoryViewer() {
       ]);
       return;
     }
+    // Android shows 3 buttons at most → no "Close" button; tapping outside closes
     Alert.alert('', '', [
       { text: t('hl_add'), onPress: () => setPicking(true) },
+      { text: t('download'), onPress: () => download(story) },
       {
         text: t('delete_story'),
         style: 'destructive',
@@ -138,8 +141,24 @@ export default function StoryViewer() {
           }
         },
       },
-      { text: t('close'), style: 'cancel', onPress: () => setPaused(false) },
-    ]);
+    ], { cancelable: true, onDismiss: () => setPaused(false) });
+  }
+
+  /** my own story → the gallery */
+  async function download(s: Story) {
+    try {
+      if (!(await galleryPermission())) {
+        Alert.alert('', t('gallery_permission'));
+        return;
+      }
+      const local = await downloadToCache(storyUrl(s.media_path), extOf(s.media_path));
+      await saveToGallery(local);
+      Alert.alert('', t('saved_gallery'));
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    } finally {
+      setPaused(false);
+    }
   }
 
   if (!ring || !story) {

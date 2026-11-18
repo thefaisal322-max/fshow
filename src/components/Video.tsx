@@ -25,10 +25,13 @@ export function ReelVideo({
   paused,
   style,
   bottomBar = 0,
+  muted = false,
 }: {
   uri: string;
   active: boolean;
   paused: boolean;
+  /** the reel uses another reel's sound: its own sound is off */
+  muted?: boolean;
   style?: StyleProp<ViewStyle>;
   /** distance of the progress bar from the bottom */
   bottomBar?: number;
@@ -40,6 +43,10 @@ export function ReelVideo({
   const { status } = useEvent(player, 'statusChange', { status: player.status });
   const [fit, setFit] = useState<'cover' | 'contain'>('cover');
   const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    player.muted = muted;
+  }, [muted, player]);
 
   useEffect(() => {
     if (active && !paused) player.play();

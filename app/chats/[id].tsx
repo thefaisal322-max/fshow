@@ -33,6 +33,7 @@ import { calls } from '@/lib/calls';
 import { Attachment, chat, chatFileUrl, chatInfo, ChatInfo, ChatMember, Message, REACTIONS, Reaction } from '@/lib/chat';
 import { useUnread } from '@/lib/notifications';
 import { isOnline, presenceText, usePresence } from '@/lib/presence';
+import { downloadToCache, extOf, galleryPermission, saveToGallery } from '@/lib/download';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { authorName, PostPreview, postImageUrl, social } from '@/lib/social';
 import { avatarUrl, supabase } from '@/lib/supabase';
@@ -63,6 +64,24 @@ export default function ChatScreen() {
   const [recording, setRecording] = useState(false);
   const [picker, setPicker] = useState<Message | null>(null);
   const [forwarding, setForwarding] = useState<Message | null>(null);
+
+  /** photo / video from the chat → the phone's gallery (as sent, private chats get no watermark) */
+  async function saveMedia(m: Message) {
+    try {
+      if (!m.media_path) return;
+      if (!(await galleryPermission())) {
+        Alert.alert('', t('gallery_permission'));
+        return;
+      }
+      const url = await chatFileUrl(m.media_path);
+      if (!url) throw new Error('network');
+      const local = await downloadToCache(url, extOf(m.media_path));
+      await saveToGallery(local);
+      Alert.alert('', t('saved_gallery'));
+    } catch (e) {
+      Alert.alert('', errorMessage(e));
+    }
+  }
   const loadingOlder = useRef(false);
   const lastMineId = msgs.find((m) => m.sender_id === me && !m.deleted)?.id;
 
@@ -496,6 +515,9 @@ export default function ChatScreen() {
               ) : null}
               {!action.deleted && !action.view_once ? (
                 <BarItem icon="arrow-redo" label={t('forward')} onPress={() => { setForwarding(action); setAction(null); }} />
+              ) : null}
+              {!action.deleted && !action.view_once && action.media_path && action.media_type !== 'audio' ? (
+                <BarItem icon="download" label={t('save')} onPress={() => { const m = action; setAction(null); saveMedia(m); }} />
               ) : null}
               <BarItem icon="trash" label={t('delete')} color={colors.error} onPress={() => remove(action)} />
             </View>

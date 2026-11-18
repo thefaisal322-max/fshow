@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,7 +32,7 @@ import { ReelVideo } from '@/components/Video';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { authorName, feelingLabel, formatCount, Post, social, videoUrl } from '@/lib/social';
+import { authorName, feelingLabel, formatCount, Post, social, soundUrl, videoUrl } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 
 type Mode = 'foryou' | 'following';
@@ -42,7 +43,7 @@ const QUICK = ['🥰', '😂', '😏', '😁'];
  *  • Reels tab: Following / For You
  *  • One person's reels (from their profile): pass userId (+ startId of the tapped reel)
  */
-export function ReelsFeed({ userId, query, startId, title }: { userId?: string; query?: string; startId?: string; title?: string }) {
+export function ReelsFeed({ userId, query, soundId, startId, title }: { userId?: string; query?: string; soundId?: string; startId?: string; title?: string }) {
   const router = useRouter();
   const { t, d } = useI18n();
   const [focused, setFocused] = useState(true);
@@ -72,13 +73,15 @@ export function ReelsFeed({ userId, query, startId, title }: { userId?: string; 
       busy.current = true;
       try {
         const offset = reset ? 0 : reels.length;
-        const page = userId
+        const page = soundId
+          ? ((await social.getSound(soundId, offset))?.reels ?? [])
+          : userId
           ? await social.userPosts(userId, offset, 'reels', 10)
           : query
             ? await social.searchPosts(query, 'reels', offset, 10)
             : await social.reels(offset, m);
         setReels((old) => (reset ? page : [...old, ...page.filter((p) => !old.some((o) => o.id === p.id))]));
-        setMore(page.length >= 10);
+        setMore(page.length >= (soundId ? 30 : 10));
         if (reset) {
           setActive(0);
           list.current?.scrollToOffset({ offset: 0, animated: false });
@@ -91,7 +94,7 @@ export function ReelsFeed({ userId, query, startId, title }: { userId?: string; 
         setRefreshing(false);
       }
     },
-    [reels.length, userId, query],
+    [reels.length, userId, query, soundId],
   );
 
   useEffect(() => {
@@ -211,7 +214,7 @@ export function ReelsFeed({ userId, query, startId, title }: { userId?: string; 
       )}
 
       {/* top bar: Following | For You, search, upload — or ← name for one person's reels */}
-      {userId || query ? (
+      {userId || query || soundId ? (
         <View style={[st.top, { top: insets.top + 4, flexDirection: d.row }]} pointerEvents="box-none">
           <Pressable onPress={() => router.back()} hitSlop={10} style={st.topIcon}>
             <Ionicons name={d.rtl ? 'arrow-forward' : 'arrow-back'} size={28} color="#fff" style={st.shadow} />
@@ -293,6 +296,8 @@ function Reel({
   const dim = useRef(new Animated.Value(0)).current;
   const heart = useRef<HeartBurstHandle>(null);
   const uri = videoUrl(post.video_path, post.video_url)!;
+  // a reel made with someone else's sound plays that sound (its own sound is off)
+  const usedSound = post.sound && post.sound.source_post_id !== post.id ? soundUrl(post.sound) : null;
   const feeling = feelingLabel(post.feeling);
 
   useEffect(() => {
@@ -405,7 +410,8 @@ function Reel({
         }}
         onLong={() => setMenu(true)}
       >
-        <ReelVideo uri={uri} active={active} paused={paused} style={StyleSheet.absoluteFill} bottomBar={0} />
+        <ReelVideo uri={uri} active={active} paused={paused} muted={!!usedSound} style={StyleSheet.absoluteFill} bottomBar={0} />
+        {usedSound ? <SoundTrack url={usedSound} playing={active && !paused} /> : null}
         {paused ? (
           <View style={st.pause} pointerEvents="none">
             <Ionicons name="play" size={70} color="rgba(255,255,255,0.8)" />
@@ -445,7 +451,13 @@ function Reel({
         <SideBtn icon="bookmark" color={post.saved ? '#FACE15' : '#fff'} pop={!!post.saved} label={formatCount(post.saves_count)} onPress={save} />
         <SideBtn icon="arrow-redo" label={formatCount(post.shares_count)} onPress={() => setShareOpen(true)} />
         <SideBtn icon="ellipsis-horizontal" label="" onPress={() => setMenu(true)} />
-        <Disc uri={avatarUrl(post.author.photo_path)} name={post.author.first_name} spinning={active && !paused} />
+        <Pressable onPress={() => post.sound && router.push({ pathname: '/sound/[id]', params: { id: post.sound.id } })}>
+          <Disc
+            uri={avatarUrl((post.sound?.owner ?? post.author).photo_path)}
+            name={(post.sound?.owner ?? post.author).first_name}
+            spinning={active && !paused}
+          />
+        </Pressable>
       </View>
 
       {/* TikTok quick emoji comments: a pill in the middle at the 💬 height */}
@@ -497,12 +509,18 @@ function Reel({
               .join(' · ')}
           </Text>
         ) : null}
-        <View style={{ flexDirection: d.row, alignItems: 'center', gap: 6, marginTop: 6 }}>
+        <Pressable
+          disabled={!post.sound}
+          onPress={() => post.sound && router.push({ pathname: '/sound/[id]', params: { id: post.sound.id } })}
+          style={{ flexDirection: d.row, alignItems: 'center', gap: 6, marginTop: 6 }}
+        >
           <Ionicons name="musical-notes" size={14} color="#fff" />
-          <Text style={[st.user, st.shadow]} numberOfLines={1}>
-            {t('original_sound')} · {authorName(post.author)}
+          <Text style={[st.user, st.shadow, { flexShrink: 1 }]} numberOfLines={1}>
+            {post.sound
+              ? `${t('original_sound')} · ${authorName(post.sound.owner)}`
+              : `${t('original_sound')} · ${authorName(post.author)}`}
           </Text>
-        </View>
+        </Pressable>
       </View>
 
       {menu ? <PostMenuSheet post={post} onClose={() => setMenu(false)} onChange={onChange} onRemoved={onRemoved} /> : null}
@@ -761,6 +779,24 @@ function FollowBadge({ following, onFollow }: { following: boolean; onFollow: ()
       </Animated.View>
     </Pressable>
   );
+}
+
+/** Another reel's sound, played in step with this reel (loops, stops when the reel is paused or scrolled away). */
+function SoundTrack({ url, playing }: { url: string; playing: boolean }) {
+  const player = useAudioPlayer({ uri: url });
+  useEffect(() => {
+    player.loop = true;
+  }, [player]);
+  useEffect(() => {
+    if (playing) {
+      setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+      player.play();
+    } else {
+      player.pause();
+      player.seekTo(0).catch(() => {});
+    }
+  }, [playing, player]);
+  return null;
 }
 
 /** Spinning record with the author's photo (like TikTok's sound disc). */

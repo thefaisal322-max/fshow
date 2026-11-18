@@ -25,6 +25,10 @@ export type Post = {
   video_path: string | null;
   /** the video's fast address on Cloudflare (null while it is still only in Supabase Storage) */
   video_url?: string | null;
+  /** download copy with the moving logo + @username + end clip (made by the server a few hours after posting) */
+  dl_url?: string | null;
+  /** the sound of a video (its own "original sound", or one it used) */
+  sound?: Sound | null;
   /** small JPG cover of a video (made on the phone when posting) */
   thumb_path?: string | null;
   location: string | null;
@@ -49,6 +53,23 @@ export type Post = {
 };
 
 export type Visibility = 'public' | 'friends' | 'private';
+
+export type Sound = {
+  id: string;
+  title: string;
+  uses_count: number;
+  /** the first reel (null after it was deleted — the sound stays) */
+  source_post_id: string | null;
+  audio_url: string | null;
+  src_path: string;
+  src_url: string | null;
+  owner: Author;
+};
+
+/** where a sound can be heard: its own audio, else the first reel's video */
+export function soundUrl(s: Sound): string | null {
+  return s.audio_url ?? videoUrl(s.src_path, s.src_url);
+}
 export type Feedback = 'interested' | 'not_interested' | 'hide';
 export type TrendingTag = { tag: string; count: number };
 
@@ -251,7 +272,7 @@ export const social = {
    */
   createPost: async (
     uid: string,
-    input: { body: string; image?: string | null; video?: { uri: string; duration?: number | null; size?: number | null; mime?: string | null } | null; location?: string | null; feeling?: string | null; visibility?: Visibility },
+    input: { body: string; image?: string | null; video?: { uri: string; duration?: number | null; size?: number | null; mime?: string | null } | null; location?: string | null; feeling?: string | null; visibility?: Visibility; soundId?: string | null },
   ) => {
     let imagePath: string | null = null;
     let videoPath: string | null = null;
@@ -300,12 +321,18 @@ export const social = {
       location: input.location?.trim() || null,
       feeling: input.feeling || null,
       visibility: input.visibility ?? 'public',
+      ...(videoPath && input.soundId ? { sound_id: input.soundId } : {}),
     });
     if (r.error) {
       const files = [imagePath, videoPath, thumbPath].filter(Boolean) as string[];
       if (files.length) await supabase.storage.from('posts').remove(files);
       check(r);
     }
+  },
+  getSound: async (id: string, offset = 0): Promise<{ sound: Sound; reels: Post[] } | null> => {
+    const r = await supabase.rpc('get_sound', { p_sound: id, p_offset: offset });
+    check(r);
+    return (r.data as { sound: Sound; reels: Post[] } | null) ?? null;
   },
   deletePost: async (post: Post) => {
     check(await supabase.from('posts').delete().eq('id', post.id));

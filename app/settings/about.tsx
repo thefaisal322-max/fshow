@@ -14,7 +14,7 @@ export default function About() {
       <Card style={{ alignItems: 'center' }}>
         <Image source={require('../../assets/logo-mark.png')} style={{ width: 110, height: 110 }} resizeMode="contain" />
         <Text style={{ fontSize: 24, fontWeight: '800', color: colors.primary, marginTop: 8 }}>Faisal Show</Text>
-        <Text style={{ color: colors.muted, marginBottom: 12 }}>{t('version', { v: Constants.expoConfig?.version ?? '' })}</Text>
+        <Text style={{ color: colors.muted, marginBottom: 12 }}>{t('version', { v: `v${Constants.expoConfig?.version ?? ''}f+` })}</Text>
       </Card>
       <Card>
         <P>{t('about_text')}</P>
