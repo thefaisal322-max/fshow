@@ -4,38 +4,45 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import type { GiftCode } from '@/lib/coins';
+import { GiftCode, giftOf } from '@/lib/coins';
+import { pack, packUri } from '@/lib/pack';
 
-const FX = {
-  clockWhite: require('../../assets/fx/clock_white.png'),
-  clockRed: require('../../assets/fx/clock_red.png'),
-  petalRed: require('../../assets/fx/petal_red.png'),
-  petalYellow: require('../../assets/fx/petal_yellow.png'),
-  glowOrange: require('../../assets/fx/glow_orange.png'),
-  glowRed: require('../../assets/fx/glow_red.png'),
-  glowPurple: require('../../assets/fx/glow_purple.png'),
-  glowGold: require('../../assets/fx/glow_gold.png'),
-  gradRed: require('../../assets/fx/grad_red.png'),
-  night: require('../../assets/fx/night.jpg'),
-  moon: require('../../assets/fx/moon.png'),
-  claws: require('../../assets/fx/claws.png'),
-  wings: require('../../assets/fx/wings_fire.png'),
-  spark: require('../../assets/fx/spark.png'),
-  logo: require('../../assets/logo-mark.png'),
+// the effect files come from the downloaded "FC & Live" pack (not inside the APK)
+const FX_FILES: Record<string, string> = {
+  clockWhite: 'clock_white.png',
+  clockRed: 'clock_red.png',
+  petalRed: 'petal_red.png',
+  petalYellow: 'petal_yellow.png',
+  glowOrange: 'glow_orange.png',
+  glowRed: 'glow_red.png',
+  glowPurple: 'glow_purple.png',
+  glowGold: 'glow_gold.png',
+  gradRed: 'grad_red.png',
+  night: 'night.jpg',
+  moon: 'moon.png',
+  claws: 'claws.png',
+  wings: 'wings_fire.png',
+  spark: 'spark.png',
 };
+const LOGO = require('../../assets/logo-mark.png');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const FX: Record<string, any> = new Proxy(
+  {},
+  { get: (_t, k: string) => (k === 'logo' ? LOGO : { uri: packUri(FX_FILES[k]) ?? '' }) },
+);
 
 /** the gift videos (made by Faisal Show) — a gift with a video plays it full screen with its sound */
-const VIDEOS: Partial<Record<GiftCode, number>> = {
-  bronze_watch: require('../../assets/gifts/bronze_watch.mp4'),
-  butterfly: require('../../assets/gifts/butterfly.mp4'),
-  yellow_flower: require('../../assets/gifts/yellow_flower.mp4'),
-  gold_watch: require('../../assets/gifts/gold_watch.mp4'),
-  rose: require('../../assets/gifts/rose.mp4'),
-  bird: require('../../assets/gifts/eagle.mp4'),
-  smart_gift: require('../../assets/gifts/smart_gift.mp4'),
-  tiger: require('../../assets/gifts/tiger.mp4'),
-  car: require('../../assets/gifts/car.mp4'),
-  power_love: require('../../assets/gifts/power_love.mp4'),
+const VIDEOS: Partial<Record<GiftCode, string>> = {
+  bronze_watch: 'bronze_watch.mp4',
+  butterfly: 'butterfly.mp4',
+  yellow_flower: 'yellow_flower.mp4',
+  gold_watch: 'gold_watch.mp4',
+  rose: 'rose.mp4',
+  bird: 'eagle.mp4',
+  smart_gift: 'smart_gift.mp4',
+  tiger: 'tiger.mp4',
+  car: 'car.mp4',
+  power_love: 'power_love.mp4',
 };
 
 /** how long each effect lasts (ms) */
@@ -60,13 +67,45 @@ const LENGTH: Record<GiftCode, number> = {
  *  F+ — the Faisal Show mark in golden rays
  */
 export function GiftFx({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
-  const video = VIDEOS[gift];
+  // the pack is not on this phone → a small pop instead
+  if (!pack.get().fc) return <SimplePop gift={gift} from={from} onDone={onDone} />;
+  const video = VIDEOS[gift] ? packUri(VIDEOS[gift]!) : null;
   if (video) return <VideoGift source={video} from={from} onDone={onDone} />;
   return <DrawnGift gift={gift} from={from} onDone={onDone} />;
 }
 
+function SimplePop({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
+  const v = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => done.current());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: 60 }]}>
+      <Animated.Text
+        style={{
+          fontSize: 110,
+          opacity: v.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 1, 1, 0] }),
+          transform: [{ scale: v.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0.3, 1.25, 1] }) }],
+        }}
+      >
+        {giftOf(gift).emoji}
+      </Animated.Text>
+      {from ? (
+        <View style={[st.label, { position: 'relative', bottom: 0, marginTop: 12 }]}>
+          <Text style={st.labelText} numberOfLines={1}>
+            {from}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** a gift video: full screen with sound; ends by itself (or ✕ to skip) */
-function VideoGift({ source, from, onDone }: { source: number; from?: string; onDone: () => void }) {
+function VideoGift({ source, from, onDone }: { source: string; from?: string; onDone: () => void }) {
   const done = useRef(onDone);
   done.current = onDone;
   const ended = useRef(false);

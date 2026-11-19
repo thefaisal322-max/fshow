@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { IncomingCall } from '@/components/IncomingCall';
 import { accounts } from '@/lib/accounts';
+import { pack } from '@/lib/pack';
 import { registerPush, usePushTaps } from '@/lib/push';
 import { Loading } from '@/components/ui';
 import { LanguageProvider, useI18n } from '@/i18n';
@@ -55,6 +56,10 @@ function Gate() {
       accounts.rememberCurrent({ id: profile.id, name: profile.displayName, username: profile.username, photo_path: profile.photoPath }).catch(() => {});
   }, [pushReady, profile]);
   usePushTaps(pushReady);
+  // the downloaded "FC & Live" pack (gift videos / effects)
+  useEffect(() => {
+    pack.load().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (loading) return;

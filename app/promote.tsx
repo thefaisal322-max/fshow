@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PackGate } from '@/components/PackGate';
 import * as Clipboard from 'expo-clipboard';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -22,7 +23,7 @@ const KINDS: { k: Promotion['kind']; icon: string; label: StringKey }[] = [
  * Promote a post (mine or anyone's, by pasting its link): 100 FC = 150 likes, or 100 plays, or 300 views.
  * The post is shown first in For You to real people until it reaches the number.
  */
-export default function PromoteScreen() {
+function PromoteScreenInner() {
   const { t, d } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{ post?: string }>();
@@ -222,3 +223,16 @@ const st = StyleSheet.create({
   track: { height: 6, borderRadius: 3, backgroundColor: colors.border, overflow: 'hidden', marginTop: 4 },
   fill: { height: 6, backgroundColor: colors.success },
 });
+
+/** needs the downloaded "FC & Live" pack */
+export default function PromoteScreen() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('promote'), headerTitleAlign: 'center' }} />
+      <PackGate need="fc">
+        <PromoteScreenInner />
+      </PackGate>
+    </>
+  );
+}

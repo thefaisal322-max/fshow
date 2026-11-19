@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PackGate } from '@/components/PackGate';
 import * as Haptics from 'expo-haptics';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -49,7 +50,7 @@ const nameOf = (id: string | null) => (id && people.get(id) ? authorName(people.
  *  live:  up to 4 hosts in a grid, comments, gifts — 25 minutes
  *  match: side A | side B, the tap bar, 3 rounds × 3 minutes (best of 3)
  */
-export default function LiveRoom() {
+function LiveRoomInner() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const liveId = String(id);
   const router = useRouter();
@@ -720,3 +721,15 @@ const st = StyleSheet.create({
   modalTitle: { color: '#fff', fontWeight: '900', fontSize: 16, marginBottom: 10 },
   modalInput: { alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
 });
+
+/** needs the downloaded "FC & Live" pack (and 15+) */
+export default function LiveRoom() {
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <PackGate need="live" dark>
+        <LiveRoomInner />
+      </PackGate>
+    </>
+  );
+}

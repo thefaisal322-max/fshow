@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PackGate } from '@/components/PackGate';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +13,7 @@ import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
 
 /** Who is live now (most viewers first) + Go LIVE / Start a MATCH. */
-export default function LiveList() {
+function LiveListInner() {
   const { t, d } = useI18n();
   const router = useRouter();
   const bottom = useBottomSpace();
@@ -112,3 +113,15 @@ const st = StyleSheet.create({
   name: { color: '#fff', fontWeight: '800', textAlign: 'center' },
   title: { color: 'rgba(255,255,255,0.75)', fontSize: 12, textAlign: 'center', marginTop: 2 },
 });
+
+/** needs the downloaded "FC & Live" pack */
+export default function LiveList() {
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: 'LIVE', headerTitleAlign: 'center' }} />
+      <PackGate need="live">
+        <LiveListInner />
+      </PackGate>
+    </>
+  );
+}

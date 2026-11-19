@@ -7,6 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Coin } from '@/components/Coin';
 import { GiftFx } from '@/components/GiftFx';
+import { PackCard } from '@/components/PackGate';
+import { usePack } from '@/lib/pack';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { coins, GiftCode, GIFTS, giftOf, offerPrice, Wallet } from '@/lib/coins';
@@ -34,6 +36,7 @@ export function GiftSheet({
   const [w, setW] = useState<Wallet | null>(null);
   const [pick, setPick] = useState<GiftCode>('rose');
   const [busy, setBusy] = useState(false);
+  const packState = usePack();
 
   useEffect(() => {
     coins.wallet().then(setW).catch(() => {});
@@ -77,6 +80,8 @@ export function GiftSheet({
             </Pressable>
           </View>
           <Text style={[st.to, { textAlign: d.align }]}>{t('gift_to', { name: toName })}</Text>
+          {!packState.fc ? <PackCard need="fc" /> : null}
+          {packState.fc ? (
           <View style={st.grid}>
             {GIFTS.map((x) => {
               const on = x.code === pick;
@@ -96,9 +101,10 @@ export function GiftSheet({
               );
             })}
           </View>
-          {pick === 'fplus' ? <Text style={[st.note, { textAlign: d.align }]}>✨ {t('fplus_info')}</Text> : null}
+          ) : null}
+          {packState.fc && pick === 'fplus' ? <Text style={[st.note, { textAlign: d.align }]}>✨ {t('fplus_info')}</Text> : null}
           {w?.discount9 ? <Text style={[st.note, { textAlign: d.align }]}>🏷️ {t('fc_offer9_on')}</Text> : null}
-          {enough ? (
+          {!packState.fc ? null : enough ? (
             <Pressable onPress={send} disabled={busy} style={[st.send, { backgroundColor: g.color }]}>
               {busy ? (
                 <ActivityIndicator color="#fff" />

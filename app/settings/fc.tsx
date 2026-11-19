@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PackGate } from '@/components/PackGate';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
@@ -28,7 +29,7 @@ import { colors, radius } from '@/theme';
 const OUT_QUICK = [25, 50, 100, 250, 500, 1000, 5000, 10000];
 
 /** Profile → Settings → FC: balance, buy coins (HesabPay + receipt), offers, cash out, history. */
-export default function FcScreen() {
+function FcScreenInner() {
   const { t, d } = useI18n();
   const router = useRouter();
   const { session } = useAuth();
@@ -354,3 +355,16 @@ const st = StyleSheet.create({
   fill: { height: 6, backgroundColor: colors.primary },
   hist: { alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
 });
+
+/** needs the downloaded "FC & Live" pack */
+export default function FcScreen() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('fc_title'), headerTitleAlign: 'center' }} />
+      <PackGate need="fc">
+        <FcScreenInner />
+      </PackGate>
+    </>
+  );
+}

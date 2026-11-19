@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { PackGate } from '@/components/PackGate';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -12,7 +13,7 @@ import { formatCount } from '@/lib/social';
 import { colors, radius } from '@/theme';
 
 /** Go LIVE (title) or start a MATCH (tier, name, opponent by @username or random). */
-export default function LiveStart() {
+function LiveStartInner() {
   const { t, d } = useI18n();
   const router = useRouter();
   const params = useLocalSearchParams<{ kind?: string }>();
@@ -152,3 +153,16 @@ const st = StyleSheet.create({
   go: { backgroundColor: '#FE2C55', borderRadius: radius.md, paddingVertical: 15, alignItems: 'center', marginTop: 4, marginBottom: 20 },
   goText: { color: '#fff', fontWeight: '900', fontSize: 16 },
 });
+
+/** needs the downloaded "FC & Live" pack */
+export default function LiveStart() {
+  const { t } = useI18n();
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: t('live_go'), headerTitleAlign: 'center' }} />
+      <PackGate need="live">
+        <LiveStartInner />
+      </PackGate>
+    </>
+  );
+}

@@ -21,6 +21,7 @@ import { Card, P, Page } from '@/components/ui';
 import { StringKey, tr, useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { PackCard } from '@/components/PackGate';
 import { coins } from '@/lib/coins';
 import { Challenge, isDone, monetize, Monetization } from '@/lib/monetize';
 import { formatCount } from '@/lib/social';
@@ -146,6 +147,11 @@ export default function Monetize() {
           </Pressable>
         ) : null}
       </Card>
+
+      {/* the coins & live pack (not inside the APK) */}
+      <View style={{ marginTop: 4, marginBottom: 12 }}>
+        <PackCard need="live" />
+      </View>
 
       {proof ? <ProofSheet c={proof} onClose={() => setProof(null)} onSent={load} /> : null}
     </Page>
