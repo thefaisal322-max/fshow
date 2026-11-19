@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 import { ApiError } from './api';
 import { supabase } from './supabase';
@@ -43,6 +44,23 @@ supabase.auth.onAuthStateChange(async (_e, s) => {
   await writeAll(all);
 });
 
+const loginKey = (id: string) => `fshow.login.${id}`;
+async function savedLogin(id: string): Promise<{ email: string; password: string } | null> {
+  try {
+    const v = await SecureStore.getItemAsync(loginKey(id));
+    return v ? (JSON.parse(v) as { email: string; password: string }) : null;
+  } catch {
+    return null;
+  }
+}
+async function forgetLogin(id: string) {
+  try {
+    await SecureStore.deleteItemAsync(loginKey(id));
+  } catch {
+    /* nothing saved */
+  }
+}
+
 export const accounts = {
   list: readAll,
 
@@ -63,12 +81,30 @@ export const accounts = {
     const target = (await readAll()).find((a) => a.id === id);
     if (!target) throw new ApiError('session-expired');
     const { data, error } = await supabase.auth.setSession({ access_token: target.access_token, refresh_token: target.refresh_token });
-    if (error || !data.session) {
-      // that login ended (password changed / logged out elsewhere) → log in again
-      await accounts.forget(id);
-      throw new ApiError('session-expired');
+    if (!error && data.session) return;
+    // that login ended → use the saved login info (if the person chose "Save login info")
+    const login = await savedLogin(id);
+    if (login) {
+      const r = await supabase.auth.signInWithPassword(login);
+      if (!r.error && r.data.session?.user.id === id) return;
+      if (r.error && /invalid login/i.test(r.error.message)) await forgetLogin(id); // the password was changed
+    }
+    await accounts.forget(id);
+    throw new ApiError('session-expired');
+  },
+
+  /** "Save login info": email + password in the phone's secure storage (Android Keystore), only for switching */
+  saveLogin: async (id: string, email: string, password: string) => {
+    try {
+      await SecureStore.setItemAsync(loginKey(id), JSON.stringify({ email, password }), {
+        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      });
+    } catch {
+      /* the phone has no secure storage → not saved */
     }
   },
+  hasLogin: async (id: string) => !!(await savedLogin(id)),
+  forgetLogin: (id: string) => forgetLogin(id),
 
   /** "Add account": keep this one saved and go to the login screen (this login is NOT ended). */
   addAnother: async () => {
@@ -77,5 +113,10 @@ export const accounts = {
 
   forget: async (id: string) => {
     await writeAll((await readAll()).filter((a) => a.id !== id));
+  },
+  /** removed from this phone completely (also the saved login info) */
+  remove: async (id: string) => {
+    await writeAll((await readAll()).filter((a) => a.id !== id));
+    await forgetLogin(id);
   },
 };

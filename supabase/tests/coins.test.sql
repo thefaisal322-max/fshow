@@ -34,6 +34,11 @@ SELECT pg_temp.must_fail($q$SELECT public.request_coins(1000, 'cccccccc-0000-000
 SELECT public.request_coins(5000, 'bbbbbbbb-0000-0000-0000-000000000002/r.jpg');
 SELECT pg_temp.must_fail($q$SELECT public.admin_decide_coins((SELECT (j->>'id')::uuid FROM jsonb_array_elements(public.get_wallet()->'purchases') j LIMIT 1), true)$q$, 'non-admin approves own purchase');
 SELECT pg_temp.check((public.get_wallet()->'purchases'->0->>'afs')::numeric = 500, '5000 FC = 500 AFS');
+RESET ROLE;
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.notifications WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001' AND type = 'admin_coins'
+                             AND data->>'kind' = 'buy' AND actor_id = 'bbbbbbbb-0000-0000-0000-000000000002'), 'admin told about the receipt');
+SET ROLE authenticated;
+SET request.jwt.claim.sub = 'bbbbbbbb-0000-0000-0000-000000000002';
 
 SET request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
 SELECT pg_temp.check((public.get_wallet()->>'unlimited')::boolean, 'admin unlimited');
@@ -57,6 +62,15 @@ SELECT pg_temp.check((public.get_wallet()->>'foru_left')::int = (SELECT v FROM p
 RESET ROLE;
 SELECT pg_temp.check((SELECT balance FROM public.wallets WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001') >= (SELECT v FROM price) - floor((SELECT v FROM price) * 0.4), 'admin got 60%');
 SELECT pg_temp.check((SELECT foru_left FROM public.wallets WHERE user_id = 'bbbbbbbb-0000-0000-0000-000000000002') = (SELECT v FROM price), 'sender 4u');
+-- CtoC: C (not monetized) cashes out earned coins with a number; the admin is told
+SELECT private.fc_add('cccccccc-0000-0000-0000-000000000003', 300, 'gift', 'ctoc-test', true);
+SET ROLE authenticated;
+SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
+SELECT public.request_fc_payout(25, '0700123456');
+SELECT pg_temp.check(public.my_hesabpay() = '0700123456', 'number remembered');
+RESET ROLE;
+SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.notifications WHERE user_id = 'aaaaaaaa-0000-0000-0000-000000000001' AND type = 'admin_coins'
+                             AND data->>'kind' = 'payout' AND data->>'phone' = '0700123456'), 'admin told about the cash-out');
 SELECT pg_temp.check((SELECT private.prioritized(p) FROM public.posts p WHERE body = 'coin post'), 'C is in For You priority');
 
 -- F+ → verified mark for a week

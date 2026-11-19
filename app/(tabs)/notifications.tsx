@@ -30,6 +30,7 @@ const TEXT: Record<Notification['type'], StringKey> = {
   warning: 'n_warning',
   notice: 'n_notice',
   live: 'n_live',
+  admin_coins: 'n_admin_buy',
 };
 const ICON: Record<Notification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
   like: { name: 'heart', color: colors.error },
@@ -49,6 +50,7 @@ const ICON: Record<Notification['type'], { name: keyof typeof Ionicons.glyphMap;
   warning: { name: 'warning', color: '#F2994A' },
   notice: { name: 'megaphone', color: colors.primary },
   live: { name: 'radio', color: '#FE2C55' },
+  admin_coins: { name: 'cash', color: '#E6A100' },
 };
 const MONEY = new Set(['coins', 'coins_rejected', 'payout', 'payout_rejected', 'monetize', 'monetize_rejected']);
 
@@ -56,6 +58,10 @@ const MONEY = new Set(['coins', 'coins_rejected', 'payout', 'payout_rejected', '
 function line(n: Notification, t: (k: StringKey, v?: Record<string, string | number>) => string): string {
   const data = n.data ?? {};
   if ((n.type === 'notice' || n.type === 'warning') && data.text) return `${t(TEXT[n.type])}: ${data.text}`;
+  if (n.type === 'admin_coins')
+    return data.kind === 'payout'
+      ? t('n_admin_payout', { afs: String(data.afs ?? ''), phone: String(data.phone ?? '') })
+      : t('n_admin_buy', { coins: formatCount(Number(data.coins ?? 0)), afs: String(data.afs ?? '') });
   const gift = n.type === 'gift' && data.gift ? giftOf(String(data.gift)) : null;
   return t(TEXT[n.type] ?? 'n_like', {
     coins: formatCount(Number(data.coins ?? 0)),
@@ -98,6 +104,7 @@ export default function Notifications() {
   function open(n: Notification) {
     if (n.type === 'friend_request') router.push('/friends');
     else if (n.type === 'live' && n.data?.live_id) router.push({ pathname: '/live/[id]', params: { id: String(n.data.live_id) } });
+    else if (n.type === 'admin_coins') router.push('/main');
     else if (MONEY.has(n.type)) router.push(n.type.startsWith('monetize') ? '/settings/monetize' : '/settings/fc');
     else if (n.type === 'notice' || n.type === 'warning') router.push('/profile');
     else if (n.post_id) router.push({ pathname: '/post/[id]', params: { id: n.post_id } });

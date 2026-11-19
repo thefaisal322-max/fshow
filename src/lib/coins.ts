@@ -123,6 +123,8 @@ export const coins = {
     return check<string>(await supabase.rpc('request_coins', { p_coins: amount, p_receipt: path, p_note: note }));
   },
 
+  /** the HesabPay number used last time */
+  myHesabpay: async () => check<string | null>(await supabase.rpc('my_hesabpay')),
   cashOut: async (afs: number, phone: string) => {
     check(await supabase.rpc('request_fc_payout', { p_afs: afs, p_phone: phone }));
   },

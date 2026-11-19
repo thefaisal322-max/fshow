@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { unregisterPush } from './push';
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -85,9 +86,11 @@ export const api = {
   resetPassword: (email: string, code: string, newPassword: string) =>
     callFn('reset-password', { email, code, newPassword }),
 
-  async login(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  /** returns the account id */
+  async login(email: string, password: string): Promise<string> {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw fromSupabase(error);
+    return data.user?.id ?? '';
   },
 
   async logout() {
@@ -100,6 +103,7 @@ export const api = {
         const raw = await AsyncStorage.getItem('fshow.accounts.v1');
         const list = raw ? (JSON.parse(raw) as { id: string }[]) : [];
         await AsyncStorage.setItem('fshow.accounts.v1', JSON.stringify(list.filter((a) => a.id !== me)));
+        await SecureStore.deleteItemAsync(`fshow.login.${me}`); // saved login info goes too
       } catch {
         /* ignore */
       }

@@ -14,7 +14,7 @@
         "backgroundImage": "./assets/adaptive-bg.png",
         "backgroundColor": "#D63AF9"
       },
-      "versionCode": 36,
+      "versionCode": 37,
       "googleServicesFile": "./google-services.json"
     },
     "ios": {

@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Animated, Easing, Image, Modal, Pressable, St
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Coin } from '@/components/Coin';
+import { GiftFx } from '@/components/GiftFx';
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { coins, GiftCode, GIFTS, giftOf, offerPrice, Wallet } from '@/lib/coins';
@@ -140,7 +141,8 @@ export function FPlusMark({ size = 34 }: { size?: number }) {
  * Full-screen gift animation: the gift pops in big, sparkles fly out, then it floats up and fades.
  * Tiger and F+ get a stronger show (shake + golden ring).
  */
-export function GiftBurst({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
+/** the small pop (kept for places without room for the full effect) */
+export function GiftPop({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
   const g = giftOf(gift);
   const pop = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
@@ -245,6 +247,9 @@ const st = StyleSheet.create({
   label: { marginTop: 18, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 5, maxWidth: 260 },
   labelText: { color: '#fff', fontWeight: '800' },
 });
+
+/** the full-screen gift effect */
+export const GiftBurst = GiftFx;
 
 /** GiftBurst over the whole screen (for places that are not full-screen themselves). */
 export function GiftBurstModal({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {

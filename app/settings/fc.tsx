@@ -25,6 +25,8 @@ import {
 import { formatCount, timeAgo } from '@/lib/social';
 import { colors, radius } from '@/theme';
 
+const OUT_QUICK = [25, 50, 100, 250, 500, 1000, 5000, 10000];
+
 /** Profile → Settings → FC: balance, buy coins (HesabPay + receipt), offers, cash out, history. */
 export default function FcScreen() {
   const { t, d } = useI18n();
@@ -44,6 +46,10 @@ export default function FcScreen() {
       .wallet()
       .then(setW)
       .catch((e) => Alert.alert('', errorMessage(e)));
+    coins
+      .myHesabpay()
+      .then((n) => n && setPhone((old) => old || n))
+      .catch(() => {});
   }, []);
   useFocusEffect(load);
 
@@ -260,35 +266,39 @@ export default function FcScreen() {
       {/* cash out */}
       <Card>
         <Text style={[st.h, { textAlign: d.align }]}>💵 {t('fc_cash_out')}</Text>
-        {w.monetized ? (
-          <>
-            <P muted>{t('fc_cash_sub', { n: formatCount(w.cashable), afs: fcToAfs(w.cashable), min: PAYOUT_MIN, max: formatCount(PAYOUT_MAX) })}</P>
-            <TextInput
-              value={outAfs}
-              onChangeText={(v) => setOutAfs(v.replace(/[^0-9]/g, '').slice(0, 5))}
-              placeholder={t('fc_out_afs')}
-              placeholderTextColor={colors.muted}
-              keyboardType="number-pad"
-              style={[st.input, { textAlign: d.align }]}
-            />
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              placeholder={t('hesabpay_phone')}
-              placeholderTextColor={colors.muted}
-              keyboardType="phone-pad"
-              style={[st.input, { textAlign: d.align }]}
-            />
-            {outAfs ? <Text style={[st.small, { textAlign: d.align }]}>= {formatCount((Number(outAfs) || 0) * 10)} FC</Text> : null}
-            <Pressable onPress={cashOut} disabled={cashing} style={st.btn}>
-              {cashing ? <ActivityIndicator color="#fff" /> : <Text style={st.btnText}>{t('withdraw')}</Text>}
-            </Pressable>
-          </>
-        ) : (
-          <Pressable onPress={() => router.push('/settings/monetize')}>
-            <P muted>{t('fc_cash_locked')}</P>
-          </Pressable>
-        )}
+        <P muted>{t('fc_cash_sub', { n: formatCount(w.cashable), afs: fcToAfs(w.cashable), min: PAYOUT_MIN, max: formatCount(PAYOUT_MAX) })}</P>
+        <View style={[st.chips, { flexDirection: d.row }]}>
+          {OUT_QUICK.map((n) => {
+            const on = Number(outAfs) === n;
+            const can = n * 10 <= w.cashable;
+            return (
+              <Pressable key={n} disabled={!can} onPress={() => setOutAfs(String(n))} style={[st.chip, on && st.chipOn, !can && { opacity: 0.35 }]}>
+                <Text style={[st.chipText, on && { color: '#fff' }]}>{formatCount(n)} AFS</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <TextInput
+          value={outAfs}
+          onChangeText={(v) => setOutAfs(v.replace(/[^0-9]/g, '').slice(0, 5))}
+          placeholder={t('fc_out_afs')}
+          placeholderTextColor={colors.muted}
+          keyboardType="number-pad"
+          style={[st.input, { textAlign: d.align }]}
+        />
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder={t('hesabpay_phone')}
+          placeholderTextColor={colors.muted}
+          keyboardType="phone-pad"
+          style={[st.input, { textAlign: d.align }]}
+        />
+        {outAfs ? <Text style={[st.small, { textAlign: d.align }]}>= {formatCount((Number(outAfs) || 0) * 10)} FC</Text> : null}
+        <Pressable onPress={cashOut} disabled={cashing || !outAfs || !phone} style={[st.btn, (!outAfs || !phone) && { opacity: 0.5 }]}>
+          {cashing ? <ActivityIndicator color="#fff" /> : <Text style={st.btnText}>{t('withdraw')}</Text>}
+        </Pressable>
+        <P muted>{t('fc_cash_note')}</P>
         {w.payouts.map((p) => (
           <Text key={p.id} style={[st.small, { textAlign: d.align }]}>
             {p.status === 'paid' ? '✅' : p.status === 'rejected' ? '✗' : '⏳'} {p.afs} AFS · {p.phone} · {timeAgo(p.created_at)}

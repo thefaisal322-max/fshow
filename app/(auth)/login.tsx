@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/Avatar';
 import { accounts, SavedAccount } from '@/lib/accounts';
@@ -47,7 +47,14 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      await api.login(e, password);
+      const uid = await api.login(e, password);
+      // "Save login info?" — then switching accounts never asks for the password again
+      if (uid && !(await accounts.hasLogin(uid))) {
+        Alert.alert(t('save_login_q'), t('save_login_sub'), [
+          { text: t('not_now'), style: 'cancel' },
+          { text: t('save'), onPress: () => accounts.saveLogin(uid, e, password) },
+        ]);
+      }
       // The root Gate redirects automatically once the user is logged in.
     } catch (err) {
       setError(errorMessage(err));

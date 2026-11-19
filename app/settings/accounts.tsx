@@ -20,12 +20,17 @@ export default function SwitchAccount() {
   const me = session?.user.id ?? '';
   const [list, setList] = useState<SavedAccount[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [keys, setKeys] = useState<Record<string, boolean>>({});
 
   const load = useCallback(() => {
     (async () => {
       // the account in use is always in the list
       if (profile) await accounts.rememberCurrent({ id: profile.id, name: profile.displayName, username: profile.username, photo_path: profile.photoPath });
-      setList(await accounts.list());
+      const all = await accounts.list();
+      setList(all);
+      const k: Record<string, boolean> = {};
+      for (const a of all) k[a.id] = await accounts.hasLogin(a.id);
+      setKeys(k);
     })().catch(() => setList([]));
   }, [profile]);
   useFocusEffect(load);
@@ -53,7 +58,7 @@ export default function SwitchAccount() {
         text: t('acc_remove'),
         style: 'destructive',
         onPress: async () => {
-          await accounts.forget(a.id);
+          await accounts.remove(a.id);
           load();
         },
       },
@@ -81,6 +86,7 @@ export default function SwitchAccount() {
                 <View style={{ flex: 1, alignItems: d.items }}>
                   <Text style={st.name}>{a.name}</Text>
                   {a.username ? <Text style={st.user}>@{a.username}</Text> : null}
+                  {keys[a.id] ? <Text style={st.user}>🔑 {t('login_saved')}</Text> : null}
                 </View>
                 {busy === a.id ? (
                   <ActivityIndicator color={colors.primary} />

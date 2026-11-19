@@ -143,7 +143,8 @@ export type Notification = {
     | 'monetize_rejected'
     | 'warning'
     | 'notice'
-    | 'live';
+    | 'live'
+    | 'admin_coins';
   /** details: { coins, gift, afs, kind, n, text, live_id … } */
   data?: Record<string, any>;
   read: boolean;

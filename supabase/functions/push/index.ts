@@ -18,6 +18,7 @@ const T: Record<Lang, Record<string, string>> = {
     gift: '🎁 تاسو ته یې ډالۍ درولېږله (+{coins} FC)', payout: '💵 {afs} AFS ستاسو HesabPay ته ولېږل شول',
     payout_rejected: 'ستاسو د {afs} AFS غوښتنه ونه منل شوه (سکې بېرته درکړل شوې)', promo: '📣 ستاسو پوسټ یې پروموټ کړ (+{coins} FC)',
     monetize: '✅ ستاسو اکاونټ مونیټایز شو!', monetize_rejected: 'د مونیټایز غوښتنه ونه منل شوه', warning: '⚠️ خبرداری', notice: '📢', live: '🔴 لایف ته راغی',
+    admin_buy: '🧾 رسید یې ولېږه: {coins} FC ({afs} AFS)', admin_payout: '💵 غواړي {afs} AFS واخلي → {phone}',
   },
   en: {
     like: 'liked your post', comment: 'commented on your post', follow: 'started following you', mention: 'mentioned you',
@@ -28,6 +29,7 @@ const T: Record<Lang, Record<string, string>> = {
     gift: '🎁 sent you a gift (+{coins} FC)', payout: '💵 {afs} AFS were sent to your HesabPay',
     payout_rejected: 'Your {afs} AFS cash-out was not approved (coins returned)', promo: '📣 promoted your post (+{coins} FC)',
     monetize: '✅ Your account is monetized!', monetize_rejected: 'Your monetization request was not approved', warning: '⚠️ Warning', notice: '📢', live: '🔴 is live now',
+    admin_buy: '🧾 sent a receipt: {coins} FC ({afs} AFS)', admin_payout: '💵 wants to cash out {afs} AFS → {phone}',
   },
   fa: {
     like: 'پست شما را پسندید', comment: 'روی پست شما نظر داد', follow: 'شما را دنبال کرد', mention: 'از شما نام برد',
@@ -38,6 +40,7 @@ const T: Record<Lang, Record<string, string>> = {
     gift: '🎁 برای شما هدیه فرستاد (+{coins} FC)', payout: '💵 {afs} AFS به HesabPay شما فرستاده شد',
     payout_rejected: 'برداشت {afs} AFS پذیرفته نشد (سکه‌ها برگشت)', promo: '📣 پست شما را تبلیغ کرد (+{coins} FC)',
     monetize: '✅ حساب شما درآمدزا شد!', monetize_rejected: 'درخواست درآمدزایی پذیرفته نشد', warning: '⚠️ هشدار', notice: '📢', live: '🔴 زنده است',
+    admin_buy: '🧾 رسید فرستاد: {coins} FC ({afs} AFS)', admin_payout: '💵 می‌خواهد {afs} AFS برداشت کند → {phone}',
   },
 };
 
@@ -156,7 +159,8 @@ async function notification(id: string) {
     FROM public.notifications n JOIN public.profiles a ON a.id = n.actor_id WHERE n.id = ${id}`;
   if (!n) return 0;
   const sys = SYSTEM.has(n.type);
-  const url = n.type === 'live' && n.data?.live_id ? `/live/${n.data.live_id}`
+  const url = n.type === 'admin_coins' ? '/main'
+    : n.type === 'live' && n.data?.live_id ? `/live/${n.data.live_id}`
     : n.type.startsWith('monetize') ? '/settings/monetize'
     : sys && n.type !== 'notice' && n.type !== 'warning' ? '/settings/fc'
     : n.type === 'notice' || n.type === 'warning' ? '/profile'
@@ -164,7 +168,8 @@ async function notification(id: string) {
   // which switch in "Notification settings" turns it off (money / admin messages always come)
   const pref = n.type === 'friend_request' || n.type === 'friend_accept' ? 'friends' : ['like', 'comment', 'follow', 'mention'].includes(n.type) ? n.type : undefined;
   return sendTo(n.user_id, (lang) => {
-    const base = T[lang][n.type] ?? T[lang].like;
+    const key = n.type === 'admin_coins' ? (n.data?.kind === 'payout' ? 'admin_payout' : 'admin_buy') : n.type;
+    const base = T[lang][key] ?? T[lang].like;
     const text = (n.type === 'notice' || n.type === 'warning') && n.data?.text ? `${base} ${String(n.data.text).slice(0, 180)}` : fill(base, n.data ?? {});
     return {
       title: sys ? 'Faisal Show' : name(n),
