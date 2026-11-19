@@ -28,3 +28,14 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::warning::no Cloudflare secrets"; exit 0; }
           npx -y wrangler@3 pages deploy web --project-name fshow-media --branch main --commit-dirty=true 2>&1 | tee out.txt
           echo "::notice title=web::https://fshow-media.pages.dev"
+      - name: Check the FC & Live pack
+        run: |
+          sleep 20
+          bad=0
+          for f in web/pack/v1/*; do
+            n=$(basename "$f"); want=$(stat -c %s "$f")
+            got=$(curl -s -o /dev/null -w '%{http_code} %{size_download}' "https://fshow-media.pages.dev/pack/v1/$n")
+            echo "$n → $got (file $want)"
+            [ "$got" = "200 $want" ] || bad=1
+          done
+          [ "$bad" = 0 ] || echo "::warning::some pack files do not match yet"
