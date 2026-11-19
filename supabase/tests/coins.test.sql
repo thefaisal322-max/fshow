@@ -47,9 +47,9 @@ SET request.jwt.claim.sub = 'bbbbbbbb-0000-0000-0000-000000000002';
 SELECT pg_temp.check((public.get_wallet()->>'balance')::int = 5000, 'coins credited');
 SELECT pg_temp.check(EXISTS (SELECT 1 FROM public.get_notifications() j WHERE j->>'type' = 'coins' AND (j->'data'->>'coins')::int = 5000), 'coins notification');
 
--- gift: rose 500 (maybe 20 % off if it is the gift of the day) → C gets 40 %, admin 60 %
+-- gift: rose 1200 (maybe 20 % off if it is the gift of the day) → C gets 40 %, admin 60 %
 RESET ROLE;
-CREATE TEMP TABLE price AS SELECT CASE WHEN private.daily_gift() = 'rose' THEN 400 ELSE 500 END AS v;
+CREATE TEMP TABLE price AS SELECT CASE WHEN private.daily_gift() = 'rose' THEN 960 ELSE 1200 END AS v;
 GRANT ALL ON price TO authenticated;
 SET ROLE authenticated;
 SELECT pg_temp.must_fail($q$SELECT public.send_gift('bbbbbbbb-0000-0000-0000-000000000002', 'rose')$q$, 'gift to myself');
@@ -129,3 +129,13 @@ SELECT pg_temp.check((public.get_wallet()->>'cashable')::int = 0, 'bought coins 
 SELECT pg_temp.must_fail($q$SELECT public.request_fc_payout(25, '0791111111')$q$, 'cash out bought coins');
 RESET ROLE;
 DROP TABLE cp, price, bal;
+
+-- who liked: only the owner sees the list
+INSERT INTO public.posts (author_id, body) VALUES ('cccccccc-0000-0000-0000-000000000003', 'liked post');
+INSERT INTO public.post_likes (post_id, user_id) SELECT id, 'bbbbbbbb-0000-0000-0000-000000000002' FROM public.posts WHERE body = 'liked post';
+SET ROLE authenticated;
+SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
+SELECT pg_temp.check((public.get_post_likers((SELECT id FROM public.posts WHERE body = 'liked post'))->'people'->0->>'id') = 'bbbbbbbb-0000-0000-0000-000000000002', 'owner sees likers');
+SET request.jwt.claim.sub = 'dddddddd-0000-0000-0000-000000000004';
+SELECT pg_temp.must_fail($q$SELECT public.get_post_likers((SELECT id FROM public.posts WHERE body = 'liked post'))$q$, 'others cannot');
+RESET ROLE;

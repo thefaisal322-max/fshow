@@ -88,7 +88,7 @@ SELECT pg_temp.check((SELECT p.author_id = 'aaaaaaaa-0000-0000-0000-000000000001
 INSERT INTO public.wallets (user_id) VALUES ('cccccccc-0000-0000-0000-000000000003'), ('eeeeeeee-0000-0000-0000-000000000001'), ('bbbbbbbb-0000-0000-0000-000000000002') ON CONFLICT DO NOTHING;
 UPDATE public.wallets SET balance = 0 WHERE user_id IN ('cccccccc-0000-0000-0000-000000000003', 'eeeeeeee-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002');
 SELECT private.fc_add('cccccccc-0000-0000-0000-000000000003', 1000, 'admin_grant', 'live-test');
-SELECT private.fc_add('eeeeeeee-0000-0000-0000-000000000001', 200, 'admin_grant', 'live-test');
+SELECT private.fc_add('eeeeeeee-0000-0000-0000-000000000001', 500, 'admin_grant', 'live-test');
 SET ROLE authenticated;
 SET request.jwt.claim.sub = 'cccccccc-0000-0000-0000-000000000003';
 SELECT pg_temp.must_fail($q$SELECT public.match_create('special', 'fuck you', '@bibi_t')$q$, 'bad match name');
@@ -107,7 +107,7 @@ SELECT public.live_tap((SELECT v FROM lv WHERE k = 'm'), 'A', 10);
 SELECT pg_temp.check((public.live_get((SELECT v FROM lv WHERE k = 'm'))->>'taps_a')::int = 10, 'tap flood limited');
 SELECT public.live_buy_taps((SELECT v FROM lv WHERE k = 'm'), 'A', 2);
 SELECT pg_temp.check((public.live_get((SELECT v FROM lv WHERE k = 'm'))->>'taps_a')::int = 210, '100 taps = 50 FC × 2');
-SELECT pg_temp.check((public.get_wallet()->>'balance')::int = 100, 'paid 100 FC');
+SELECT pg_temp.check((public.get_wallet()->>'balance')::int = 400, 'paid 100 FC');
 SELECT public.send_gift('bbbbbbbb-0000-0000-0000-000000000002', 'bronze_watch', NULL, (SELECT v FROM lv WHERE k = 'm'));
 SELECT pg_temp.check((public.live_get((SELECT v FROM lv WHERE k = 'm'))->>'gifts_b')::int > 0, 'gift on side B');
 SET request.jwt.claim.sub = 'eeeeeeee-0000-0000-0000-000000000002';

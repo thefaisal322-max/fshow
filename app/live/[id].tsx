@@ -115,7 +115,7 @@ export default function LiveRoom() {
         }
         setEvents((old) => [...old.slice(-60), e]);
         if (e.kind === 'gift' && e.gift) {
-          setBursts((b) => [...b.slice(-3), { key: e.id, gift: e.gift as GiftCode, from: nameOf(e.user_id) }]);
+          setBursts((b) => [...b.slice(-8), { key: e.id, gift: e.gift as GiftCode, from: nameOf(e.user_id) }]);
         }
       })
       .subscribe();
@@ -547,9 +547,10 @@ export default function LiveRoom() {
         </View>
       ) : null}
 
-      {bursts.map((b) => (
-        <GiftBurst key={b.key} gift={b.gift} from={b.from} onDone={() => setBursts((x) => x.filter((y) => y.key !== b.key))} />
-      ))}
+      {/* one gift at a time */}
+      {bursts[0] ? (
+        <GiftBurst key={bursts[0].key} gift={bursts[0].gift} from={bursts[0].from} onDone={() => setBursts((x) => x.slice(1))} />
+      ) : null}
 
       {giftFor ? (
         <GiftSheet to={giftFor.id} toName={authorName(giftFor)} liveId={liveId} onClose={() => setGiftFor(null)} />

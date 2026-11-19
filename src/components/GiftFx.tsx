@@ -1,6 +1,8 @@
+import { useEvent } from 'expo';
 import * as Haptics from 'expo-haptics';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { ReactNode, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import type { GiftCode } from '@/lib/coins';
 
@@ -20,6 +22,19 @@ const FX = {
   wings: require('../../assets/fx/wings_fire.png'),
   spark: require('../../assets/fx/spark.png'),
   logo: require('../../assets/logo-mark.png'),
+};
+
+/** the gift videos (made by Faisal Show) — a gift with a video plays it full screen with its sound */
+const VIDEOS: Partial<Record<GiftCode, number>> = {
+  bronze_watch: require('../../assets/gifts/bronze_watch.mp4'),
+  butterfly: require('../../assets/gifts/butterfly.mp4'),
+  yellow_flower: require('../../assets/gifts/yellow_flower.mp4'),
+  gold_watch: require('../../assets/gifts/gold_watch.mp4'),
+  rose: require('../../assets/gifts/rose.mp4'),
+  smart_gift: require('../../assets/gifts/smart_gift.mp4'),
+  tiger: require('../../assets/gifts/tiger.mp4'),
+  car: require('../../assets/gifts/car.mp4'),
+  power_love: require('../../assets/gifts/power_love.mp4'),
 };
 
 /** how long each effect lasts (ms) */
@@ -44,6 +59,62 @@ const LENGTH: Record<GiftCode, number> = {
  *  F+ — the Faisal Show mark in golden rays
  */
 export function GiftFx({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
+  const video = VIDEOS[gift];
+  if (video) return <VideoGift source={video} from={from} onDone={onDone} />;
+  return <DrawnGift gift={gift} from={from} onDone={onDone} />;
+}
+
+/** a gift video: full screen with sound; ends by itself (or ✕ to skip) */
+function VideoGift({ source, from, onDone }: { source: number; from?: string; onDone: () => void }) {
+  const done = useRef(onDone);
+  done.current = onDone;
+  const ended = useRef(false);
+  const finish = () => {
+    if (ended.current) return;
+    ended.current = true;
+    done.current();
+  };
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = false;
+    p.play();
+  });
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+  const fadeIn = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+    Animated.timing(fadeIn, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    const sub = player.addListener('playToEnd', finish);
+    const guard = setTimeout(finish, 30000); // never stuck
+    return () => {
+      sub.remove();
+      clearTimeout(guard);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player]);
+  useEffect(() => {
+    if (status === 'error') finish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  return (
+    <Animated.View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { opacity: fadeIn, zIndex: 60, backgroundColor: '#000' }]}>
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+      {from ? (
+        <View style={st.label} pointerEvents="none">
+          <Text style={st.labelText} numberOfLines={1}>
+            {from}
+          </Text>
+        </View>
+      ) : null}
+      <Pressable onPress={finish} hitSlop={10} style={st.skip}>
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>✕</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function DrawnGift({ gift, from, onDone }: { gift: GiftCode; from?: string; onDone: () => void }) {
   const { width: W, height: H } = useWindowDimensions();
   const t = useRef(new Animated.Value(0)).current; // 0 → 1 over the whole effect
   const done = useRef(onDone);
@@ -495,6 +566,7 @@ function PowerLove({ t, W, H }: P) {
 }
 
 const st = StyleSheet.create({
+  skip: { position: 'absolute', top: 48, right: 16, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
   handBox: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   hand: { borderRadius: 4, shadowOpacity: 1, shadowRadius: 8, elevation: 6 },
   label: { position: 'absolute', alignSelf: 'center', bottom: '16%', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 6, maxWidth: '86%' },

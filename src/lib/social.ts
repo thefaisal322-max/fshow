@@ -58,6 +58,8 @@ export type Post = {
 
 export type Visibility = 'public' | 'friends' | 'private';
 
+export type Liker = Author & { liked_at: string };
+
 export type Sound = {
   id: string;
   title: string;
@@ -352,6 +354,12 @@ export const social = {
       if (files.length) await supabase.storage.from('posts').remove(files);
       check(r);
     }
+  },
+  /** who liked my post (only the owner) */
+  likers: async (postId: string, offset = 0): Promise<{ total: number; people: Liker[] }> => {
+    const r = await supabase.rpc('get_post_likers', { p_post: postId, p_offset: offset });
+    check(r);
+    return (r.data as { total: number; people: Liker[] }) ?? { total: 0, people: [] };
   },
   getSound: async (id: string, offset = 0): Promise<{ sound: Sound; reels: Post[] } | null> => {
     const r = await supabase.rpc('get_sound', { p_sound: id, p_offset: offset });

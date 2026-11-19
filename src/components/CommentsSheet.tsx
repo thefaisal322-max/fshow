@@ -19,7 +19,7 @@ import {
 import { useI18n } from '@/i18n';
 import { errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { authorName, Comment, formatCount, isEmojiOnly, social, timeAgo } from '@/lib/social';
+import { authorName, Comment, formatCount, isEmojiOnly, Liker, social, timeAgo } from '@/lib/social';
 import { avatarUrl } from '@/lib/supabase';
 import { useBottomSpace } from '@/lib/useBottomSpace';
 import { colors, radius } from '@/theme';
@@ -34,10 +34,13 @@ const QUICK = ['😂', '😍', '🥰', '😮', '😢', '🔥', '👏', '❤️']
 /** Comments slide up from the bottom (like Facebook), over the feed or a reel. */
 export function CommentsSheet({
   postId,
+  ownerId,
   onClose,
   onCount,
 }: {
   postId: string;
+  /** the post's author: they also get a "Likes" list (who liked it) */
+  ownerId?: string;
   onClose: () => void;
   onCount?: (n: number) => void;
 }) {
@@ -50,6 +53,20 @@ export function CommentsSheet({
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const isOwner = !!ownerId && ownerId === me;
+  const [tab, setTab] = useState<'comments' | 'likes'>('comments');
+  const [likers, setLikers] = useState<Liker[] | null>(null);
+  const [likeTotal, setLikeTotal] = useState(0);
+  useEffect(() => {
+    if (!isOwner) return;
+    social
+      .likers(postId)
+      .then((r) => {
+        setLikers(r.people);
+        setLikeTotal(r.total);
+      })
+      .catch(() => setLikers([]));
+  }, [isOwner, postId]);
 
   const load = useCallback(async () => {
     try {
@@ -122,12 +139,58 @@ export function CommentsSheet({
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={st.sheet}>
         <View style={st.handle} />
         <View style={[st.header, { flexDirection: d.row }]}>
-          <Text style={st.title}>{t('comment')}</Text>
+          {isOwner ? (
+            <View style={{ flexDirection: d.row, gap: 18, alignItems: 'center' }}>
+              <Pressable onPress={() => setTab('comments')}>
+                <Text style={[st.title, tab !== 'comments' && st.tabOff]}>{t('comment')}</Text>
+              </Pressable>
+              <Pressable onPress={() => setTab('likes')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="heart" size={17} color={tab === 'likes' ? colors.error : colors.muted} />
+                <Text style={[st.title, tab !== 'likes' && st.tabOff]}>{formatCount(likeTotal)}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={st.title}>{t('comment')}</Text>
+          )}
           <Pressable onPress={onClose} hitSlop={10}>
             <Ionicons name="close" size={24} color={colors.muted} />
           </Pressable>
         </View>
-        {loading ? (
+        {tab === 'likes' ? (
+          likers === null ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
+          ) : (
+            <FlatList
+              data={likers}
+              keyExtractor={(x) => x.id}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 12, paddingBottom: 16 + bottom }}
+              ListEmptyComponent={<Text style={{ color: colors.muted, textAlign: 'center', marginTop: 30 }}>{t('likes_none')}</Text>}
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    onClose();
+                    router.push({ pathname: '/user/[id]', params: { id: item.id } });
+                  }}
+                  style={{ flexDirection: d.row, alignItems: 'center', gap: 12, paddingVertical: 8 }}
+                >
+                  <Avatar uri={avatarUrl(item.photo_path)} name={item.first_name} size={44} />
+                  <View style={{ flex: 1, alignItems: d.items }}>
+                    <View style={{ flexDirection: d.row, alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontWeight: '800', color: colors.text }}>{authorName(item)}</Text>
+                      {item.is_fainet ? <VerifiedBadge size={14} /> : null}
+                    </View>
+                    <Text style={{ color: colors.muted, fontSize: 13 }}>
+                      {item.username ? `@${item.username} · ` : ''}
+                      {timeAgo(item.liked_at)}
+                    </Text>
+                  </View>
+                  <Ionicons name="heart" size={18} color={colors.error} />
+                </Pressable>
+              )}
+            />
+          )
+        ) : loading ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
         ) : (
           <FlatList
@@ -229,6 +292,7 @@ const st = StyleSheet.create({
     overflow: 'hidden',
   },
   handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: colors.border, marginTop: 8 },
+  tabOff: { color: colors.muted },
   header: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   title: { fontSize: 17, fontWeight: '800', color: colors.text },
   empty: { textAlign: 'center', color: colors.muted, marginTop: 30 },

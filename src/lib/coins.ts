@@ -19,17 +19,17 @@ export const MONETIZE_PRICE = 2500;
 export type GiftCode = 'bronze_watch' | 'butterfly' | 'yellow_flower' | 'gold_watch' | 'bird' | 'rose' | 'smart_gift' | 'tiger' | 'fplus' | 'car' | 'power_love';
 
 export const GIFTS: { code: GiftCode; price: number; emoji: string; label: StringKey; color: string }[] = [
-  { code: 'bronze_watch', price: 100, emoji: '⌚', label: 'g_bronze_watch', color: '#CD7F32' },
-  { code: 'butterfly', price: 150, emoji: '🦋', label: 'g_butterfly', color: '#3FA9F5' },
-  { code: 'yellow_flower', price: 200, emoji: '🌼', label: 'g_yellow_flower', color: '#F7C600' },
-  { code: 'gold_watch', price: 300, emoji: '⌚', label: 'g_gold_watch', color: '#FFC107' },
-  { code: 'bird', price: 500, emoji: '🦅', label: 'g_bird', color: '#F2711C' },
-  { code: 'rose', price: 500, emoji: '🌹', label: 'g_rose', color: '#E0245E' },
-  { code: 'smart_gift', price: 1000, emoji: '🎁', label: 'g_smart_gift', color: '#9B51E0' },
-  { code: 'tiger', price: 1000, emoji: '🐯', label: 'g_tiger', color: '#F2994A' },
-  { code: 'fplus', price: 1290, emoji: '✨', label: 'g_fplus', color: '#D63AF9' },
-  { code: 'car', price: 2000, emoji: '🏎️', label: 'g_car', color: '#E41E3F' },
-  { code: 'power_love', price: 3000, emoji: '💖', label: 'g_power_love', color: '#FF2D87' },
+  { code: 'bronze_watch', price: 300, emoji: '⌚', label: 'g_bronze_watch', color: '#CD7F32' },
+  { code: 'butterfly', price: 500, emoji: '🦋', label: 'g_butterfly', color: '#3FA9F5' },
+  { code: 'yellow_flower', price: 750, emoji: '🌼', label: 'g_yellow_flower', color: '#F7C600' },
+  { code: 'gold_watch', price: 999, emoji: '⏰', label: 'g_gold_watch', color: '#FFC107' },
+  { code: 'rose', price: 1200, emoji: '🌹', label: 'g_rose', color: '#E0245E' },
+  { code: 'bird', price: 1499, emoji: '🦅', label: 'g_bird', color: '#F2711C' },
+  { code: 'smart_gift', price: 1499, emoji: '🎁', label: 'g_smart_gift', color: '#9B51E0' },
+  { code: 'tiger', price: 1750, emoji: '🐯', label: 'g_tiger', color: '#2D9CDB' },
+  { code: 'car', price: 1999, emoji: '🏎️', label: 'g_car', color: '#E41E3F' },
+  { code: 'power_love', price: 2500, emoji: '💖', label: 'g_power_love', color: '#FF2D87' },
+  { code: 'fplus', price: 2999, emoji: '✨', label: 'g_fplus', color: '#D63AF9' },
 ];
 export const giftOf = (code: string) => GIFTS.find((g) => g.code === code) ?? GIFTS[0];
 

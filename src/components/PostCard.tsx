@@ -182,6 +182,7 @@ function PostCardInner({ post, onChange, onDeleted, inComments }: Props) {
       {sheet ? (
         <CommentsSheet
           postId={post.id}
+          ownerId={post.author.id}
           onClose={() => setSheet(false)}
           onCount={(n) => n !== post.comments_count && onChange?.({ ...post, comments_count: n })}
         />
