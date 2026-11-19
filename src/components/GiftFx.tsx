@@ -31,6 +31,7 @@ const VIDEOS: Partial<Record<GiftCode, number>> = {
   yellow_flower: require('../../assets/gifts/yellow_flower.mp4'),
   gold_watch: require('../../assets/gifts/gold_watch.mp4'),
   rose: require('../../assets/gifts/rose.mp4'),
+  bird: require('../../assets/gifts/eagle.mp4'),
   smart_gift: require('../../assets/gifts/smart_gift.mp4'),
   tiger: require('../../assets/gifts/tiger.mp4'),
   car: require('../../assets/gifts/car.mp4'),
