@@ -13,7 +13,7 @@ on:
     - cron: '41 */3 * * *'
   push:
     branches: [main]
-    paths: ['.github/workflows/videos-cdn.yml', 'scripts/watermark.sh']
+    paths: ['.github/workflows/videos-cdn.yml', 'scripts/watermark.sh', 'scripts/outro.mp4']
 
 concurrency:
   group: videos-cdn

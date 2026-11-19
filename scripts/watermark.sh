@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Download copy of a reel (the app itself never shows this):
 #   • Faisal Show logo + @username in a corner — half-way it jumps to the opposite corner
-#   • a 2-second end clip: black screen, the logo pops in, "Faisal Show" and @username
+#   • a 2-second end clip: the Faisal Show intro (scripts/outro.mp4, with its own sound) + @username
 #   • optional: the reel's sound comes from another file (a reel that used someone's sound)
 # usage: watermark.sh IN.mp4 OUT.mp4 USERNAME LOGO.png [AUDIO_URL_OR_FILE]
 set -euo pipefail
@@ -21,35 +21,46 @@ case "$Df" in ''|N/A) Df=$(ffprobe -v error -show_entries format=duration -of de
 [ -n "$Df" ] || Df=10
 D=$(awk "BEGIN{print int($Df)+1}")
 half=$(awk "BEGIN{print $Df/2}")
-L=$(( W * 12 / 100 )); [ "$L" -lt 40 ] && L=40
-FS=$(( W * 34 / 1000 )); [ "$FS" -lt 14 ] && FS=14
-M=$(( W * 3 / 100 ))
-BL=$(( W * 30 / 100 )); BFS=$(( W * 7 / 100 )); SFS=$(( W * 45 / 1000 ))
+# ── the corner mark, like TikTok: [logo] Faisal Show / @username — always fully inside the picture ──
+calc() { awk "BEGIN{printf \"%d\", $1}"; }
+S=$(( W < H ? W : H ))   # landscape videos: size by the height
+L=$(calc "$S*0.095");  [ "$L" -lt 30 ] && L=30
+F1=$(calc "$S*0.042"); [ "$F1" -lt 12 ] && F1=12
+F2=$(calc "$S*0.034"); [ "$F2" -lt 10 ] && F2=10
+GAP=$(calc "$F1*0.3")
+ulen=$(( ${#user} + 1 ))
+BW=$(calc "($L+$GAP+$F1*6.7 > $ulen*$F2*0.75+4) ? $L+$GAP+$F1*6.7 : $ulen*$F2*0.75+4")
+BH=$(calc "$L+$F2*1.55")
+MX=$(calc "$W*0.05"); MT=$(calc "$H*0.06"); MB=$(calc "$H*0.11")
+# first half: top-left · second half: bottom-right (above where phone players put their buttons)
+BX="if(lt(t,$half),$MX,$W-$MX-$BW)"; BY="if(lt(t,$half),$MT,$H-$MB-$BH)"
+NX="$BX+$L+$GAP"; NY="$BY+($L-$F1)/2"
+UX="$BX"; UY="$BY+$L+$F2*0.3"
+
+# ── the end clip: Faisal Show intro animation with its sound + the uploader's @username ──
+outro="$(dirname "$0")/outro.mp4"
+CH=$(calc "($H < $W*16/9) ? $H : $W*16/9")
+OFS=$(calc "$CH*9/16*0.04"); [ "$OFS" -lt 14 ] && OFS=14
+OY=$(calc "$H/2+$CH*0.135")
 
 has_audio=$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$in" | head -1)
-args=(-nostdin -v error -y -i "$in" -loop 1 -t "$((D + 1))" -i "$logo" -loop 1 -t 2 -i "$logo"
-      -f lavfi -t 2 -i "color=c=black:s=${W}x${H}:r=30" -f lavfi -t 2 -i "anullsrc=r=44100:cl=stereo")
-if [ -n "$audio" ]; then args+=(-stream_loop -1 -i "$audio"); amain="[5:a]"
+args=(-nostdin -v error -y -i "$in" -loop 1 -t "$((D + 1))" -i "$logo" -i "$outro")
+if [ -n "$audio" ]; then args+=(-stream_loop -1 -i "$audio"); amain="[3:a]"
 elif [ -n "$has_audio" ]; then amain="[0:a]"
-else args+=(-f lavfi -t "$D" -i "anullsrc=r=44100:cl=stereo"); amain="[5:a]"; fi
+else args+=(-f lavfi -t "$D" -i "anullsrc=r=44100:cl=stereo"); amain="[3:a]"; fi
 
-# corner: top-left first half, bottom-right second half
-X="if(lt(t,$half),$M,W-w-$M)"; Y="if(lt(t,$half),$M,H-h-$M-$FS-6)"
-TX="if(lt(t,$half),$M,w-text_w-$M)"; TY="if(lt(t,$half),$M+$L+4,h-$M-$FS)"
-
+shadow="shadowcolor=black@0.6:shadowx=2:shadowy=2"
 filter="
-[1:v]scale=$L:-1,format=rgba,colorchannelmixer=aa=0.85[lg];
+[1:v]scale=$L:$L,format=rgba,colorchannelmixer=aa=0.92[lg];
 [0:v]scale=$W:$H:force_original_aspect_ratio=decrease,pad=$W:$H:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[base];
-[base][lg]overlay=x='$X':y='$Y':shortest=1[wl];
-[wl]drawtext=fontfile=$font:text='@$user':fontsize=$FS:fontcolor=white:borderw=2:bordercolor=black@0.55:x='$TX':y='$TY'[main];
-[2:v]scale=$BL:-1,format=rgba[big];
-[3:v][big]overlay=x='(W-w)/2':y='(H-h)/2-$BFS':enable='gte(t,0.15)',
-  drawtext=fontfile=$font:text='Faisal Show':fontsize=$BFS:fontcolor=white:x='(w-text_w)/2':y='h/2+$BL/2-$BFS/2':enable='gte(t,0.6)',
-  drawtext=fontfile=$font:text='@$user':fontsize=$SFS:fontcolor=0xFE2C55:x='(w-text_w)/2':y='h/2+$BL/2+$BFS*0.8':enable='gte(t,0.9)',
-  fade=t=in:st=0:d=0.3,format=yuv420p,setsar=1[outro];
+[base][lg]overlay=x='$BX':y='$BY':shortest=1[wl];
+[wl]drawtext=fontfile=$font:text='Faisal Show':fontsize=$F1:fontcolor=white@0.95:$shadow:x='$NX':y='$NY',
+    drawtext=fontfile=$font:text='@$user':fontsize=$F2:fontcolor=white@0.95:$shadow:x='$UX':y='$UY'[main];
+  [2:v]scale=$W:$H:force_original_aspect_ratio=decrease,pad=$W:$H:(ow-iw)/2:(oh-ih)/2:color=0x07080D,setsar=1,fps=30,format=yuv420p,
+    drawtext=fontfile=$font:text='@$user':fontsize=$OFS:fontcolor=0xC8C8D2:x='(w-text_w)/2':y=$OY:enable='gte(t,0.8)'[outro];
 ${amain}atrim=0:$Df,apad,atrim=0:$Df,asetpts=PTS-STARTPTS,aformat=sample_rates=44100:channel_layouts=stereo[am];
-[4:a]aformat=sample_rates=44100:channel_layouts=stereo[ao];
+[2:a]aformat=sample_rates=44100:channel_layouts=stereo[ao];
 [main][am][outro][ao]concat=n=2:v=1:a=1[v][a]"
-ffmpeg "${args[@]}" -filter_complex "$filter" -map '[v]' -map '[a]' -t "$(awk "BEGIN{print $Df+2}")" \
+ffmpeg "${args[@]}" -filter_complex "$filter" -map '[v]' -map '[a]' -t "$(awk "BEGIN{print $Df+1.9}")" \
   -c:v libx264 -preset veryfast -crf 27 -maxrate 1500k -bufsize 3000k -pix_fmt yuv420p \
   -c:a aac -b:a 96k -movflags +faststart "$out"
